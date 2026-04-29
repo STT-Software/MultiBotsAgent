@@ -6,7 +6,7 @@ import uuid
 import bcrypt
 from sqlalchemy import text
 
-from app.database import async_session, engine
+from app.database import get_engine, get_session_factory
 
 
 def hash_password(password: str) -> str:
@@ -14,7 +14,8 @@ def hash_password(password: str) -> str:
 
 
 async def seed():
-    async with async_session() as session:
+    session_factory = get_session_factory()
+    async with session_factory() as session:
         result = await session.execute(text("SELECT count(*) FROM tenants"))
         if result.scalar() > 0:
             print("Database already seeded, skipping.")
@@ -45,7 +46,7 @@ async def seed():
         await session.commit()
         print(f"Seeded: tenant '{tenant_id}' + consultant user 'consultant@multiboots.dev'")
 
-    await engine.dispose()
+    await get_engine().dispose()
 
 
 if __name__ == "__main__":
