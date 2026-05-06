@@ -1,0 +1,29 @@
+{
+  "name": "@todo-list-poc/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint --ext .ts,.tsx src/",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@todo-list-poc/core": "workspace:*",
+    "@todo-list-poc/types": "workspace:*",
+    "next": "^15.1.0",
+    "postcss": "^8.5.8",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.2.2"
+  },
+  "devDependencies": {
+    "@todo-list-poc/config": "workspace:*",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint-config-next": "^15.0.0",
+    "typescript": "^5.7.0"
+  }
+}

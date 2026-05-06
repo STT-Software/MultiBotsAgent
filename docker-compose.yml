@@ -1,0 +1,32 @@
+# Docker Compose para desarrollo local de servicios Fargate.
+# Los servicios se conectan a los recursos compartidos de AWS del entorno dev.
+#
+# Uso:
+#   docker-compose up                    # Levantar todos los servicios
+#   docker-compose up example-service    # Levantar solo uno
+#   docker-compose down                  # Detener todo
+#
+# Las variables de entorno de conexión a AWS se configuran en
+# apps/services/<servicio>/.env (ver .env.example)
+
+services:
+  example-service:
+    build:
+      context: .
+      dockerfile: apps/services/example-service/Dockerfile
+      target: builder
+    command: npx ts-node-dev --respawn --transpile-only src/main.ts
+    working_dir: /app/apps/services/example-service
+    volumes:
+      - ./apps/services/example-service/src:/app/apps/services/example-service/src
+      - ./packages:/app/packages
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      # Credenciales AWS para acceder a recursos compartidos del entorno dev
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_PROFILE=${AWS_PROFILE:-default}
+    env_file:
+      - apps/services/example-service/.env

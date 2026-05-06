@@ -1,0 +1,20 @@
+{
+  "name": "@todo-list-poc/functions",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint --ext .ts src/"
+  },
+  "dependencies": {
+    "@todo-list-poc/core": "workspace:*",
+    "@todo-list-poc/db": "workspace:*",
+    "@todo-list-poc/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@todo-list-poc/config": "workspace:*",
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^25.5.0",
+    "typescript": "^5.7.0"
+  }
+}
