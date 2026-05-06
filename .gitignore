@@ -5,6 +5,7 @@ node_modules/
 dist/
 .next/
 .turbo/
+.open-next/
 
 # SST
 .sst/

@@ -61,3 +61,7 @@ declare const $app: {
   stage: string;
   removal: string;
 };
+
+declare const $dev: boolean;
+
+declare const $dev: boolean;
