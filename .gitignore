@@ -43,3 +43,7 @@ docker-compose.override.yml
 
 # Coverage
 coverage/
+
+# Documentación (generada/referencia)
+Documentacion/
+infra-docs/
