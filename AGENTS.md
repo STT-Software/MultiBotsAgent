@@ -36,7 +36,7 @@ sst dev --stage <tu-nombre>
 
 # Terminal 2: Servicio NestJS
 pnpm --filter @multibotagents/api-multi-bots dev   # Sin Docker
-docker-compose up                                   # Con Docker
+docker compose up                                   # Con Docker
 
 # Terminal 3: Frontend Next.js
 pnpm --filter @multibotagents/web dev
