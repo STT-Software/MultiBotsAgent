@@ -8,7 +8,7 @@ Los servicios Fargate (NestJS) se ejecutan localmente con Docker Compose. El `do
 
 ## Dockerfile — Explicación paso a paso
 
-Ubicación: `apps/services/example-service/Dockerfile`
+Ubicación: `apps/services/api-multi-bots/Dockerfile`
 
 El Dockerfile usa **multi-stage build** (2 etapas) para optimizar el tamaño de la imagen final.
 
@@ -33,7 +33,7 @@ COPY packages/config/package.json ./packages/config/
 COPY packages/types/package.json ./packages/types/
 COPY packages/core/package.json ./packages/core/
 COPY packages/db/package.json ./packages/db/
-COPY apps/services/example-service/package.json ./apps/services/example-service/
+COPY apps/services/api-multi-bots/package.json ./apps/services/api-multi-bots/
 ```
 
 Copia solo los `package.json` primero. Esto aprovecha el **cache de Docker**: si las dependencias no cambian, esta capa se reutiliza y no se reinstala todo.
@@ -46,13 +46,13 @@ Instala dependencias exactas del lockfile (433 paquetes). `--frozen-lockfile` as
 
 ```dockerfile
 COPY packages/ ./packages/
-COPY apps/services/example-service/ ./apps/services/example-service/
+COPY apps/services/api-multi-bots/ ./apps/services/api-multi-bots/
 ```
 
 Ahora sí copia el código fuente completo (paquetes compartidos + servicio).
 
 ```dockerfile
-WORKDIR /app/apps/services/example-service
+WORKDIR /app/apps/services/api-multi-bots
 RUN pnpm run build
 ```
 
@@ -69,8 +69,8 @@ Imagen limpia, sin el código fuente ni devDependencies del builder.
 ```dockerfile
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
 COPY --from=builder /app/packages/ ./packages/
-COPY --from=builder /app/apps/services/example-service/package.json ./apps/services/example-service/
-COPY --from=builder /app/apps/services/example-service/dist/ ./apps/services/example-service/dist/
+COPY --from=builder /app/apps/services/api-multi-bots/package.json ./apps/services/api-multi-bots/
+COPY --from=builder /app/apps/services/api-multi-bots/dist/ ./apps/services/api-multi-bots/dist/
 ```
 
 Copia solo lo necesario del builder: configuración del monorepo, paquetes compartidos, y el `dist/` compilado.
@@ -96,10 +96,10 @@ Ubicación: raíz del monorepo
 
 ```yaml
 services:
-  example-service:
+  api-multi-bots:
     build:
       context: . # Contexto = raíz del monorepo (necesario para acceder a packages/)
-      dockerfile: apps/services/example-service/Dockerfile
+      dockerfile: apps/services/api-multi-bots/Dockerfile
       target: builder # ← USA SOLO EL STAGE 1 (builder), no la imagen de producción
 ```
 
@@ -112,14 +112,14 @@ command: npx ts-node-dev --respawn --transpile-only src/main.ts
 Sobreescribe el `CMD` del Dockerfile. Usa `ts-node-dev` para hot-reload: cada vez que cambias un archivo `.ts`, el servicio se reinicia automáticamente.
 
 ```yaml
-working_dir: /app/apps/services/example-service
+working_dir: /app/apps/services/api-multi-bots
 ```
 
 Establece el directorio de trabajo dentro del contenedor.
 
 ```yaml
 volumes:
-  - ./apps/services/example-service/src:/app/apps/services/example-service/src
+  - ./apps/services/api-multi-bots/src:/app/apps/services/api-multi-bots/src
   - ./packages:/app/packages
 ```
 
@@ -139,7 +139,7 @@ environment:
   - AWS_REGION=${AWS_REGION:-us-east-1}
   - AWS_PROFILE=${AWS_PROFILE:-default}
 env_file:
-  - apps/services/example-service/.env
+  - apps/services/api-multi-bots/.env
 ```
 
 Variables de entorno: las inline tienen prioridad, y el `env_file` carga las del archivo `.env`.
@@ -155,7 +155,7 @@ Cuando el servicio accede a recursos de AWS desplegados por SST (MongoDB Atlas v
 ### Opción 1: Variables de entorno en `.env` (recomendada para Docker)
 
 ```bash
-# apps/services/example-service/.env
+# apps/services/api-multi-bots/.env
 NODE_ENV=development
 PORT=3001
 AWS_REGION=us-east-1
@@ -168,7 +168,7 @@ AWS_SECRET_ACCESS_KEY=wJalr...
 # Recursos del entorno dev (obtener de SST outputs o consola AWS)
 MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/todo-list-dev
 # DATABASE_URL=postgresql://user:pass@host:5432/dbname
-# S3_BUCKET_NAME=todo-list-poc-dev-mainbucket
+# S3_BUCKET_NAME=multibotagents-dev-mainbucket
 # SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/123456789/queue-name
 ```
 
@@ -178,7 +178,7 @@ Si ya tienes AWS CLI configurado en tu máquina, puedes montar el directorio `~/
 
 ```yaml
 volumes:
-  - ./apps/services/example-service/src:/app/apps/services/example-service/src
+  - ./apps/services/api-multi-bots/src:/app/apps/services/api-multi-bots/src
   - ./packages:/app/packages
   - ~/.aws:/root/.aws:ro # ← Monta credenciales de AWS CLI (solo lectura)
 ```
@@ -208,7 +208,7 @@ sst deploy --stage dev
 
 # Output ejemplo:
 # MongoUri: mongodb+srv://...
-# MainBucket: todo-list-poc-dev-mainbucket
+# MainBucket: multibotagents-dev-mainbucket
 # QueueUrl: https://sqs.us-east-1.amazonaws.com/...
 ```
 
@@ -227,28 +227,28 @@ O directamente en la consola de AWS (CloudFormation → Stacks → Outputs).
 ### Paso 1: Configurar el `.env`
 
 ```bash
-cp apps/services/example-service/.env.example apps/services/example-service/.env
+cp apps/services/api-multi-bots/.env.example apps/services/api-multi-bots/.env
 # Editar .env con los valores reales
 ```
 
 ### Paso 2: Levantar el servicio
 
 ```bash
-# Levantar solo el example-service
-docker compose up example-service
+# Levantar solo el api-multi-bots
+docker compose up api-multi-bots
 
 # Levantar todos los servicios definidos
 docker compose up
 
 # En background (detached)
-docker compose up -d example-service
+docker compose up -d api-multi-bots
 ```
 
 ### Paso 3: Verificar que funciona
 
 ```bash
 curl http://localhost:3001/health
-# → {"status":"ok","service":"example-service"}
+# → {"status":"ok","service":"api-multi-bots"}
 ```
 
 ### Paso 4: Detener
@@ -260,8 +260,8 @@ docker compose down
 ### Rebuild (después de cambiar dependencias)
 
 ```bash
-docker compose build example-service
-docker compose up example-service
+docker compose build api-multi-bots
+docker compose up api-multi-bots
 ```
 
 ---

@@ -17,7 +17,7 @@ aws --version     # AWS CLI v2
 
 ```bash
 git clone <repo-url>
-cd todo-list-poc
+cd multibotagents
 pnpm install
 ```
 
@@ -26,7 +26,7 @@ pnpm install
 Necesitas credenciales configuradas para la cuenta de dev:
 
 ```bash
-aws configure --profile todo-list-poc-dev
+aws configure --profile multibotagents-dev
 # Ingresar: Access Key, Secret Key, Region (us-east-1)
 ```
 
@@ -40,10 +40,10 @@ sst dev --stage <tu-nombre>
 docker-compose up
 
 # Frontend Next.js (desde la raíz)
-pnpm --filter @todo-list-poc/web dev
+pnpm --filter @multibotagents/web dev
 
 # Servicio NestJS sin Docker (desde la raíz)
-pnpm --filter @todo-list-poc/example-service dev
+pnpm --filter @multibotagents/api-multi-bots dev
 ```
 
 ---
@@ -89,7 +89,7 @@ Cada servicio tiene su propio `.env`:
 
 ```bash
 # Copiar el ejemplo y completar con valores reales
-cp apps/services/example-service/.env.example apps/services/example-service/.env
+cp apps/services/api-multi-bots/.env.example apps/services/api-multi-bots/.env
 ```
 
 Variables típicas:
@@ -107,7 +107,7 @@ El `docker-compose.yml` monta volúmenes para que los cambios en `src/` se refle
 
 ```yaml
 volumes:
-  - ./apps/services/example-service/src:/app/apps/services/example-service/src
+  - ./apps/services/api-multi-bots/src:/app/apps/services/api-multi-bots/src
   - ./packages:/app/packages # Paquetes compartidos también se montan
 ```
 
@@ -115,10 +115,10 @@ volumes:
 
 ```bash
 docker-compose up                     # Levantar todos los servicios
-docker-compose up example-service     # Levantar solo uno
+docker-compose up api-multi-bots     # Levantar solo uno
 docker-compose down                   # Detener todo
 docker-compose build                  # Reconstruir imágenes
-docker-compose logs -f example-service  # Ver logs de un servicio
+docker-compose logs -f api-multi-bots  # Ver logs de un servicio
 ```
 
 ---
@@ -127,7 +127,7 @@ docker-compose logs -f example-service  # Ver logs de un servicio
 
 ```bash
 # Desde la raíz (recomendado)
-pnpm --filter @todo-list-poc/web dev
+pnpm --filter @multibotagents/web dev
 
 # O directamente
 cd apps/web && pnpm dev
@@ -141,10 +141,10 @@ El frontend se ejecuta localmente en `http://localhost:3000`. Importa tipos y l�
 
 ```bash
 # Desde la raíz (recomendado)
-pnpm --filter @todo-list-poc/example-service dev
+pnpm --filter @multibotagents/api-multi-bots dev
 
 # O directamente
-cd apps/services/example-service && pnpm dev
+cd apps/services/api-multi-bots && pnpm dev
 ```
 
 Ejecuta `nest start --watch` en `http://localhost:3001` con hot-reload. No necesita Docker. Si el servicio se conecta a recursos de AWS, necesitas credenciales configuradas y un archivo `.env` con las variables de conexión.
@@ -155,9 +155,9 @@ Ejecuta `nest start --watch` en `http://localhost:3001` con hot-reload. No neces
 
 | Servicio                            | Puerto   | Comando                                            |
 | ----------------------------------- | -------- | -------------------------------------------------- |
-| Next.js (web)                       | 3000     | `pnpm --filter @todo-list-poc/web dev`             |
-| Example Service (NestJS sin Docker) | 3001     | `pnpm --filter @todo-list-poc/example-service dev` |
-| Example Service (Docker)            | 3001     | `docker-compose up example-service`                |
+| Next.js (web)                       | 3000     | `pnpm --filter @multibotagents/web dev`             |
+| Example Service (NestJS sin Docker) | 3001     | `pnpm --filter @multibotagents/api-multi-bots dev` |
+| Example Service (Docker)            | 3001     | `docker-compose up api-multi-bots`                |
 | API Gateway (Lambdas)               | Dinámico | `sst dev --stage <nombre>` (URL en output)         |
 
 ---
@@ -169,12 +169,12 @@ Ejecuta `nest start --watch` en `http://localhost:3001` con hot-reload. No neces
 sst dev --stage juan
 
 # 2. En otra terminal, levantar servicios Fargate (elegir una opción)
-pnpm --filter @todo-list-poc/example-service dev   # Sin Docker
+pnpm --filter @multibotagents/api-multi-bots dev   # Sin Docker
 # o
 docker-compose up                                   # Con Docker
 
 # 3. En otra terminal, levantar el frontend
-pnpm --filter @todo-list-poc/web dev
+pnpm --filter @multibotagents/web dev
 
 # 4. Desarrollar, los cambios se reflejan automáticamente
 

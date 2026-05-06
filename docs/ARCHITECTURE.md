@@ -1,4 +1,4 @@
-# Arquitectura — todo-list-poc
+# Arquitectura — multibotagents
 
 Documentación completa de la arquitectura del monorepo cloud. Cada sección está en un archivo separado dentro de `docs/` para facilitar la navegación y el mantenimiento.
 
@@ -16,7 +16,7 @@ Documentación completa de la arquitectura del monorepo cloud. Cada sección est
 
 ```bash
 git clone <repo-url>
-cd todo-list-poc
+cd multibotagents
 pnpm install
 ```
 
@@ -56,12 +56,12 @@ pnpm run build
 sst dev --stage <tu-nombre>
 
 # Terminal 2: Servicio NestJS (elegir una opción)
-pnpm --filter @todo-list-poc/example-service dev   # Sin Docker
+pnpm --filter @multibotagents/api-multi-bots dev   # Sin Docker
 # o
 docker-compose up                                   # Con Docker
 
 # Terminal 3: Frontend Next.js
-pnpm --filter @todo-list-poc/web dev
+pnpm --filter @multibotagents/web dev
 ```
 
 ### Agregar un nuevo handler Lambda
@@ -103,7 +103,7 @@ pnpm --filter @todo-list-poc/web dev
 | Frontend          | Next.js 15 (App Router)                                          |
 | Lambdas           | TypeScript nativo (sin framework)                                |
 | Fargate           | NestJS                                                           |
-| Tipos compartidos | `@todo-list-poc/types`                                           |
-| Lógica de negocio | `@todo-list-poc/core` (sin deps AWS)                             |
-| Base de datos     | `@todo-list-poc/db` (adaptadores: MongoDB, PostgreSQL, DynamoDB) |
-| Configuración     | `@todo-list-poc/config` (tsconfig + eslint centralizados)        |
+| Tipos compartidos | `@multibotagents/types`                                           |
+| Lógica de negocio | `@multibotagents/core` (sin deps AWS)                             |
+| Base de datos     | `@multibotagents/db` (adaptadores: MongoDB, PostgreSQL, DynamoDB) |
+| Configuración     | `@multibotagents/config` (tsconfig + eslint centralizados)        |

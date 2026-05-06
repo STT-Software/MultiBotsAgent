@@ -1,5 +1,5 @@
 /**
- * @todo-list-poc/db
+ * @multibotagents/db
  *
  * Capa de abstracción de base de datos.
  * Exporta SOLO las interfaces públicas. Los adaptadores concretos

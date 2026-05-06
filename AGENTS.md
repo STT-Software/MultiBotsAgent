@@ -1,6 +1,6 @@
-# AGENTS.md — todo-list-poc
+# AGENTS.md — multibotagents
 
-Monorepo cloud-native para una aplicación Todo List. Stack: Turborepo + pnpm, SST v3 (Ion/Pulumi) en AWS, Next.js 15 (App Router), Lambdas TypeScript nativas, NestJS en Fargate, MongoDB.
+Monorepo cloud-native para una aplicación MultiBotAgents. Stack: Turborepo + pnpm, SST v3 (Ion/Pulumi) en AWS, Next.js 15 (App Router), Lambdas TypeScript nativas, NestJS en Fargate, MongoDB.
 
 ## Estructura del monorepo
 
@@ -10,10 +10,10 @@ apps/
   functions/        → AWS Lambda handlers (TypeScript nativo, sin framework)
   services/         → Servicios Fargate (NestJS)
 packages/
-  types/            → @todo-list-poc/types — tipos compartidos
-  core/             → @todo-list-poc/core — lógica de negocio (sin deps AWS)
-  db/               → @todo-list-poc/db — capa de BD con adaptadores (MongoDB, PostgreSQL, DynamoDB)
-  config/           → @todo-list-poc/config — tsconfig y eslint centralizados
+  types/            → @multibotagents/types — tipos compartidos
+  core/             → @multibotagents/core — lógica de negocio (sin deps AWS)
+  db/               → @multibotagents/db — capa de BD con adaptadores (MongoDB, PostgreSQL, DynamoDB)
+  config/           → @multibotagents/config — tsconfig y eslint centralizados
 infra/              → Infraestructura SST v3 (apis, databases, events, networking, services, storage, shared)
 docs/               → Documentación de arquitectura (10 secciones + ARCHITECTURE.md)
 ```
@@ -35,26 +35,26 @@ pnpm run clean                  # Limpiar builds y node_modules
 sst dev --stage <tu-nombre>
 
 # Terminal 2: Servicio NestJS
-pnpm --filter @todo-list-poc/example-service dev   # Sin Docker
+pnpm --filter @multibotagents/api-multi-bots dev   # Sin Docker
 docker-compose up                                   # Con Docker
 
 # Terminal 3: Frontend Next.js
-pnpm --filter @todo-list-poc/web dev
+pnpm --filter @multibotagents/web dev
 ```
 
 ## Filtrar comandos por paquete
 
 ```bash
-pnpm --filter @todo-list-poc/web <comando>
-pnpm --filter @todo-list-poc/core <comando>
-pnpm --filter @todo-list-poc/functions <comando>
+pnpm --filter @multibotagents/web <comando>
+pnpm --filter @multibotagents/core <comando>
+pnpm --filter @multibotagents/functions <comando>
 ```
 
 ## Convenciones de código
 
 - TypeScript strict mode en todo el monorepo.
 - Configuraciones de tsconfig y eslint centralizadas en `packages/config/`.
-- Cada paquete extiende las configuraciones base de `@todo-list-poc/config`.
+- Cada paquete extiende las configuraciones base de `@multibotagents/config`.
 - Turbo tasks: `build`, `dev`, `lint`, `type-check`, `transit`, `clean`.
 - El task `lint` y `type-check` dependen de `transit` (generación de tipos).
 

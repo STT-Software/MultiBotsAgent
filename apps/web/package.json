@@ -1,5 +1,5 @@
 {
-  "name": "@todo-list-poc/web",
+  "name": "@multibotagents/web",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.2.2",
-    "@todo-list-poc/core": "workspace:*",
-    "@todo-list-poc/types": "workspace:*",
+    "@multibotagents/core": "workspace:*",
+    "@multibotagents/types": "workspace:*",
     "next": "^15.1.0",
     "postcss": "^8.5.8",
     "react": "^19.0.0",
@@ -20,7 +20,7 @@
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
-    "@todo-list-poc/config": "workspace:*",
+    "@multibotagents/config": "workspace:*",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint-config-next": "^15.0.0",

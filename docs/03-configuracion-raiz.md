@@ -4,7 +4,7 @@
 
 ```json
 {
-  "name": "todo-list-poc",
+  "name": "multibotagents",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.15.4",
@@ -68,12 +68,12 @@ packages:
 ## Grafo de Dependencias entre Paquetes
 
 ```
-@todo-list-poc/config  ← Base (sin dependencias internas)
+@multibotagents/config  ← Base (sin dependencias internas)
        ↑
-@todo-list-poc/types   ← Depende de config
+@multibotagents/types   ← Depende de config
        ↑
-@todo-list-poc/core    ← Depende de types + config
-@todo-list-poc/db      ← Depende de types + config
+@multibotagents/core    ← Depende de types + config
+@multibotagents/db      ← Depende de types + config
        ↑
 apps/web               ← Depende de types + core + config
 apps/functions         ← Depende de types + core + db + config

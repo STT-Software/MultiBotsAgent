@@ -56,7 +56,7 @@ El orden importa: los recursos base (VPC, secrets) se crean primero, luego almac
 export default $config({
   app(input) {
     return {
-      name: "todo-list-poc",
+      name: "multibotagents",
       removal: input.stage === "prod" ? "retain" : "remove",
       home: "aws",
       providers: {
@@ -96,7 +96,7 @@ import { isPersonalStage } from "../helpers/stage";
 
 // S3 Bucket — compartido en stages personales
 export const mainBucket = isPersonalStage($app.stage)
-  ? sst.aws.Bucket.get("MainBucket", "arn:aws:s3:::todo-list-poc-dev-mainbucket")
+  ? sst.aws.Bucket.get("MainBucket", "arn:aws:s3:::multibotagents-dev-mainbucket")
   : new sst.aws.Bucket("MainBucket");
 ```
 

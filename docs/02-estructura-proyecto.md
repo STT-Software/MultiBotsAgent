@@ -1,7 +1,7 @@
 # Estructura del Proyecto
 
 ```
-todo-list-poc/
+multibotagents/
 ├── apps/
 │   ├── web/                          # Frontend Next.js (App Router)
 │   ├── functions/                    # Lambda handlers (TypeScript nativo)
@@ -22,7 +22,7 @@ todo-list-poc/
 │   │   ├── package.json             # Dependencias de TODAS las lambdas
 │   │   └── tsconfig.json
 │   └── services/                    # Servicios Fargate (NestJS)
-│       └── example-service/         # Cada servicio en su propia carpeta
+│       └── api-multi-bots/         # Cada servicio en su propia carpeta
 │           ├── src/
 │           │   ├── main.ts
 │           │   ├── app.module.ts
@@ -45,10 +45,10 @@ todo-list-poc/
 │   └── tsconfig.json
 │
 ├── packages/                        # Código compartido entre apps
-│   ├── types/                       # DTOs, interfaces, enums (@todo-list-poc/types)
-│   ├── core/                        # Lógica de negocio pura (@todo-list-poc/core)
-│   ├── db/                          # Esquemas y clientes BD (@todo-list-poc/db)
-│   └── config/                      # tsconfig, eslint bases (@todo-list-poc/config)
+│   ├── types/                       # DTOs, interfaces, enums (@multibotagents/types)
+│   ├── core/                        # Lógica de negocio pura (@multibotagents/core)
+│   ├── db/                          # Esquemas y clientes BD (@multibotagents/db)
+│   └── config/                      # tsconfig, eslint bases (@multibotagents/config)
 │
 ├── docs/                            # Documentación detallada del proyecto
 ├── sst.config.ts                    # Entry point de SST (único archivo SST en raíz)

@@ -28,16 +28,16 @@ packages/config/
 { "extends": "../../packages/config/tsconfig.nextjs.json" }
 ```
 
-> Nota: TypeScript no resuelve `extends` con nombres de paquetes npm (`@todo-list-poc/config/...`). Se usan rutas relativas. La profundidad de la ruta depende de dónde esté el tsconfig (para `packages/*` es `../../packages/config/`, para `apps/*` también es `../../packages/config/`, para `apps/services/*/` es `../../../../packages/config/`).
+> Nota: TypeScript no resuelve `extends` con nombres de paquetes npm (`@multibotagents/config/...`). Se usan rutas relativas. La profundidad de la ruta depende de dónde esté el tsconfig (para `packages/*` es `../../packages/config/`, para `apps/*` también es `../../packages/config/`, para `apps/services/*/` es `../../../../packages/config/`).
 
 **ESLint** — En el `.eslintrc.js` de cada app/paquete:
 
 ```js
 // Para apps/functions, apps/services/*, packages/*:
-module.exports = { extends: [require.resolve("@todo-list-poc/config/eslint.node.js")] };
+module.exports = { extends: [require.resolve("@multibotagents/config/eslint.node.js")] };
 
 // Para apps/web (Next.js):
-module.exports = { extends: [require.resolve("@todo-list-poc/config/eslint.nextjs.js")] };
+module.exports = { extends: [require.resolve("@multibotagents/config/eslint.nextjs.js")] };
 ```
 
 Si una app necesita opciones específicas, sobrescribe solo lo necesario sin tocar la base.

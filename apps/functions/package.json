@@ -1,5 +1,5 @@
 {
-  "name": "@todo-list-poc/functions",
+  "name": "@multibotagents/functions",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -7,12 +7,12 @@
     "lint": "eslint --ext .ts src/"
   },
   "dependencies": {
-    "@todo-list-poc/core": "workspace:*",
-    "@todo-list-poc/db": "workspace:*",
-    "@todo-list-poc/types": "workspace:*"
+    "@multibotagents/core": "workspace:*",
+    "@multibotagents/db": "workspace:*",
+    "@multibotagents/types": "workspace:*"
   },
   "devDependencies": {
-    "@todo-list-poc/config": "workspace:*",
+    "@multibotagents/config": "workspace:*",
     "@types/aws-lambda": "^8.10.145",
     "@types/node": "^25.5.0",
     "typescript": "^5.7.0"

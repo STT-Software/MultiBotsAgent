@@ -1,5 +1,5 @@
 {
-  "name": "@todo-list-poc/core",
+  "name": "@multibotagents/core",
   "version": "0.0.0",
   "private": true,
   "main": "./src/index.ts",
@@ -9,9 +9,9 @@
     "lint": "eslint --ext .ts src/"
   },
   "dependencies": {
-    "@todo-list-poc/types": "workspace:*"
+    "@multibotagents/types": "workspace:*"
   },
   "devDependencies": {
-    "@todo-list-poc/config": "workspace:*"
+    "@multibotagents/config": "workspace:*"
   }
 }

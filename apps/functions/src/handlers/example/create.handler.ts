@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
-import type { CreateExampleDto } from "@todo-list-poc/types";
-import { validateCreateExample } from "@todo-list-poc/core";
+import type { CreateExampleDto } from "@multibotagents/types";
+import { validateCreateExample } from "@multibotagents/core";
 import { parseBody, successResponse, errorResponse } from "../../shared/error-handler";
 import { logger } from "../../shared/logger";
 

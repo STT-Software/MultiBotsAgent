@@ -2,7 +2,7 @@
 
 ## `apps/web` — Frontend Next.js
 
-Aplicación Next.js con App Router. Consume los paquetes compartidos `@todo-list-poc/types` y `@todo-list-poc/core`.
+Aplicación Next.js con App Router. Consume los paquetes compartidos `@multibotagents/types` y `@multibotagents/core`.
 
 ```
 apps/web/
@@ -22,7 +22,7 @@ apps/web/
 
 ```js
 const nextConfig = {
-  transpilePackages: ["@todo-list-poc/types", "@todo-list-poc/core"],
+  transpilePackages: ["@multibotagents/types", "@multibotagents/core"],
 };
 ```
 
@@ -72,8 +72,8 @@ const createExample = new sst.aws.Function("CreateExample", {
 
 ```typescript
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
-import type { CreateExampleDto } from "@todo-list-poc/types";
-import { validateCreateExample } from "@todo-list-poc/core";
+import type { CreateExampleDto } from "@multibotagents/types";
+import { validateCreateExample } from "@multibotagents/core";
 import { parseBody, successResponse, errorResponse } from "../../shared/error-handler";
 import { logger } from "../../shared/logger";
 
@@ -111,7 +111,7 @@ Cada servicio es un mini-proyecto NestJS independiente con su propia carpeta, Do
 
 ```
 apps/services/
-└── example-service/
+└── api-multi-bots/
     ├── src/
     │   ├── main.ts
     │   ├── app.module.ts
@@ -133,10 +133,10 @@ apps/services/
 ### Cómo agregar un nuevo servicio Fargate
 
 1. Crear carpeta `apps/services/<nombre-servicio>/`
-2. Crear `package.json` con nombre `@todo-list-poc/<nombre-servicio>` y dependencias a NestJS + paquetes internos
+2. Crear `package.json` con nombre `@multibotagents/<nombre-servicio>` y dependencias a NestJS + paquetes internos
 3. Crear `tsconfig.json` extendiendo la base con `emitDecoratorMetadata` y `experimentalDecorators`
 4. Crear estructura NestJS: `src/main.ts`, `src/app.module.ts`, `src/modules/`
-5. Crear `Dockerfile` basado en el ejemplo de `example-service`
+5. Crear `Dockerfile` basado en el ejemplo de `api-multi-bots`
 6. Agregar el servicio al `docker-compose.yml` raíz para desarrollo local
 7. Registrar en `infra/src/services/` para el despliegue en Fargate
 8. Ejecutar `pnpm install` desde la raíz

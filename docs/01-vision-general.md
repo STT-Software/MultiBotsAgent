@@ -24,7 +24,7 @@ El primer caso de uso es un PoC de lista de tareas (todo-list), pero la arquitec
 | Bundling Lambda | esbuild (vía SST) | Tree-shaking automático, bundle independiente por handler. |
 | Base de datos | Abstracción con adaptadores | Solo estructura por ahora. Soporta MongoDB, PostgreSQL (Aurora Serverless), DynamoDB. |
 | Entornos | dev + prod (cuentas separadas) | Aislamiento de cargas, escalable a staging/qa. |
-| Scope del monorepo | `@todo-list-poc` | Reemplazable con el script `scripts/init.sh` para nuevos proyectos. |
+| Scope del monorepo | `@multibotagents` | Reemplazable con el script `scripts/init.sh` para nuevos proyectos. |
 
 ---
 

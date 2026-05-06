@@ -14,7 +14,7 @@
  *
  * export const exampleService = cluster.addService("ExampleService", {
  *   image: {
- *     dockerfile: "apps/services/example-service/Dockerfile",
+ *     dockerfile: "apps/services/api-multi-bots/Dockerfile",
  *     context: ".",
  *   },
  *   port: 3001,
@@ -26,9 +26,9 @@
  * import * as aws from "@pulumi/aws";
  *
  * const taskDef = new aws.ecs.TaskDefinition("ExampleTask", {
- *   family: "example-service",
+ *   family: "api-multi-bots",
  *   containerDefinitions: JSON.stringify([{
- *     name: "example-service",
+ *     name: "api-multi-bots",
  *     image: "...",
  *     portMappings: [{ containerPort: 3001 }],
  *   }]),

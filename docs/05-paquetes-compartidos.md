@@ -20,7 +20,7 @@ packages/types/
 **Cómo importar desde cualquier app:**
 
 ```typescript
-import type { CreateExampleDto, ExampleStatus } from "@todo-list-poc/types";
+import type { CreateExampleDto, ExampleStatus } from "@multibotagents/types";
 ```
 
 Funciona igual en Next.js, Lambdas y servicios NestJS.
@@ -43,7 +43,7 @@ packages/core/
 **Cómo importar:**
 
 ```typescript
-import { validateCreateExample } from "@todo-list-poc/core";
+import { validateCreateExample } from "@multibotagents/core";
 ```
 
 ### Validación con Zod (opcional)
@@ -59,7 +59,7 @@ El scaffold no incluye Zod por defecto. Si el equipo decide usar validación com
    ```typescript
    // packages/core/src/validators/user.validator.ts
    import { z } from "zod";
-   import type { CreateUserDto } from "@todo-list-poc/types";
+   import type { CreateUserDto } from "@multibotagents/types";
 
    export const CreateUserSchema: z.ZodType<CreateUserDto> = z.object({
      name: z.string().min(1),
@@ -124,7 +124,7 @@ export interface Todo {
 ```typescript
 // packages/db/src/adapters/mongodb/todo.repository.ts
 import type { Repository } from "../../interfaces/repository.interface";
-import type { Todo } from "@todo-list-poc/types";
+import type { Todo } from "@multibotagents/types";
 import { MongoClient } from "mongodb";
 
 export class MongoTodoRepository implements Repository<Todo> {
@@ -163,9 +163,9 @@ export class MongoTodoRepository implements Repository<Todo> {
 
 ```typescript
 // apps/functions/src/shared/repositories.ts
-import type { Repository } from "@todo-list-poc/db";
-import type { Todo } from "@todo-list-poc/types";
-import { MongoTodoRepository } from "@todo-list-poc/db/adapters/mongodb/todo.repository";
+import type { Repository } from "@multibotagents/db";
+import type { Todo } from "@multibotagents/types";
+import { MongoTodoRepository } from "@multibotagents/db/adapters/mongodb/todo.repository";
 import { getMongoClient } from "./mongo-client";
 
 export function getTodoRepository(): Repository<Todo> {
@@ -180,8 +180,8 @@ export function getTodoRepository(): Repository<Todo> {
 ```typescript
 // apps/functions/src/handlers/todos/list.handler.ts
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
-import type { Repository } from "@todo-list-poc/db";
-import type { Todo } from "@todo-list-poc/types";
+import type { Repository } from "@multibotagents/db";
+import type { Todo } from "@multibotagents/types";
 import { getTodoRepository } from "../../shared/repositories";
 
 export const handler = async (
@@ -202,9 +202,9 @@ export const handler = async (
 En NestJS se usa inyección de dependencias nativa:
 
 ```typescript
-// apps/services/example-service/src/modules/todos/todos.module.ts
+// apps/services/api-multi-bots/src/modules/todos/todos.module.ts
 import { Module } from "@nestjs/common";
-import { MongoTodoRepository } from "@todo-list-poc/db/adapters/mongodb/todo.repository";
+import { MongoTodoRepository } from "@multibotagents/db/adapters/mongodb/todo.repository";
 import { getMongoClient } from "../../shared/mongo-client";
 import { TodosService } from "./todos.service";
 
@@ -219,10 +219,10 @@ import { TodosService } from "./todos.service";
 })
 export class TodosModule {}
 
-// apps/services/example-service/src/modules/todos/todos.service.ts
+// apps/services/api-multi-bots/src/modules/todos/todos.service.ts
 import { Inject, Injectable } from "@nestjs/common";
-import type { Repository } from "@todo-list-poc/db";
-import type { Todo } from "@todo-list-poc/types";
+import type { Repository } from "@multibotagents/db";
+import type { Todo } from "@multibotagents/types";
 
 @Injectable()
 export class TodosService {
@@ -244,15 +244,15 @@ Si mañana se cambia de MongoDB a PostgreSQL:
 2. Cambiar el factory (`shared/repositories.ts`) o la variable de entorno para que devuelva el nuevo adaptador
 3. Los handlers y servicios no cambian ni una línea
 
-**Regla:** Los consumidores importan solo `Repository` desde `@todo-list-poc/db`, nunca un adaptador directamente.
+**Regla:** Los consumidores importan solo `Repository` desde `@multibotagents/db`, nunca un adaptador directamente.
 
 ---
 
 ## Cómo agregar un nuevo paquete compartido
 
 1. Crear la carpeta en `packages/<nombre>/`
-2. Crear `package.json` con nombre `@todo-list-poc/<nombre>` y dependencias internas necesarias
-3. Crear `tsconfig.json` extendiendo `@todo-list-poc/config/tsconfig.node.json`
+2. Crear `package.json` con nombre `@multibotagents/<nombre>` y dependencias internas necesarias
+3. Crear `tsconfig.json` extendiendo `@multibotagents/config/tsconfig.node.json`
 4. Crear `src/index.ts` como punto de entrada
-5. Agregar como dependencia en las apps que lo necesiten: `"@todo-list-poc/<nombre>": "workspace:*"`
+5. Agregar como dependencia en las apps que lo necesiten: `"@multibotagents/<nombre>": "workspace:*"`
 6. Ejecutar `pnpm install` desde la raíz

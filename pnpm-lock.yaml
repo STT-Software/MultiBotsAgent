@@ -26,17 +26,17 @@ importers:
 
   apps/functions:
     dependencies:
-      '@todo-list-poc/core':
+      '@multibotagents/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@todo-list-poc/db':
+      '@multibotagents/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@todo-list-poc/types':
+      '@multibotagents/types':
         specifier: workspace:*
         version: link:../../packages/types
     devDependencies:
-      '@todo-list-poc/config':
+      '@multibotagents/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/aws-lambda':
@@ -49,7 +49,7 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  apps/services/example-service:
+  apps/services/api-multi-bots:
     dependencies:
       '@nestjs/common':
         specifier: ^10.4.0
@@ -60,13 +60,13 @@ importers:
       '@nestjs/platform-express':
         specifier: ^10.4.0
         version: 10.4.22(@nestjs/common@10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)
-      '@todo-list-poc/core':
+      '@multibotagents/core':
         specifier: workspace:*
         version: link:../../../packages/core
-      '@todo-list-poc/db':
+      '@multibotagents/db':
         specifier: workspace:*
         version: link:../../../packages/db
-      '@todo-list-poc/types':
+      '@multibotagents/types':
         specifier: workspace:*
         version: link:../../../packages/types
       reflect-metadata:
@@ -79,7 +79,7 @@ importers:
       '@nestjs/cli':
         specifier: ^10.4.0
         version: 10.4.9
-      '@todo-list-poc/config':
+      '@multibotagents/config':
         specifier: workspace:*
         version: link:../../../packages/config
       '@types/express':
@@ -97,10 +97,10 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4.2.2
         version: 4.2.2
-      '@todo-list-poc/core':
+      '@multibotagents/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@todo-list-poc/types':
+      '@multibotagents/types':
         specifier: workspace:*
         version: link:../../packages/types
       next:
@@ -119,7 +119,7 @@ importers:
         specifier: ^4.2.2
         version: 4.2.2
     devDependencies:
-      '@todo-list-poc/config':
+      '@multibotagents/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/react':
@@ -140,7 +140,7 @@ importers:
       '@pulumi/aws':
         specifier: ^6.0.0
         version: 6.83.2(typescript@5.9.3)
-      '@todo-list-poc/config':
+      '@multibotagents/config':
         specifier: workspace:*
         version: link:../packages/config
       '@types/node':
@@ -157,27 +157,27 @@ importers:
 
   packages/core:
     dependencies:
-      '@todo-list-poc/types':
+      '@multibotagents/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@todo-list-poc/config':
+      '@multibotagents/config':
         specifier: workspace:*
         version: link:../config
 
   packages/db:
     dependencies:
-      '@todo-list-poc/types':
+      '@multibotagents/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
-      '@todo-list-poc/config':
+      '@multibotagents/config':
         specifier: workspace:*
         version: link:../config
 
   packages/types:
     devDependencies:
-      '@todo-list-poc/config':
+      '@multibotagents/config':
         specifier: workspace:*
         version: link:../config
 

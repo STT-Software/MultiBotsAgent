@@ -13,7 +13,7 @@ pnpm run type-check
 # Lint de los 6 paquetes que tienen script "lint"
 pnpm run lint
 
-# Build solo donde hay script "build" (web + example-service)
+# Build solo donde hay script "build" (web + api-multi-bots)
 pnpm run build
 
 # Dev servers de todas las apps
@@ -22,7 +22,7 @@ pnpm run dev
 
 Turborepo se encarga de:
 
-- Respetar el orden de dependencias (`@todo-list-poc/types` antes que `@todo-list-poc/core`)
+- Respetar el orden de dependencias (`@multibotagents/types` antes que `@multibotagents/core`)
 - Ejecutar en paralelo lo que no tiene dependencias entre sí
 - Cachear resultados para no repetir trabajo innecesario
 
@@ -32,25 +32,25 @@ Desde la raíz, sin necesidad de cambiar de directorio:
 
 ```bash
 # Frontend Next.js
-pnpm --filter @todo-list-poc/web dev
-pnpm --filter @todo-list-poc/web build
-pnpm --filter @todo-list-poc/web lint
+pnpm --filter @multibotagents/web dev
+pnpm --filter @multibotagents/web build
+pnpm --filter @multibotagents/web lint
 
 # Servicio NestJS (sin Docker)
-pnpm --filter @todo-list-poc/example-service dev
-pnpm --filter @todo-list-poc/example-service build
+pnpm --filter @multibotagents/api-multi-bots dev
+pnpm --filter @multibotagents/api-multi-bots build
 
 # Lambdas
-pnpm --filter @todo-list-poc/functions type-check
-pnpm --filter @todo-list-poc/functions lint
+pnpm --filter @multibotagents/functions type-check
+pnpm --filter @multibotagents/functions lint
 
 # Paquetes compartidos
-pnpm --filter @todo-list-poc/types type-check
-pnpm --filter @todo-list-poc/core lint
-pnpm --filter @todo-list-poc/db type-check
+pnpm --filter @multibotagents/types type-check
+pnpm --filter @multibotagents/core lint
+pnpm --filter @multibotagents/db type-check
 
 # Infraestructura
-pnpm --filter @todo-list-poc/infra type-check
+pnpm --filter @multibotagents/infra type-check
 ```
 
 ### ¿Puedo entrar al directorio y ejecutar directamente?
@@ -72,22 +72,22 @@ Pero pierdes el beneficio de que Turborepo buildee las dependencias primero si e
 
 ```bash
 # Opción recomendada (desde la raíz)
-pnpm --filter @todo-list-poc/web dev
+pnpm --filter @multibotagents/web dev
 
 # Opción directa
 cd apps/web && pnpm dev
 ```
 
-No necesita AWS ni Docker. Los paquetes compartidos (`@todo-list-poc/types`, `@todo-list-poc/core`) se consumen directamente gracias a `transpilePackages` en `next.config.js`.
+No necesita AWS ni Docker. Los paquetes compartidos (`@multibotagents/types`, `@multibotagents/core`) se consumen directamente gracias a `transpilePackages` en `next.config.js`.
 
 ### Servicio NestJS sin Docker — `http://localhost:3001`
 
 ```bash
 # Opción recomendada (desde la raíz)
-pnpm --filter @todo-list-poc/example-service dev
+pnpm --filter @multibotagents/api-multi-bots dev
 
 # Opción directa
-cd apps/services/example-service && pnpm dev
+cd apps/services/api-multi-bots && pnpm dev
 ```
 
 Ejecuta `nest start --watch` con hot-reload. No necesita Docker. Si el servicio se conecta a recursos de AWS (BD, colas, etc.), necesitas credenciales AWS configuradas y variables de entorno en un `.env`.
@@ -99,7 +99,7 @@ Ejecuta `nest start --watch` con hot-reload. No necesita Docker. Si el servicio 
 docker-compose up
 
 # Solo uno
-docker-compose up example-service
+docker-compose up api-multi-bots
 ```
 
 Útil cuando quieres simular el entorno de producción (Fargate) o cuando el servicio tiene dependencias de infraestructura local (Redis, bases de datos locales, etc.).
@@ -133,22 +133,22 @@ pnpm add -Dw turbo                           # Build system
 pnpm add -Dw @typescript-eslint/parser       # Parser de ESLint
 
 # ─── En apps/web (frontend) ───
-pnpm --filter @todo-list-poc/web add axios              # Dependencia runtime
-pnpm --filter @todo-list-poc/web add -D @types/lodash   # Tipos (devDep)
+pnpm --filter @multibotagents/web add axios              # Dependencia runtime
+pnpm --filter @multibotagents/web add -D @types/lodash   # Tipos (devDep)
 
 # ─── En apps/functions (lambdas) ───
-pnpm --filter @todo-list-poc/functions add zod           # Validación en handlers
-pnpm --filter @todo-list-poc/functions add dayjs          # Manejo de fechas
+pnpm --filter @multibotagents/functions add zod           # Validación en handlers
+pnpm --filter @multibotagents/functions add dayjs          # Manejo de fechas
 
-# ─── En apps/services/example-service (NestJS) ───
-pnpm --filter @todo-list-poc/example-service add @nestjs/config   # Config module
-pnpm --filter @todo-list-poc/example-service add mongoose          # Driver de BD
+# ─── En apps/services/api-multi-bots (NestJS) ───
+pnpm --filter @multibotagents/api-multi-bots add @nestjs/config   # Config module
+pnpm --filter @multibotagents/api-multi-bots add mongoose          # Driver de BD
 
 # ─── En packages/core (lógica de negocio) ───
-pnpm --filter @todo-list-poc/core add zod                # Validación pura (sin AWS)
+pnpm --filter @multibotagents/core add zod                # Validación pura (sin AWS)
 
 # ─── En packages/db (capa de BD) ───
-pnpm --filter @todo-list-poc/db add mongoose             # Adaptador MongoDB
+pnpm --filter @multibotagents/db add mongoose             # Adaptador MongoDB
 ```
 
 ### ¿Por qué no poner todo en la raíz?
@@ -160,13 +160,13 @@ pnpm --filter @todo-list-poc/db add mongoose             # Adaptador MongoDB
 
 ### ¿Qué pasa con los paquetes internos del monorepo?
 
-Los paquetes internos (`@todo-list-poc/types`, `@todo-list-poc/core`, etc.) se declaran como dependencias con `workspace:*`:
+Los paquetes internos (`@multibotagents/types`, `@multibotagents/core`, etc.) se declaran como dependencias con `workspace:*`:
 
 ```json
 {
   "dependencies": {
-    "@todo-list-poc/types": "workspace:*",
-    "@todo-list-poc/core": "workspace:*"
+    "@multibotagents/types": "workspace:*",
+    "@multibotagents/core": "workspace:*"
   }
 }
 ```
@@ -179,7 +179,7 @@ Esto le dice a pnpm "usa la versión local del monorepo". No se descargan de npm
 | ------------------------- | ------------------------------------------ | -------------------------------------------- |
 | `-w` o `--workspace-root` | Instalar en la raíz del monorepo           | `pnpm add -Dw eslint`                        |
 | `-D`                      | Instalar como devDependency                | `pnpm add -D @types/node`                    |
-| `--filter <nombre>`       | Instalar en un workspace específico        | `pnpm --filter @todo-list-poc/web add axios` |
+| `--filter <nombre>`       | Instalar en un workspace específico        | `pnpm --filter @multibotagents/web add axios` |
 | `workspace:*`             | Referencia a un paquete local del monorepo | En `package.json`                            |
 
 ---
@@ -196,25 +196,25 @@ Esto le dice a pnpm "usa la versión local del monorepo". No se descargan de npm
 ```bash
 # ─── Levantar servicios ───
 docker compose up                         # Todos los servicios
-docker compose up example-service         # Solo uno
-docker compose up -d example-service      # En background (detached)
+docker compose up api-multi-bots         # Solo uno
+docker compose up -d api-multi-bots      # En background (detached)
 
 # ─── Verificar que funciona ───
 curl http://localhost:3001/health
-# → {"status":"ok","service":"example-service"}
+# → {"status":"ok","service":"api-multi-bots"}
 
 # ─── Ver logs (si está en background) ───
-docker compose logs -f example-service
+docker compose logs -f api-multi-bots
 
 # ─── Detener ───
 docker compose down
 
 # ─── Rebuild (después de cambiar dependencias en package.json) ───
-docker compose build example-service
-docker compose up example-service
+docker compose build api-multi-bots
+docker compose up api-multi-bots
 
 # ─── Rebuild forzado (sin cache) ───
-docker compose build --no-cache example-service
+docker compose build --no-cache api-multi-bots
 ```
 
 ### Configurar el `.env` antes de levantar
@@ -222,10 +222,10 @@ docker compose build --no-cache example-service
 Cada servicio necesita su archivo `.env` con las variables de conexión:
 
 ```bash
-cp apps/services/example-service/.env.example apps/services/example-service/.env
+cp apps/services/api-multi-bots/.env.example apps/services/api-multi-bots/.env
 ```
 
-Editar `apps/services/example-service/.env` con los valores reales:
+Editar `apps/services/api-multi-bots/.env` con los valores reales:
 
 ```dotenv
 NODE_ENV=development
@@ -238,7 +238,7 @@ AWS_REGION=us-east-1
 
 # Recursos del entorno dev (obtener de sst deploy outputs)
 # MONGO_URI=mongodb+srv://...
-# S3_BUCKET_NAME=todo-list-poc-dev-mainbucket
+# S3_BUCKET_NAME=multibotagents-dev-mainbucket
 # SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/...
 ```
 
@@ -395,7 +395,7 @@ sst deploy --stage <tu-nombre>
 sst dev --stage <tu-nombre>
 
 # 5. En otra terminal, levantar el frontend
-pnpm --filter @todo-list-poc/web dev
+pnpm --filter @multibotagents/web dev
 
 # 6. Cuando termines, puedes eliminar tu stage
 sst remove --stage <tu-nombre>

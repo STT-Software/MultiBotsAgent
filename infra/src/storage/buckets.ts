@@ -11,5 +11,5 @@
 // import { isPersonalStage } from "../helpers/stage";
 //
 // export const mainBucket = isPersonalStage($app.stage)
-//   ? sst.aws.Bucket.get("MainBucket", "arn:aws:s3:::todo-list-poc-dev-mainbucket")
+//   ? sst.aws.Bucket.get("MainBucket", "arn:aws:s3:::multibotagents-dev-mainbucket")
 //   : new sst.aws.Bucket("MainBucket");

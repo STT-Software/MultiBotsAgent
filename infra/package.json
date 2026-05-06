@@ -1,5 +1,5 @@
 {
-  "name": "@todo-list-poc/infra",
+  "name": "@multibotagents/infra",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,7 @@
   },
   "devDependencies": {
     "@pulumi/aws": "^6.0.0",
-    "@todo-list-poc/config": "workspace:*",
+    "@multibotagents/config": "workspace:*",
     "@types/node": "^25.5.0",
     "sst": "^3.7.0",
     "typescript": "^5.7.0"

@@ -1,5 +1,5 @@
-import type { ExampleResponseDto } from "@todo-list-poc/types";
-import { validateCreateExample } from "@todo-list-poc/core";
+import type { ExampleResponseDto } from "@multibotagents/types";
+import { validateCreateExample } from "@multibotagents/core";
 
 const stack = [
   { name: "Turborepo + pnpm", desc: "Monorepo build system" },
@@ -13,8 +13,8 @@ const stack = [
 export default function Home() {
   const example: ExampleResponseDto = {
     id: "1",
-    name: "Todo List PoC",
-    description: "Scaffold base para proyectos cloud",
+    name: "MultiBotAgents",
+    description: "Plataforma multi-bot cloud-native",
     createdAt: new Date().toISOString(),
   };
 
@@ -44,8 +44,8 @@ export default function Home() {
             <div>
               <p className="text-sm font-medium text-gray-400">Tipado end-to-end</p>
               <p className="text-xs text-gray-500 mt-1">
-                Importando desde <code className="text-gray-300">@todo-list-poc/types</code> y{" "}
-                <code className="text-gray-300">@todo-list-poc/core</code>
+                Importando desde <code className="text-gray-300">@multibotagents/types</code> y{" "}
+                <code className="text-gray-300">@multibotagents/core</code>
               </p>
             </div>
             <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${

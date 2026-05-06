@@ -3,7 +3,7 @@
 export default $config({
   app(input) {
     return {
-      name: "todo-list-poc",
+      name: "multibotagents",
       removal: input.stage === "prod" ? "retain" : "remove",
       home: "aws",
       providers: {

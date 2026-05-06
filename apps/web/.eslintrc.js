@@ -1,5 +1,5 @@
 /** @type {import("eslint").Linter.Config} */
 module.exports = {
-  extends: [require.resolve("@todo-list-poc/config/eslint.nextjs.js")],
+  extends: [require.resolve("@multibotagents/config/eslint.nextjs.js")],
   root: true,
 };

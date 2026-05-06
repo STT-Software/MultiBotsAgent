@@ -5,7 +5,7 @@
  *
  * Reemplaza este archivo con los validadores reales de tu aplicación.
  */
-import type { CreateExampleDto } from "@todo-list-poc/types";
+import type { CreateExampleDto } from "@multibotagents/types";
 
 export function validateCreateExample(dto: CreateExampleDto): string[] {
   const errors: string[] = [];

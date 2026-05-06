@@ -3,22 +3,22 @@
 #
 # Uso:
 #   docker-compose up                    # Levantar todos los servicios
-#   docker-compose up example-service    # Levantar solo uno
+#   docker-compose up api-multi-bots     # Levantar solo uno
 #   docker-compose down                  # Detener todo
 #
 # Las variables de entorno de conexión a AWS se configuran en
 # apps/services/<servicio>/.env (ver .env.example)
 
 services:
-  example-service:
+  api-multi-bots:
     build:
       context: .
-      dockerfile: apps/services/example-service/Dockerfile
+      dockerfile: apps/services/api-multi-bots/Dockerfile
       target: builder
     command: npx ts-node-dev --respawn --transpile-only src/main.ts
-    working_dir: /app/apps/services/example-service
+    working_dir: /app/apps/services/api-multi-bots
     volumes:
-      - ./apps/services/example-service/src:/app/apps/services/example-service/src
+      - ./apps/services/api-multi-bots/src:/app/apps/services/api-multi-bots/src
       - ./packages:/app/packages
     ports:
       - "3001:3001"
@@ -29,4 +29,4 @@ services:
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - AWS_PROFILE=${AWS_PROFILE:-default}
     env_file:
-      - apps/services/example-service/.env
+      - apps/services/api-multi-bots/.env

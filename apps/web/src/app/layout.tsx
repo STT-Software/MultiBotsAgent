@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Todo List PoC",
-  description: "Proof of concept - Cloud Monorepo Base",
+  title: "MultiBotAgents",
+  description: "Plataforma multi-bot cloud-native",
 };
 
 export default function RootLayout({

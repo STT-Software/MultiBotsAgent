@@ -1,9 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: [
-    "@todo-list-poc/types",
-    "@todo-list-poc/core",
+    "@multibotagents/types",
+    "@multibotagents/core",
   ],
 };
 
 module.exports = nextConfig;
+
