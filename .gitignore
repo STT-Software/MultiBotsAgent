@@ -18,6 +18,10 @@ sst-env.d.ts
 # Kiro
 .kiro/
 
+# Agents
+.agents/
+skills-lock.json
+
 # Environment variables
 .env
 .env.*
