@@ -7,7 +7,7 @@ export default $config({
       removal: input.stage === "prod" ? "retain" : "remove",
       home: "aws",
       providers: {
-        aws: {
+          aws: {
           region: "us-east-1",
           profile: "multibot",
         },
@@ -18,4 +18,4 @@ export default $config({
     // Delega toda la definición de infraestructura al orquestador
     await import("./infra/src/app");
   },
-});
+  });
