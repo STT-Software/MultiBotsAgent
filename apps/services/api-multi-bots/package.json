@@ -17,7 +17,8 @@
     "@multibotagents/db": "workspace:*",
     "@multibotagents/types": "workspace:*",
     "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "@nestjs/swagger": "^8.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.0",

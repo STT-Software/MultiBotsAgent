@@ -27,6 +27,7 @@ declare namespace sst {
     class ApiGatewayV2 {
       constructor(name: string, args?: Record<string, unknown>);
       route(path: string, handler: string | Record<string, unknown>): void;
+      routePrivate(path: string, serviceArn: string): void;
       url: string;
     }
     class Queue {
@@ -38,6 +39,12 @@ declare namespace sst {
     }
     class Service {
       constructor(name: string, args?: Record<string, unknown>);
+      nodes: {
+        cloudmapService: {
+          arn: string;
+        };
+      };
+      url: string;
     }
     class Vpc {
       constructor(name: string, args?: Record<string, unknown>);

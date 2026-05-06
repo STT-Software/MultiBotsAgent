@@ -8,5 +8,18 @@
 // Helpers
 import "./helpers/stage";
 
+// Networking
+import "./networking/vpc";
+
+// Databases
+import "./databases/mongodb";
+
+// Services
+import "./services/cluster";
+import "./services/api-multi-bots";
+
+// APIs
+import "./apis/services-api";
+
 // Frontend
-import "./web";
+import "./frontend/web";
