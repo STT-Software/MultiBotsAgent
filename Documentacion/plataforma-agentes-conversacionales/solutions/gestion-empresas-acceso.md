@@ -6,8 +6,8 @@ initiative: ../plataforma-agentes-conversacionales-iniciativa.md
 product: Plataforma de Agentes Conversacionales
 author: Por definir
 created: 2026-05-06
-updated: 2026-05-06
-version: "0.1.0"
+updated: 2026-05-07
+version: "0.2.0"
 status: in-review
 language: es
 changelog:
@@ -20,6 +20,9 @@ changelog:
   - date: 2026-05-06
     author: Por definir
     change: "Premortem aplicado — Agregados: CAPTCHA en registro, cambio de contraseña, sesión única, monitoreo job eliminación, modelo User N:1"
+  - date: 2026-05-07
+    author: Por definir
+    change: "Premortem #2 aplicado — Agregados: rate limiting en login (MongoDB), transacciones atómicas en registro, rotación JWT secret, doble verificación en job eliminación, httpOnly cookie para refresh token, sanitización SVG, cola de emails con retry, notificación sesión reemplazada, tokens solo crypto.randomBytes. Email service: Elastic Email."
 ---
 
 # Solución 14: Gestión de Empresas y Acceso
@@ -78,7 +81,9 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
   - Registro y autenticación en un solo paso. Tras el registro, se envía un email de verificación. El usuario puede usar la plataforma inmediatamente, pero ciertas acciones críticas (ej: eliminación de empresa) requieren email verificado.
   - **CAPTCHA/challenge en el formulario de registro** (ej: hCaptcha, Cloudflare Turnstile). Implementado con fallback: si no hay token/dominio configurado (entorno de desarrollo), el CAPTCHA se omite y el registro procede sin él. En producción con dominio estable, se activa.
   - Autenticación directa contra base de datos (sin Cognito ni servicios externos de auth).
-  - Envío de emails transaccionales mediante servicio externo (Plunk, Resend o equivalente).
+  - Envío de emails transaccionales mediante **Elastic Email** (API REST).
+  - **Registro atómico con transacciones MongoDB:** la creación de Company, User y RefreshToken se ejecuta dentro de una transacción MongoDB (session). Si cualquier paso falla, se hace abort y no quedan datos huérfanos. Requiere replica set (Atlas lo provee por defecto).
+  - **Tokens generados exclusivamente con `crypto.randomBytes`:** sin fallbacks, sin UUIDs, sin timestamps. Si crypto no está disponible, el handler falla con error 500 (mejor fallar que generar tokens débiles).
   - Un usuario = una empresa (por ahora). El modelo de datos soporta relación N:1 (múltiples usuarios por empresa) para facilitar evolución futura sin cambios estructurales.
   - Los campos opcionales (teléfono, cómo nos conociste) se pueden completar después desde el perfil.
 
@@ -108,7 +113,10 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 - **Decisiones de diseño:**
   - JWT con expiración corta + refresh token. Al ser un contexto empresarial, la expiración corta del access token da mayor seguridad sin sacrificar UX (el refresh es transparente para el usuario).
   - **Sesión única por empresa:** solo se permite una sesión activa a la vez. Si el usuario inicia sesión en otro dispositivo, la sesión anterior se invalida automáticamente (el refresh token anterior deja de funcionar). Esto protege contra tokens comprometidos y simplifica el modelo de seguridad.
-  - Sin rate limiting por ahora (según restricciones de la iniciativa), pero la arquitectura no impide agregarlo después.
+  - **Notificación de sesión reemplazada:** cuando el frontend recibe un rechazo de refresh por token revocado (no expirado), muestra un mensaje específico: "Tu sesión se cerró porque iniciaste sesión en otro dispositivo. Si no fuiste tú, cambia tu contraseña." El backend diferencia el error con código `SESSION_REPLACED` vs `TOKEN_EXPIRED`.
+  - **Rate limiting en login:** máximo 5 intentos fallidos por IP en 1 minuto (bloqueo temporal 5 min) + máximo 10 intentos fallidos por email en 10 minutos (bloqueo temporal 15 min). Implementado con colección MongoDB `rateLimits` con TTL index para auto-limpieza. Respuesta HTTP 429 con header `Retry-After`.
+  - **Refresh token entregado como httpOnly cookie:** no se incluye en el response body. Se setea como cookie `HttpOnly; Secure; SameSite=Strict; Path=/auth/refresh; Max-Age=7d`. El endpoint `/auth/refresh` lee el token de la cookie. Esto previene robo por XSS.
+  - **Rotación de JWT secret:** soporte para múltiples secrets activos (array). Al verificar, se intenta con el actual y luego con el anterior. Al firmar, siempre se usa el primero. Rotación cada 90 días sin downtime.
 
 ---
 
@@ -131,7 +139,7 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 
 - **Decisiones de diseño:**
   - El email del usuario NO se puede cambiar desde este flujo (es el identificador de la cuenta).
-  - El logo se sube como imagen (formatos: PNG, JPG, SVG). Se almacena en storage de archivos.
+  - El logo se sube como imagen (formatos: PNG, JPG). Se almacena en storage de archivos. **SVG no se acepta** por riesgo de XSS almacenado (scripts embebidos en SVG se ejecutan al renderizar).
 
 ---
 
@@ -182,7 +190,7 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 - **Decisiones de diseño:**
   - **Soft delete con período de gracia de 30 días.** Durante este período los datos existen pero la empresa está inactiva.
   - **Desactivación inmediata de agentes:** al marcar la empresa para eliminación, todos sus agentes dejan de procesar mensajes. Esto evita que se sigan generando datos y protege la experiencia del usuario final (no recibe respuestas de un agente cuya empresa ya no existe).
-  - **Eliminación definitiva:** un proceso programado (job/cron) ejecuta la eliminación física de todos los datos asociados a la empresa después de los 30 días. Incluye: empresa, usuario, agentes, configuraciones, base de conocimiento, historial de conversaciones, pedidos, métricas, archivos en storage.
+  - **Eliminación definitiva con doble verificación:** un proceso programado (job/cron) ejecuta la eliminación física de todos los datos asociados a la empresa después de los 30 días. **Antes de eliminar cada empresa individual, el job re-lee el documento y verifica que `status` sigue siendo `pending_deletion`** (protección contra race condition con reactivación). Usa `updateOne` con filtro `{ _id: companyId, status: "pending_deletion" }` — si no matchea, skip. Incluye: empresa, usuario, agentes, configuraciones, base de conocimiento, historial de conversaciones, pedidos, métricas, archivos en storage.
   - **Reactivación:** durante los 30 días, el usuario puede hacer login normalmente. El sistema detecta el estado `pending_deletion`, muestra el aviso y ofrece reactivar. Al reactivar, la empresa vuelve a estado `active` y los agentes se reactivan automáticamente.
 
 - **Integraciones:**
@@ -212,8 +220,9 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 
 - **Decisiones de diseño:**
   - El usuario puede usar la plataforma sin email verificado (no bloquea el onboarding). Solo se requiere verificación para acciones destructivas (eliminación de empresa).
-  - Se usa un servicio externo de email transaccional (Plunk, Resend o equivalente) para el envío.
+  - Se usa **Elastic Email** (API REST) como servicio de email transaccional para el envío.
   - El token de verificación es de un solo uso y tiene expiración de 24h.
+  - **Tokens generados exclusivamente con `crypto.randomBytes(32).toString('hex')`** — 256 bits de entropía. Sin fallbacks inseguros.
 
 ---
 
@@ -240,9 +249,9 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 
 - **Decisiones de diseño:**
   - Mensaje genérico al solicitar reset (no revelar si el email existe o no).
-  - Token de un solo uso con expiración corta (1h) por seguridad.
+  - Token de un solo uso con expiración corta (1h) por seguridad. Generado con `crypto.randomBytes(32).toString('hex')`.
   - No se invalidan sesiones existentes al cambiar contraseña (el access token expira naturalmente en 15-30 min).
-  - Se usa el mismo servicio de email transaccional que la verificación.
+  - Se usa el mismo servicio de email transaccional (Elastic Email) que la verificación.
 
 ---
 
@@ -252,7 +261,7 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 - **Múltiples usuarios por empresa** — No hay invitaciones, membresías ni gestión de equipo (el modelo de datos lo soporta pero no se implementa aún).
 - **Cambio de email** — El email es el identificador fijo de la cuenta.
 - **Planes, tiers, facturación** — No hay modelo comercial implementado.
-- **Rate limiting** — No se limitan intentos de login ni requests (CAPTCHA protege solo el registro).
+- **Rate limiting avanzado** — Se implementa rate limiting básico en login (por IP y por email con MongoDB). No se implementa rate limiting global de API, WAF, ni protección DDoS avanzada.
 - **OAuth / SSO / Login social** — Solo email + contraseña.
 - **Auditoría de acceso** — No se registran logs de login/logout.
 - **Multi-idioma del panel** — El panel opera en un solo idioma.
@@ -264,24 +273,34 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 ## 4. Technical Context
 
 **Autenticación:**
-- Autenticación directa contra base de datos (sin servicios externos tipo Cognito/Auth0).
-- Contraseñas almacenadas con hash + salt (bcrypt o argon2).
-- JWT (access token) con expiración corta (15-30 min) + refresh token con expiración larga (7 días).
+- Autenticación directa contra base de datos MongoDB (sin servicios externos tipo Cognito/Auth0).
+- Contraseñas almacenadas con hash + salt (bcrypt con cost factor 12). Librería: `bcryptjs` (JS puro, compatible con Lambda sin binarios nativos).
+- JWT (access token) con expiración corta (30 min) + refresh token con expiración larga (7 días).
 - Claims del JWT: userId, companyId, email, emailVerified.
+- **Algoritmo JWT:** HS256 (HMAC-SHA256). Secret almacenado en SST Secrets.
+- **Rotación de JWT secret:** soporte para array de secrets `["current", "previous"]`. Al verificar, se intenta con ambos. Al firmar, siempre el primero. Rotación cada 90 días sin downtime.
 - **Sesión única:** solo un refresh token activo por usuario. Al generar uno nuevo, el anterior se revoca. Esto garantiza una sola sesión activa.
+- **Refresh token como httpOnly cookie:** `HttpOnly; Secure; SameSite=Strict; Path=/auth/refresh; Max-Age=7d`. No se expone en response body. Previene robo por XSS.
+- **Generación de tokens:** exclusivamente `crypto.randomBytes` — refresh tokens: 64 bytes (512 bits), tokens de verificación/reset: 32 bytes (256 bits). Sin fallbacks.
 
 **Protección contra abuso:**
-- CAPTCHA/challenge en el formulario de registro (hCaptcha, Cloudflare Turnstile o equivalente).
-- Implementado con fallback configurable por entorno: si no hay token/dominio configurado (desarrollo), el CAPTCHA se omite.
+- CAPTCHA/challenge en el formulario de registro (hCaptcha, Cloudflare Turnstile o equivalente). Implementado con fallback configurable por entorno: si no hay token/dominio configurado (desarrollo), el CAPTCHA se omite.
+- **Rate limiting en login:** colección MongoDB `rateLimits` con TTL index. Reglas: 5 intentos/min por IP (bloqueo 5 min), 10 intentos/10 min por email (bloqueo 15 min). Respuesta HTTP 429 + `Retry-After`.
 
 **Email transaccional:**
-- Servicio externo para envío de emails (Plunk, Resend o equivalente).
+- **Elastic Email** (API REST) como servicio de envío de emails transaccionales.
 - Emails enviados: verificación de cuenta, recuperación de contraseña.
-- Tokens de verificación y reset: almacenados en base de datos con expiración y flag de uso.
+- **Cola de emails con retry:** los handlers encolan el envío en una colección MongoDB `emailQueue`. Un worker Lambda (invocado por cron cada 30 segundos) procesa la cola. Si Elastic Email retorna error, el mensaje se reintenta con backoff exponencial (1 min, 5 min, 15 min). Máximo 3 reintentos.
+- **Monitoreo:** alerta cuando la cola tiene > 50 mensajes pendientes por más de 10 minutos.
+- Tokens de verificación y reset: almacenados en colección MongoDB `verifyTokens` con TTL index para auto-limpieza de tokens expirados.
+
+**Atomicidad:**
+- **Registro atómico:** la creación de Company + User + RefreshToken se ejecuta dentro de una transacción MongoDB (session con `startTransaction`/`commitTransaction`). Si cualquier paso falla, `abortTransaction` garantiza que no quedan datos huérfanos. Requiere replica set (MongoDB Atlas lo provee por defecto).
 
 **Patrón de arquitectura:**
-- Multi-tenant por registro lógico: todas las empresas comparten la misma base de datos, diferenciadas por `companyId`.
+- Multi-tenant por registro lógico: todas las empresas comparten la misma base de datos MongoDB, diferenciadas por `companyId`.
 - Cada request autenticado lleva el contexto de empresa en el token. El backend filtra datos por `companyId` en cada operación.
+- **Base de datos única:** MongoDB para todo (entidades, tokens, rate limiting, cola de emails). Sin DynamoDB ni otros servicios de BD de AWS.
 
 **Modelo de datos conceptual (entidades y relaciones):**
 
@@ -318,8 +337,8 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 │ id              │
 │ userId          │
 │ type            │  ←── email_verification | password_reset
-│ token           │
-│ expiresAt       │
+│ token           │  ←── crypto.randomBytes(32).toString('hex')
+│ expiresAt       │  ←── TTL index para auto-limpieza
 │ usedAt          │  ←── null si no usado
 │ createdAt       │
 └─────────────────┘
@@ -329,10 +348,36 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 ├─────────────────┤
 │ id              │
 │ userId          │
-│ token           │
-│ expiresAt       │
+│ token           │  ←── crypto.randomBytes(64).toString('hex')
+│ expiresAt       │  ←── TTL index para auto-limpieza
 │ revoked         │  ←── true si fue invalidado
 │ createdAt       │
+└─────────────────┘
+
+┌─────────────────┐
+│  RateLimit      │  (rate limiting en login)
+├─────────────────┤
+│ id              │
+│ key             │  ←── "ip:<ip>" o "email:<email>"
+│ attempts        │  ←── contador de intentos fallidos
+│ blockedUntil    │  ←── null si no bloqueado, fecha si bloqueado
+│ expiresAt       │  ←── TTL index (auto-limpieza)
+│ createdAt       │
+└─────────────────┘
+
+┌─────────────────┐
+│  EmailQueue     │  (cola de emails con retry)
+├─────────────────┤
+│ id              │
+│ to              │  ←── email destino
+│ template        │  ←── verification | password_reset
+│ payload         │  ←── datos para el template (token, url, etc.)
+│ status          │  ←── pending | processing | sent | failed
+│ attempts        │  ←── número de intentos realizados
+│ nextRetryAt     │  ←── fecha del próximo reintento
+│ lastError       │  ←── último error (si falló)
+│ createdAt       │
+│ updatedAt       │
 └─────────────────┘
 ```
 
@@ -340,7 +385,10 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 - Logo de empresa: almacenamiento de archivos (S3 o equivalente). URL pública o firmada para servir al frontend.
 
 **Proceso de eliminación definitiva:**
-- Job programado (cron/scheduler) que ejecuta diariamente: busca empresas con estado `pending_deletion` cuya `deletionReqDate` supere los 30 días y ejecuta eliminación física de todos los datos asociados.
+- Job programado (cron/scheduler) que ejecuta diariamente: busca empresas con estado `pending_deletion` cuya `deletionReqDate` supere los 30 días.
+- **Doble verificación:** antes de eliminar cada empresa individual, el job re-lee el documento con filtro `{ _id: companyId, status: "pending_deletion" }`. Si la empresa fue reactivada entre la lectura inicial y la eliminación, el job la salta sin daño.
+- Ejecuta eliminación física de todos los datos asociados.
+- **Resiliencia:** si falla la eliminación de una empresa individual, log del error y continuar con las demás. No detener el job completo por un fallo individual. Reintentar 3 veces con backoff exponencial si hay fallo de conexión a BD.
 
 **Contratos de integración (interfaces que esta solución expone a otras):**
 - Toda solución que opere sobre datos de una empresa debe recibir `companyId` del token JWT y filtrar por ese contexto.
@@ -356,15 +404,20 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 - [ ] El sistema rechaza el registro si el email ya está asociado a otra cuenta.
 - [ ] El registro incluye CAPTCHA/challenge con fallback (se omite si no hay configuración de dominio/token).
 - [ ] Tras el registro exitoso, el usuario queda autenticado y accede al panel de su empresa.
-- [ ] El sistema envía un email de verificación al correo registrado tras el registro.
+- [ ] El sistema envía un email de verificación al correo registrado tras el registro (vía cola de emails).
+- [ ] El registro es atómico: Company + User + RefreshToken se crean en una transacción MongoDB. Si falla cualquier paso, no quedan datos huérfanos.
+- [ ] Los tokens se generan exclusivamente con `crypto.randomBytes`. No hay fallbacks inseguros.
 
 ### Autenticación
 
 - [ ] El usuario puede iniciar sesión con email y contraseña.
-- [ ] El sistema genera un access token (JWT, expiración corta) y un refresh token (expiración larga) al autenticarse.
+- [ ] El sistema genera un access token (JWT, expiración 30 min) y un refresh token (expiración 7 días, entregado como httpOnly cookie) al autenticarse.
 - [ ] El sistema muestra un mensaje genérico ante credenciales inválidas (no revela si el email existe o no).
 - [ ] Si la empresa está en estado `pending_deletion`, el sistema informa al usuario y ofrece reactivar.
 - [ ] Solo se permite una sesión activa por usuario. Al iniciar sesión en un nuevo dispositivo, la sesión anterior se invalida.
+- [ ] Cuando una sesión es reemplazada, el frontend muestra un mensaje específico diferenciando `SESSION_REPLACED` de `TOKEN_EXPIRED`.
+- [ ] El endpoint de login aplica rate limiting: máximo 5 intentos fallidos/min por IP y 10 intentos fallidos/10 min por email. Retorna HTTP 429 con `Retry-After` al exceder.
+- [ ] El JWT secret soporta rotación: el sistema verifica tokens con el secret actual y el anterior.
 
 ### Cambio de Contraseña
 
@@ -392,7 +445,7 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 
 - [ ] El usuario puede ver y editar los datos de su empresa (nombre, país, categoría, tamaño, teléfono, logo, referral source).
 - [ ] El email no se puede modificar desde el perfil.
-- [ ] El logo se puede subir en formatos PNG, JPG o SVG.
+- [ ] El logo se puede subir en formatos PNG o JPG. SVG no se acepta (prevención de XSS almacenado).
 
 ### Eliminación de Empresa
 
@@ -403,7 +456,9 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 - [ ] La empresa entra en estado `pending_deletion` con período de gracia de 30 días.
 - [ ] Durante los 30 días, el usuario puede reactivar la empresa.
 - [ ] Después de 30 días, un proceso programado elimina todos los datos de forma definitiva.
+- [ ] El job de eliminación aplica doble verificación de estado antes de eliminar cada empresa individual (protección contra race condition con reactivación).
 - [ ] El job de eliminación tiene monitoreo: logs de ejecución, alertas en caso de fallo, y métrica de empresas pendientes de eliminación.
+- [ ] Si falla la eliminación de una empresa individual, el job continúa con las demás (no se detiene por un fallo).
 
 ### Transversal
 
@@ -427,20 +482,27 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 - Un usuario siempre pertenece a exactamente una empresa. El modelo de datos soporta relación N:1 (múltiples usuarios por empresa) para facilitar evolución futura sin cambios estructurales, pero por ahora solo se permite 1 usuario por empresa.
 - El volumen de empresas registradas no justifica particionamiento de base de datos por ahora. Multi-tenant lógico es suficiente.
 - No se requiere compliance específico (GDPR, SOC2) más allá de la eliminación de datos a solicitud del usuario.
-- El servicio de email transaccional elegido soporta los volúmenes esperados sin configuración adicional.
+- **Elastic Email** soporta los volúmenes esperados. La cola de emails con retry mitiga fallos temporales del servicio.
 - El CAPTCHA se configura por entorno: desactivado en desarrollo (fallback), activado en producción con dominio estable.
+- MongoDB está en replica set (Atlas lo provee por defecto), lo cual es requisito para transacciones multi-documento.
+- El rate limiting basado en MongoDB es suficiente para el volumen actual. Si escala significativamente, se puede migrar a Redis sin cambios arquitectónicos.
 
 **Riesgos:**
 
 | Riesgo | Impacto | Mitigación |
 |--------|---------|------------|
-| Sin rate limiting en login, vulnerable a fuerza bruta | Alto — seguridad comprometida | CAPTCHA protege registro. Para login, diseñar middleware que permita agregar rate limiting sin cambios arquitectónicos. Priorizar post-MVP. |
+| Rate limiting en MongoDB agrega latencia al login | Bajo — una lectura adicional por request | TTL index mantiene la colección pequeña. Si crece, migrar a Redis. Monitorear p95 del endpoint. |
+| JWT secret comprometido sin rotación oportuna | Alto — tokens forjados para cualquier empresa | Rotación cada 90 días con soporte multi-secret. Secret en SST Secrets (no en código). Política de no copiar secrets a archivos locales. |
+| Race condition entre reactivación y job de eliminación | Alto — pérdida irreversible de datos | Doble verificación de estado con filtro atómico `{ status: "pending_deletion" }` antes de cada eliminación individual. |
+| Registro no atómico deja datos huérfanos | Medio — empresas sin usuario, emails "libres" pero empresa existente | Transacciones MongoDB con session. Abort automático si falla cualquier paso. |
+| Refresh token robado por XSS en frontend | Alto — account takeover | httpOnly cookie con `Secure; SameSite=Strict; Path=/auth/refresh`. Invisible para JavaScript. |
+| SVG con scripts embebidos (XSS almacenado) | Alto — ejecución de código en browsers de otros usuarios | SVG rechazado. Solo PNG y JPG aceptados para logos. |
+| Elastic Email tiene rate limits o downtime | Medio — emails no se envían temporalmente | Cola de emails en MongoDB con retry (backoff exponencial, 3 intentos). Alerta si cola > 50 pendientes por > 10 min. El fallo no bloquea el uso de la plataforma. |
+| Tokens de verificación/reset con fallback inseguro | Alto — account takeover por tokens predecibles | Solo `crypto.randomBytes`. Sin fallbacks. Si crypto falla, error 500 (mejor fallar que generar tokens débiles). Test que verifica ausencia de fallbacks. |
+| Sesión única causa UX confusa | Medio — usuarios frustrados por deslogueos inesperados | Código de error diferenciado `SESSION_REPLACED`. Frontend muestra mensaje explicativo con sugerencia de cambiar contraseña si no fue el usuario. |
 | Sin verificación de email obligatoria, cuentas con emails falsos pueden existir | Bajo — no bloquea funcionalidad | La verificación existe pero no es obligatoria para usar la plataforma. Solo bloquea acciones destructivas (eliminación). |
-| Eliminación definitiva es irreversible después de 30 días | Alto — pérdida total de datos | Período de gracia de 30 días + advertencia + confirmación explícita. Job con monitoreo y alertas para detectar fallos. |
-| Job de eliminación falla silenciosamente | Medio — acumulación de datos que deberían haberse borrado | Monitoreo obligatorio: logs de ejecución, alertas en caso de fallo, métrica de empresas pendientes. |
-| Dependencia de servicio externo de email | Medio — si el servicio falla, no se pueden verificar emails ni recuperar contraseñas | Elegir servicio con alta disponibilidad. El fallo no bloquea el uso de la plataforma (solo verificación y recovery). |
 | Modelo 1 usuario por empresa insuficiente para empresas reales | Medio — usuarios comparten credenciales, mala UX | Modelo de datos preparado para N:1. Iteración futura de "invitar usuario" no requiere migración destructiva. |
 
 **Dependencias con soluciones no diseñadas:**
-- **Panel de Administración Web (#1):** esta solución asume que el panel consume los endpoints de auth y gestión de empresa. Interfaz esperada: el panel envía JWT en headers, el backend valida y extrae companyId.
+- **Panel de Administración Web (#1):** esta solución asume que el panel consume los endpoints de auth y gestión de empresa. Interfaz esperada: el panel envía JWT en headers, el backend valida y extrae companyId. El refresh token se maneja automáticamente via httpOnly cookie.
 - **Conector de WhatsApp (#5):** al desactivar una empresa, el conector debe dejar de enrutar mensajes a sus agentes. Interfaz esperada: el conector consulta el estado de la empresa antes de procesar un mensaje entrante, o recibe un evento de desactivación.
