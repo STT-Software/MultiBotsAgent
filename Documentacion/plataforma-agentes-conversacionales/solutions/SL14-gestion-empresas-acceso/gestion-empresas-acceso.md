@@ -177,11 +177,11 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
   2. El sistema solicita confirmación explícita (ej: escribir el nombre de la empresa para confirmar).
   3. El usuario confirma.
   4. El sistema cambia el estado de la empresa a `pending_deletion` y registra la fecha de solicitud.
-  5. **Desactivación inmediata de agentes:** todos los agentes de la empresa dejan de procesar mensajes entrantes de forma inmediata.
+  5. **Desactivación inmediata de agentes (pendiente de implementación):** todos los agentes de la empresa deberán dejar de procesar mensajes entrantes de forma inmediata. *La lógica de desactivación de agentes queda pendiente hasta que se defina la solución de agentes.*
   6. El sistema programa la eliminación definitiva de datos para 30 días después.
   7. Durante el período de gracia: el usuario puede hacer login y ver un mensaje de eliminación pendiente con opción de reactivar.
 
-- **Resultado:** Empresa marcada para eliminación. Agentes desactivados inmediatamente. Datos preservados 30 días para posible reactivación. Eliminación definitiva programada.
+- **Resultado:** Empresa marcada para eliminación. Desactivación de agentes pendiente de implementación (depende de la definición de la solución de agentes). Datos preservados 30 días para posible reactivación. Eliminación definitiva programada.
 
 - **Error path:**
   - Confirmación incorrecta → no se procede con la eliminación.
@@ -189,14 +189,15 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 
 - **Decisiones de diseño:**
   - **Soft delete con período de gracia de 30 días.** Durante este período los datos existen pero la empresa está inactiva.
-  - **Desactivación inmediata de agentes:** al marcar la empresa para eliminación, todos sus agentes dejan de procesar mensajes. Esto evita que se sigan generando datos y protege la experiencia del usuario final (no recibe respuestas de un agente cuya empresa ya no existe).
-  - **Eliminación definitiva con doble verificación:** un proceso programado (job/cron) ejecuta la eliminación física de todos los datos asociados a la empresa después de los 30 días. **Antes de eliminar cada empresa individual, el job re-lee el documento y verifica que `status` sigue siendo `pending_deletion`** (protección contra race condition con reactivación). Usa `updateOne` con filtro `{ _id: companyId, status: "pending_deletion" }` — si no matchea, skip. Incluye: empresa, usuario, agentes, configuraciones, base de conocimiento, historial de conversaciones, pedidos, métricas, archivos en storage.
-  - **Reactivación:** durante los 30 días, el usuario puede hacer login normalmente. El sistema detecta el estado `pending_deletion`, muestra el aviso y ofrece reactivar. Al reactivar, la empresa vuelve a estado `active` y los agentes se reactivan automáticamente.
+  - **Desactivación inmediata de agentes (pendiente de implementación):** al marcar la empresa para eliminación, todos sus agentes deberán dejar de procesar mensajes. Esto evitará que se sigan generando datos y protegerá la experiencia del usuario final. *La implementación concreta queda pendiente hasta que se defina la solución de agentes (#2, #3, #4). Por ahora, el cambio de estado de la empresa a `pending_deletion` es suficiente — los motores de agentes verificarán este estado cuando se implementen.*
+  - **Eliminación definitiva con doble verificación:** un proceso programado (job/cron) ejecuta la eliminación física de todos los datos asociados a la empresa después de los 30 días. **Antes de eliminar cada empresa individual, el job re-lee el documento y verifica que `status` sigue siendo `pending_deletion`** (protección contra race condition con reactivación). Usa `updateOne` con filtro `{ _id: companyId, status: "pending_deletion" }` — si no matchea, skip. Incluye: empresa, usuario, archivos en storage. *La eliminación de agentes, configuraciones, base de conocimiento, historial de conversaciones, pedidos y métricas queda pendiente hasta que se definan esas soluciones.*
+  - **Reactivación:** durante los 30 días, el usuario puede hacer login normalmente. El sistema detecta el estado `pending_deletion`, muestra el aviso y ofrece reactivar. Al reactivar, la empresa vuelve a estado `active`. *La reactivación de agentes queda pendiente hasta que se defina la solución de agentes.*
 
-- **Integraciones:**
-  - Conector de WhatsApp (#5): al desactivar la empresa, los agentes asociados deben dejar de responder mensajes entrantes.
-  - Todos los motores de agentes (#2, #3, #4): deben verificar que la empresa esté en estado `active` antes de procesar cualquier interacción.
-  - Sistema de Base de Conocimiento (#6): los archivos e índices se eliminan en la eliminación definitiva.
+- **Integraciones (pendientes de implementación — dependen de soluciones no definidas aún):**
+  - Conector de WhatsApp (#5): al desactivar la empresa, los agentes asociados deberán dejar de responder mensajes entrantes.
+  - Todos los motores de agentes (#2, #3, #4): deberán verificar que la empresa esté en estado `active` antes de procesar cualquier interacción.
+  - Sistema de Base de Conocimiento (#6): los archivos e índices se eliminarán en la eliminación definitiva.
+  - *Nota: por ahora, esta solución solo cambia el estado de la empresa. La lógica de desactivación/reactivación de agentes y limpieza de datos de otras soluciones se implementará cuando esas soluciones se definan.*
 
 ---
 
@@ -452,7 +453,7 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 - [ ] El usuario puede solicitar la eliminación de su empresa desde la configuración.
 - [ ] La eliminación requiere confirmación explícita (escribir nombre de la empresa).
 - [ ] La eliminación requiere email verificado.
-- [ ] Al confirmar, los agentes de la empresa se desactivan inmediatamente.
+- [ ] Al confirmar, el estado de la empresa cambia a `pending_deletion`. *(La desactivación de agentes queda pendiente de implementación hasta que se defina la solución de agentes.)*
 - [ ] La empresa entra en estado `pending_deletion` con período de gracia de 30 días.
 - [ ] Durante los 30 días, el usuario puede reactivar la empresa.
 - [ ] Después de 30 días, un proceso programado elimina todos los datos de forma definitiva.
@@ -463,7 +464,7 @@ Esta solución establece la **base de tenancy** de toda la plataforma. Define c�
 ### Transversal
 
 - [ ] Toda operación del backend filtra datos por `companyId` extraído del JWT.
-- [ ] Los motores de agentes verifican que la empresa esté en estado `active` antes de procesar interacciones.
+- [ ] Los motores de agentes verificarán que la empresa esté en estado `active` antes de procesar interacciones. *(Pendiente de implementación — depende de la definición de soluciones de agentes.)*
 - [ ] El modelo de datos de User soporta relación N:1 con Company (preparado para múltiples usuarios sin migración destructiva).
 
 ### Rendimiento
