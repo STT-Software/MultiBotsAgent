@@ -7,9 +7,16 @@ export default $config({
       removal: input.stage === "prod" ? "retain" : "remove",
       home: "aws",
       providers: {
-          aws: {
+        aws: {
           region: "us-east-1",
           profile: "multibot",
+          defaultTags: {
+            tags: {
+              Project: "multibotagents",
+              Stage: input.stage,
+              ManagedBy: "sst",
+            },
+          },
         },
       },
     };
