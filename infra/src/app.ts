@@ -13,6 +13,7 @@ import "./networking/vpc";
 
 // Databases
 import "./databases/mongodb";
+import "./databases/secrets";
 
 // Services
 import "./services/cluster";
@@ -20,6 +21,7 @@ import "./services/api-multi-bots";
 
 // APIs
 import "./apis/services-api";
+import "./apis/functions-api";
 
 // Frontend
 import "./frontend/web";

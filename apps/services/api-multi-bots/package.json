@@ -6,6 +6,7 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main",
+    "test": "vitest --run",
     "type-check": "tsc --noEmit",
     "lint": "eslint --ext .ts src/"
   },
@@ -16,15 +17,18 @@
     "@multibotagents/core": "workspace:*",
     "@multibotagents/db": "workspace:*",
     "@multibotagents/types": "workspace:*",
+    "mongodb": "^6.12.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
     "@nestjs/swagger": "^8.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.0",
+    "@nestjs/testing": "^10.4.0",
     "@multibotagents/config": "workspace:*",
     "@types/express": "^5.0.0",
     "@types/node": "^25.5.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.0"
   }
 }
