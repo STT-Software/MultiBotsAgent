@@ -13,6 +13,7 @@ export { UserRepository } from "./user.repository";
 export { RefreshTokenRepository } from "./refresh-token.repository";
 export { VerifyTokenRepository } from "./verify-token.repository";
 export { EmailQueueRepository } from "./email-queue.repository";
+export { RateLimitRepository } from "./rate-limit.repository";
 
 // Re-export interfaces desde la carpeta centralizada
 export type {

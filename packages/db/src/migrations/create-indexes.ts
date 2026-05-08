@@ -26,6 +26,8 @@ import {
   EMAIL_QUEUE_INDEXES,
   COMPANIES_COLLECTION,
   COMPANIES_INDEXES,
+  RATE_LIMITS_COLLECTION,
+  RATE_LIMITS_INDEXES,
 } from "../schemas";
 
 interface IndexDefinition {
@@ -62,6 +64,7 @@ async function createIndexes(): Promise<void> {
       { name: VERIFY_TOKENS_COLLECTION, indexes: VERIFY_TOKENS_INDEXES as unknown as IndexDefinition[] },
       { name: EMAIL_QUEUE_COLLECTION, indexes: EMAIL_QUEUE_INDEXES as unknown as IndexDefinition[] },
       { name: COMPANIES_COLLECTION, indexes: COMPANIES_INDEXES as unknown as IndexDefinition[] },
+      { name: RATE_LIMITS_COLLECTION, indexes: RATE_LIMITS_INDEXES as unknown as IndexDefinition[] },
     ];
 
     for (const { name, indexes } of collections) {

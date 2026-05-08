@@ -6,8 +6,13 @@ import {
   RefreshTokenRepository,
   VerifyTokenRepository,
   EmailQueueRepository,
+  RateLimitRepository,
 } from '@multibotagents/db';
 import { RegisterNestService } from './register.service';
+import { LoginNestService } from './login.service';
+import { RefreshNestService } from './refresh.service';
+import { LogoutNestService } from './logout.service';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthController } from './auth.controller';
 
 @Module({
@@ -46,7 +51,16 @@ import { AuthController } from './auth.controller';
       useFactory: (client: MongoClient) => new EmailQueueRepository(client.db()),
       inject: ['MONGO_CLIENT'],
     },
+    {
+      provide: 'RATE_LIMIT_REPO',
+      useFactory: (client: MongoClient) => new RateLimitRepository(client.db()),
+      inject: ['MONGO_CLIENT'],
+    },
     RegisterNestService,
+    LoginNestService,
+    RefreshNestService,
+    LogoutNestService,
+    JwtAuthGuard,
   ],
 })
 export class AuthModule {}
