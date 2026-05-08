@@ -1,0 +1,16 @@
+export type {
+  TransactionSession,
+  CreateCompanyData,
+  CreateUserData,
+  CreateRefreshTokenData,
+  EnqueueEmailData,
+  CompanyEntity,
+  UserEntity,
+  IUserRepository,
+  ICompanyRepository,
+  IRefreshTokenRepository,
+  IVerifyTokenRepository,
+  IEmailQueueRepository,
+  Logger,
+  RegisterServiceDeps,
+} from './register.interfaces';

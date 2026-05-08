@@ -11,9 +11,11 @@ import "./helpers/stage";
 // Networking
 import "./networking/vpc";
 
+// Shared (cross-cutting concerns)
+import "./shared/secrets";
+
 // Databases
 import "./databases/mongodb";
-import "./databases/secrets";
 
 // Services
 import "./services/cluster";

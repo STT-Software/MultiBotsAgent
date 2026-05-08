@@ -11,7 +11,7 @@
 
 import { cluster } from "./cluster";
 import { mongoDbUri } from "../databases/mongodb";
-import { jwtSecrets, captchaSecret, captchaVerifyUrl } from "../databases/secrets";
+import { jwtSecrets, captchaSecret, captchaVerifyUrl } from "../shared/secrets";
 
 export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   cluster,
