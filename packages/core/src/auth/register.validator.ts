@@ -17,22 +17,10 @@ import {
   ServiceCategory,
   ValidationError,
 } from '@multibotagents/types';
+import type { ValidatedRegisterData } from './interfaces';
 
-// ─── Validated Output ────────────────────────────────────────────────────────
-
-/** Datos de registro validados y sanitizados, listos para procesamiento. */
-export interface ValidatedRegisterData {
-  companyName: string;
-  email: string;
-  password: string;
-  country: string;
-  category: ServiceCategory;
-  size: CompanySize;
-  phone?: string;
-  phoneCountryCode?: string;
-  referralSource?: ReferralSource;
-  captchaToken?: string;
-}
+// Re-export para consumidores
+export type { ValidatedRegisterData } from './interfaces';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 

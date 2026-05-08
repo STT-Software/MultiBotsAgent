@@ -1,20 +1,10 @@
 import { Db, ObjectId } from "mongodb";
 import type { VerifyToken, VerifyTokenType } from "@multibotagents/types";
-import type { Repository } from "../../interfaces/repository.interface";
+import type { IVerifyTokenRepository } from "../../interfaces";
 import {
   VERIFY_TOKENS_COLLECTION,
   type VerifyTokenDocument,
 } from "../../schemas/verify-token.schema";
-
-// ─── Repository Interface ────────────────────────────────────────────────────
-
-export interface IVerifyTokenRepository extends Repository<VerifyToken> {
-  createForUser(
-    userId: string,
-    type: VerifyTokenType,
-    token: string,
-  ): Promise<VerifyToken>;
-}
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
