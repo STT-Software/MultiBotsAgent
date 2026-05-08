@@ -1,3 +1,4 @@
+/* eslint-disable no-control-regex */
 /**
  * Property-Based Tests para RegisterValidator.
  *

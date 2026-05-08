@@ -53,6 +53,7 @@ const PASSWORD_NUMBER_REGEX = /\d/;
 const HTML_TAGS_REGEX = /<[^>]*>/g;
 
 /** Regex para strip de caracteres de control. */
+// eslint-disable-next-line no-control-regex
 const CONTROL_CHARS_REGEX = /[\x00-\x1F\x7F]/g;
 
 /** Regex para validación básica de teléfono (dígitos, espacios, guiones, paréntesis, +). */

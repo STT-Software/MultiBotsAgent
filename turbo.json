@@ -9,7 +9,8 @@
       "persistent": true
     },
     "transit": {
-      "dependsOn": ["^transit"]
+      "dependsOn": ["^transit"],
+      "outputs": ["dist/**"]
     },
     "lint": {
       "dependsOn": ["transit"]
