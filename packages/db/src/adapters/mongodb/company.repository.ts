@@ -1,31 +1,10 @@
 import { ClientSession, Db, ObjectId } from "mongodb";
 import type { Company, CompanyStatus } from "@multibotagents/types";
-import type { Repository } from "../../interfaces/repository.interface";
+import type { ICompanyRepository, CreateCompanyData } from "../../interfaces";
 import {
   COMPANIES_COLLECTION,
   type CompanyDocument,
 } from "../../schemas/company.schema";
-
-// ─── DTOs ────────────────────────────────────────────────────────────────────
-
-/** Datos necesarios para crear una empresa dentro de una transacción. */
-export interface CreateCompanyData {
-  name: string;
-  country: string;
-  category: string;
-  size: string;
-  phone?: string;
-  referralSource?: string;
-}
-
-// ─── Repository Interface ────────────────────────────────────────────────────
-
-export interface ICompanyRepository extends Repository<Company> {
-  createWithSession(
-    data: CreateCompanyData,
-    session: ClientSession,
-  ): Promise<Company>;
-}
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 

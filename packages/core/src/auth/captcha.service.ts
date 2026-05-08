@@ -9,19 +9,7 @@
  * Este módulo es lógica pura sin dependencias de AWS.
  */
 import { CaptchaError } from '@multibotagents/types';
-
-/** Configuración del servicio CAPTCHA. */
-export interface CaptchaConfig {
-  /** URL del endpoint de verificación (e.g., 'https://hcaptcha.com/siteverify'). */
-  verifyUrl?: string;
-  /** Secret del servidor para verificación. */
-  secret?: string;
-}
-
-/** Interfaz para el cliente HTTP (inyectable para testing). */
-export interface HttpClient {
-  post(url: string, body: Record<string, string>): Promise<{ success: boolean }>;
-}
+import type { CaptchaConfig, HttpClient } from './interfaces';
 
 /** Cliente HTTP por defecto usando fetch. */
 const defaultHttpClient: HttpClient = {
