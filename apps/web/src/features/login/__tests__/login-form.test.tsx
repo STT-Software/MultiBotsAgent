@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { LoginForm } from './LoginForm';
+import { LoginForm } from '../components';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
