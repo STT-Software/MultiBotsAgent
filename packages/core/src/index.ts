@@ -20,6 +20,7 @@ export * from "./auth/password.service";
 export * from "./auth/token.service";
 export * from "./auth/captcha.service";
 export * from "./auth/register.service";
+
 // RAG Engine
 export * from "./rag-engine/threshold-filter";
 export * from "./rag-engine/token-management";

@@ -23,7 +23,7 @@ export default function AuthLayout({
         className="relative hidden flex-col items-center justify-center overflow-hidden bg-gray-950 px-8 py-10 lg:flex xl:px-12 2xl:px-16"
         aria-label="Información sobre MultiBotAgents"
       >
-        {/* Background video */}
+        {/* Background video — loops, muted, 60% opacity, respects reduced motion */}
         <video
           autoPlay
           loop
@@ -35,7 +35,7 @@ export default function AuthLayout({
           <source src="/auth-bg.mp4" type="video/mp4" />
         </video>
 
-        {/* Dark overlay */}
+        {/* Dark overlay to ensure text readability over video */}
         <div
           className="pointer-events-none absolute inset-0 bg-gradient-to-br from-gray-950/70 via-gray-950/50 to-emerald-950/40"
           aria-hidden="true"
@@ -86,7 +86,7 @@ export default function AuthLayout({
           </ul>
         </div>
 
-        {/* Fade edge */}
+        {/* Fade edge — soft transition between left and right columns */}
         <div
           className="pointer-events-none absolute inset-y-0 right-0 z-20 w-16 bg-gradient-to-r from-transparent to-[#111318]"
           aria-hidden="true"

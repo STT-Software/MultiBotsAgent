@@ -122,15 +122,6 @@ En respuesta exitosa (201), se setea una cookie \`refreshToken\`:
     status: 201,
     description: 'Registro exitoso. Empresa y usuario creados. Se setea cookie `refreshToken` (httpOnly).',
     type: RegisterSuccessResponseDto,
-    headers: {
-      'Set-Cookie': {
-        description: 'Cookie httpOnly con el refresh token (7 días de expiración).',
-        schema: {
-          type: 'string',
-          example: 'refreshToken=a1b2c3d4e5f6...; Path=/auth/refresh; HttpOnly; Secure; SameSite=Strict; Max-Age=604800',
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 400,

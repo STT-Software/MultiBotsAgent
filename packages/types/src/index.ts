@@ -21,8 +21,8 @@ export * from "./interfaces/rag-engine.interfaces";
 
 // Enums
 export * from "./enums/example.enum";
+export * from "./enums/rag-engine.enums";
 
 // Auth — Registro de empresa y usuario
 export * from "./auth/register.types";
 export * from "./auth/errors.types";
-export * from "./enums/rag-engine.enums";
