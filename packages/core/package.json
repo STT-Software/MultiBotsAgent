@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "transit": "tsc",
     "type-check": "tsc --noEmit",
     "lint": "eslint --ext .ts src/",
     "test": "vitest --run"
