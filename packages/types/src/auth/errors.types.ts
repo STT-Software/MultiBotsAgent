@@ -142,3 +142,129 @@ export interface ValidationErrorResponse extends ErrorResponse {
   /** Mapa de campo → mensaje de error para cada campo inválido. */
   fields: Record<string, string>;
 }
+
+// ─── Auth Error Codes (Autenticación) ────────────────────────────────────────
+
+/** Códigos de error específicos del sistema de autenticación (login, refresh, logout). */
+export enum AuthErrorCode {
+  INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
+  RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
+  COMPANY_PENDING_DELETION = 'COMPANY_PENDING_DELETION',
+  COMPANY_INACTIVE = 'COMPANY_INACTIVE',
+  SESSION_REPLACED = 'SESSION_REPLACED',
+  TOKEN_EXPIRED = 'TOKEN_EXPIRED',
+  INTERNAL_ERROR = 'INTERNAL_ERROR',
+}
+
+/** Respuesta de error estándar del API de autenticación. */
+export interface AuthErrorResponse {
+  error: {
+    code: AuthErrorCode;
+    message: string;
+  };
+}
+
+// ─── Auth Domain Errors ──────────────────────────────────────────────────────
+
+/**
+ * Error de credenciales inválidas.
+ * Se lanza tanto para email inexistente como para contraseña incorrecta
+ * (indistinguible para prevenir enumeración de usuarios).
+ */
+export class InvalidCredentialsError extends DomainError {
+  readonly authCode = AuthErrorCode.INVALID_CREDENTIALS;
+
+  constructor() {
+    super(
+      'Email o contraseña incorrectos',
+      DomainErrorCode.VALIDATION_ERROR,
+      401,
+    );
+  }
+}
+
+/**
+ * Error de rate limit excedido.
+ * Se lanza cuando se superan los intentos permitidos por IP o email.
+ */
+export class RateLimitExceededError extends DomainError {
+  readonly authCode = AuthErrorCode.RATE_LIMIT_EXCEEDED;
+  /** Segundos restantes de bloqueo. */
+  readonly retryAfterSeconds: number;
+
+  constructor(retryAfterSeconds: number) {
+    super(
+      `Demasiados intentos. Intenta de nuevo en ${retryAfterSeconds} segundos.`,
+      DomainErrorCode.VALIDATION_ERROR,
+      429,
+    );
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+/**
+ * Error de empresa en estado pending_deletion.
+ * Se lanza cuando las credenciales son válidas pero la empresa está marcada para eliminación.
+ */
+export class CompanyPendingDeletionError extends DomainError {
+  readonly authCode = AuthErrorCode.COMPANY_PENDING_DELETION;
+  /** Fecha programada de eliminación. */
+  readonly deletionDate: Date;
+
+  constructor(deletionDate: Date) {
+    super(
+      'Tu cuenta está programada para eliminación. Puedes reactivarla desde el panel.',
+      DomainErrorCode.VALIDATION_ERROR,
+      403,
+    );
+    this.deletionDate = deletionDate;
+  }
+}
+
+/**
+ * Error de empresa inactiva.
+ * Se lanza cuando se intenta operar con una empresa que no está en estado 'active'.
+ */
+export class CompanyInactiveError extends DomainError {
+  readonly authCode = AuthErrorCode.COMPANY_INACTIVE;
+
+  constructor() {
+    super(
+      'La empresa asociada a tu cuenta no está activa.',
+      DomainErrorCode.VALIDATION_ERROR,
+      403,
+    );
+  }
+}
+
+/**
+ * Error de sesión reemplazada.
+ * Se lanza cuando el refresh token fue revocado porque el usuario inició sesión en otro dispositivo.
+ */
+export class SessionReplacedError extends DomainError {
+  readonly authCode = AuthErrorCode.SESSION_REPLACED;
+
+  constructor() {
+    super(
+      'Tu sesión se cerró porque iniciaste sesión en otro dispositivo. Si no fuiste tú, cambia tu contraseña.',
+      DomainErrorCode.VALIDATION_ERROR,
+      401,
+    );
+  }
+}
+
+/**
+ * Error de token expirado.
+ * Se lanza cuando el refresh token ha expirado naturalmente por tiempo.
+ */
+export class TokenExpiredError extends DomainError {
+  readonly authCode = AuthErrorCode.TOKEN_EXPIRED;
+
+  constructor() {
+    super(
+      'Tu sesión ha expirado. Inicia sesión nuevamente.',
+      DomainErrorCode.VALIDATION_ERROR,
+      401,
+    );
+  }
+}

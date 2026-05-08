@@ -42,3 +42,10 @@ export {
   EMAIL_QUEUE_VALIDATION,
   type EmailQueueDocument,
 } from "./email-queue.schema";
+
+export {
+  RATE_LIMITS_COLLECTION,
+  RATE_LIMITS_INDEXES,
+  RATE_LIMITS_VALIDATION,
+  type RateLimitDocument,
+} from "./rate-limit.schema";

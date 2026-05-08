@@ -35,7 +35,15 @@ describe('AuthController', () => {
 
   beforeEach(() => {
     registerService = { register: vi.fn() };
-    controller = new AuthController(registerService as unknown as RegisterNestService);
+    const loginService = { login: vi.fn() };
+    const refreshService = { refresh: vi.fn() };
+    const logoutService = { logout: vi.fn() };
+    controller = new AuthController(
+      registerService as unknown as RegisterNestService,
+      loginService as any,
+      refreshService as any,
+      logoutService as any,
+    );
 
     mockResponse = {
       cookie: vi.fn(),

@@ -20,3 +20,7 @@ export * from "./auth/password.service";
 export * from "./auth/token.service";
 export * from "./auth/captcha.service";
 export * from "./auth/register.service";
+export * from "./auth/rate-limit.service";
+export * from "./auth/login.service";
+export * from "./auth/refresh.service";
+export * from "./auth/logout.service";
