@@ -10,9 +10,12 @@
 
 // DTOs
 export * from "./dtos/example.dto";
+export * from "./dtos/rag-engine.dto";
 
 // Interfaces
 export * from "./interfaces/example.interface";
+export * from "./interfaces/rag-engine-io.interfaces";
+export * from "./interfaces/rag-engine.interfaces";
 
 // Enums
 export * from "./enums/example.enum";
@@ -20,3 +23,4 @@ export * from "./enums/example.enum";
 // Auth — Registro de empresa y usuario
 export * from "./auth/register.types";
 export * from "./auth/errors.types";
+export * from "./enums/rag-engine.enums";

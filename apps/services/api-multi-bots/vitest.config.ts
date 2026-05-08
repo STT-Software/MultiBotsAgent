@@ -2,8 +2,18 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    globals: false,
+    globals: true,
     environment: 'node',
-    include: ['src/**/__tests__/**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'src/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.spec.ts', 'src/**/*.test.ts', 'src/**/index.ts'],
+    },
   },
+  plugins: [
+    swc.vite({
+      module: { type: 'es6' },
+    }),
+  ],
 });

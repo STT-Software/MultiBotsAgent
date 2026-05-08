@@ -7,6 +7,8 @@
  *
  * El service registry en puerto 3001 habilita el descubrimiento de servicio
  * y la exposición pública vía API Gateway automáticamente.
+ *
+ * Permisos de Bedrock habilitados para el Motor de Agente RAG (Solución 2).
  */
 
 import { cluster } from "./cluster";
@@ -27,7 +29,23 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     JWT_SECRETS: jwtSecrets.value,
     CAPTCHA_SECRET: captchaSecret.value,
     CAPTCHA_VERIFY_URL: captchaVerifyUrl.value,
+    // Motor RAG — AWS Bedrock
+    AWS_REGION: "us-east-1",
+    BEDROCK_MODEL_ID: "minimax.minimax-m2.5",
+    BEDROCK_EMBEDDING_MODEL_ID: "amazon.titan-embed-text-v2:0",
+    BEDROCK_TIMEOUT_MS: "30000",
   },
+  permissions: [
+    {
+      actions: [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream",
+      ],
+      resources: [
+        "arn:aws:bedrock:us-east-1::foundation-model/*",
+      ],
+    },
+  ],
   serviceRegistry: {
     port: 3001,
   },
