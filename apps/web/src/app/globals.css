@@ -62,38 +62,32 @@
 
 @utility stagger-1 {
   opacity: 0;
-  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: 0.1s;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
 }
 
 @utility stagger-2 {
   opacity: 0;
-  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: 0.25s;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards;
 }
 
 @utility stagger-3 {
   opacity: 0;
-  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: 0.4s;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
 }
 
 @utility stagger-4 {
   opacity: 0;
-  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: 0.55s;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.55s forwards;
 }
 
 @utility stagger-5 {
   opacity: 0;
-  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: 0.7s;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.7s forwards;
 }
 
 @utility stagger-6 {
   opacity: 0;
-  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: 0.85s;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.85s forwards;
 }
 
 /* ─── Modern surface texture (auth panel) ──────────────────────────────── */
@@ -101,6 +95,10 @@
 @utility auth-surface {
   position: relative;
   background-color: #111318;
+}
+
+/* Multi-value background needs to be outside @utility (Tailwind v4 limitation) */
+.auth-surface {
   background-image:
     radial-gradient(ellipse 80% 60% at 50% 0%, rgba(16, 185, 129, 0.06), transparent 60%),
     radial-gradient(ellipse 60% 50% at 100% 100%, rgba(59, 130, 246, 0.04), transparent 60%),
