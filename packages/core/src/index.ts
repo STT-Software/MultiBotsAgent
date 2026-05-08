@@ -13,3 +13,10 @@
 
 // Validators
 export * from "./validators/example.validator";
+
+// Auth
+export * from "./auth/register.validator";
+export * from "./auth/password.service";
+export * from "./auth/token.service";
+export * from "./auth/captcha.service";
+export * from "./auth/register.service";

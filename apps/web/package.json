@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --ext .ts,.tsx src/",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest --run"
   },
   "dependencies": {
     "@multibotagents/core": "workspace:*",
@@ -21,8 +22,14 @@
   },
   "devDependencies": {
     "@multibotagents/config": "workspace:*",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "typescript": "^5.7.0"
+    "@vitejs/plugin-react": "4",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.7.0",
+    "vitest": "^3.1.3"
   }
 }
