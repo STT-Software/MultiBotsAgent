@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { RegisterForm } from './RegisterForm';
+import { RegisterForm } from '../components';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -94,10 +94,8 @@ describe('RegisterForm (wizard)', () => {
 
       await user.click(screen.getByRole('button', { name: /Siguiente/ }));
 
-      // Still on step 1
       expect(screen.getByLabelText(/Nombre de empresa/)).toBeInTheDocument();
       expect(screen.queryByLabelText(/^Email/)).not.toBeInTheDocument();
-      // Errors shown
       expect(screen.getByText('El nombre de empresa es obligatorio')).toBeInTheDocument();
     });
 
@@ -247,12 +245,10 @@ describe('RegisterForm (wizard)', () => {
         });
       });
 
-      // Success animation appears immediately
       await waitFor(() => {
         expect(screen.getByText('¡Cuenta creada exitosamente!')).toBeInTheDocument();
       });
 
-      // Redirect happens after the success animation (2s delay)
       await waitFor(
         () => {
           expect(pushMock).toHaveBeenCalledWith('/dashboard');
@@ -340,7 +336,6 @@ describe('RegisterForm (wizard)', () => {
         expect(screen.getByText(/Ya existe una cuenta con este email\./)).toBeInTheDocument();
       });
 
-      // Returned to step 2 (email visible)
       expect(screen.getByLabelText(/^Email/)).toBeInTheDocument();
 
       const alert = screen.getByRole('alert');
@@ -362,12 +357,7 @@ describe('RegisterForm (wizard)', () => {
       await goToStep3(user);
       await user.click(screen.getByRole('button', { name: /^Crear cuenta$/ }));
 
-      // To display email field error, navigate back to step 2
-      await waitFor(() => {
-        // We stay on step 3, but banner errors are server-side field errors visible when field is shown
-        // so let's check the data is there via the state — we can re-navigate
-      });
-      // Navigate back to step 2 to see the email error
+      await waitFor(() => {});
       await user.click(screen.getByRole('button', { name: /Atrás/ }));
       expect(screen.getByText('Email ya en uso')).toBeInTheDocument();
     });

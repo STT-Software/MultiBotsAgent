@@ -1,3 +1,5 @@
+import { BrandIcon, Wordmark, CheckCircleIcon, TrendingUpIcon, UsersIcon } from '@/components/icons';
+
 export default function AuthLayout({
   children,
 }: {
@@ -21,7 +23,7 @@ export default function AuthLayout({
         className="relative hidden flex-col items-center justify-center overflow-hidden bg-gray-950 px-8 py-10 lg:flex xl:px-12 2xl:px-16"
         aria-label="Información sobre MultiBotAgents"
       >
-        {/* Background video — loops, muted, 60% opacity, respects reduced motion */}
+        {/* Background video */}
         <video
           autoPlay
           loop
@@ -33,7 +35,7 @@ export default function AuthLayout({
           <source src="/auth-bg.mp4" type="video/mp4" />
         </video>
 
-        {/* Dark overlay to ensure text readability over video */}
+        {/* Dark overlay */}
         <div
           className="pointer-events-none absolute inset-0 bg-gradient-to-br from-gray-950/70 via-gray-950/50 to-emerald-950/40"
           aria-hidden="true"
@@ -46,11 +48,10 @@ export default function AuthLayout({
               <BrandIcon size="lg" />
               <Wordmark size="lg" />
             </div>
-            {/* Small green divider line under logo */}
             <div className="h-[2px] w-16 rounded-full bg-gradient-to-r from-transparent via-emerald-400 to-transparent" />
           </div>
 
-          {/* Headline — with "con IA" in green */}
+          {/* Headline */}
           <h1 className="stagger-2 motion-reduce:opacity-100 motion-reduce:animate-none text-[clamp(1.75rem,2.5vw,2.75rem)] font-bold leading-tight text-white">
             Automatiza tus conversaciones{' '}
             <span className="text-emerald-400">con IA</span>
@@ -85,7 +86,7 @@ export default function AuthLayout({
           </ul>
         </div>
 
-        {/* Fade edge — soft transition between left and right columns */}
+        {/* Fade edge */}
         <div
           className="pointer-events-none absolute inset-y-0 right-0 z-20 w-16 bg-gradient-to-r from-transparent to-[#111318]"
           aria-hidden="true"
@@ -100,84 +101,7 @@ export default function AuthLayout({
   );
 }
 
-// ─── Brand components ───────────────────────────────────────────────────────
-
-function BrandIcon({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
-  const dimensions = {
-    sm: { w: 28, h: 28 },
-    md: { w: 36, h: 36 },
-    lg: { w: 44, h: 44 },
-  }[size];
-
-  return (
-    <svg
-      width={dimensions.w}
-      height={dimensions.h}
-      viewBox="0 0 48 48"
-      fill="none"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      {/* Antennae */}
-      <path
-        d="M16 10v5"
-        stroke="#10b981"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M32 10v5"
-        stroke="#10b981"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      <circle cx="16" cy="9" r="1.75" fill="#10b981" />
-      <circle cx="32" cy="9" r="1.75" fill="#10b981" />
-
-      {/* Bot head — rounded square with outline */}
-      <rect
-        x="8"
-        y="15"
-        width="32"
-        height="26"
-        rx="8"
-        stroke="#10b981"
-        strokeWidth="2.5"
-        fill="none"
-      />
-
-      {/* Eyes — bright filled circles */}
-      <circle cx="18" cy="26" r="2.5" fill="#10b981" />
-      <circle cx="30" cy="26" r="2.5" fill="#10b981" />
-
-      {/* Smile — curved line */}
-      <path
-        d="M18 33c1.5 1.5 4 2 6 2s4.5-0.5 6-2"
-        stroke="#10b981"
-        strokeWidth="2"
-        strokeLinecap="round"
-        fill="none"
-      />
-    </svg>
-  );
-}
-
-function Wordmark({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
-  const textSize = {
-    sm: 'text-base',
-    md: 'text-xl',
-    lg: 'text-2xl xl:text-3xl',
-  }[size];
-
-  return (
-    <span className={`font-bold ${textSize}`}>
-      <span className="text-white">MultiBot</span>
-      <span className="text-emerald-400">Agents</span>
-    </span>
-  );
-}
-
-// ─── Feature bullets ────────────────────────────────────────────────────────
+// ─── Feature bullet (layout-specific, not shared) ────────────────────────────
 
 function FeatureBullet({
   icon,
@@ -200,100 +124,5 @@ function FeatureBullet({
         <p className="text-xs text-gray-400 xl:text-sm">{description}</p>
       </div>
     </li>
-  );
-}
-
-// ─── Feature icons ──────────────────────────────────────────────────────────
-
-function CheckCircleIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M8.5 12l2.5 2.5 4.5-5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function TrendingUpIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M3 17l6-6 4 4 8-8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M14 7h7v7"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function UsersIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle
-        cx="9"
-        cy="8"
-        r="3.5"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M3 20c0-3.314 2.686-6 6-6s6 2.686 6 6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle
-        cx="17"
-        cy="9"
-        r="2.5"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M15 15c2.761 0 5 1.79 5 4"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }
