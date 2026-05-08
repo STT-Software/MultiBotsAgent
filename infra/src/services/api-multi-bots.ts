@@ -11,6 +11,7 @@
 
 import { cluster } from "./cluster";
 import { mongoDbUri } from "../databases/mongodb";
+import { jwtSecrets, captchaSecret, captchaVerifyUrl } from "../databases/secrets";
 
 export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   cluster,
@@ -22,7 +23,10 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   memory: "0.5 GB",
   capacity: "spot",
   environment: {
-    MONGO_URI: mongoDbUri.value,
+    MONGODB_URI: mongoDbUri.value,
+    JWT_SECRETS: jwtSecrets.value,
+    CAPTCHA_SECRET: captchaSecret.value,
+    CAPTCHA_VERIFY_URL: captchaVerifyUrl.value,
   },
   serviceRegistry: {
     port: 3001,

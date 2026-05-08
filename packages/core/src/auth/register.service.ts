@@ -1,0 +1,373 @@
+/**
+ * Servicio orquestador de registro de empresa y usuario.
+ *
+ * Flujo: validate → captcha → startTransaction → checkEmail → createCompany
+ *        → createUser → revokeTokens → createRefreshToken → commitTransaction
+ *        → generateAccessToken → enqueueEmail
+ *
+ * Maneja:
+ * - Transacciones atómicas (abort en error)
+ * - Concurrencia (retry si conflicto de unicidad)
+ * - Email no bloqueante (log error si falla encolado)
+ * - Logging seguro (sin datos sensibles)
+ *
+ * Este módulo es lógica pura sin dependencias de AWS.
+ */
+import type {
+  RegisterDto,
+  RegisterResult,
+  AccessTokenPayload,
+  CompanySize,
+  ServiceCategory,
+  ReferralSource,
+} from '@multibotagents/types';
+import {
+  CompanyStatus,
+  DuplicateEmailError,
+  ConcurrencyConflictError,
+  EmailTemplate,
+  EmailQueueStatus,
+} from '@multibotagents/types';
+import { validateRegister } from './register.validator';
+import type { PasswordService } from './password.service';
+import type { TokenService } from './token.service';
+import type { CaptchaService } from './captcha.service';
+
+// ─── Repository Interfaces ───────────────────────────────────────────────────
+
+/** Interfaz genérica de sesión de transacción. */
+export interface TransactionSession {
+  startTransaction(): void;
+  commitTransaction(): Promise<void>;
+  abortTransaction(): Promise<void>;
+  endSession(): Promise<void>;
+}
+
+/** Datos para crear una Company. */
+export interface CreateCompanyData {
+  name: string;
+  country: string;
+  category: ServiceCategory;
+  size: CompanySize;
+  phone?: string;
+  referralSource?: ReferralSource;
+  status: CompanyStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Datos para crear un User. */
+export interface CreateUserData {
+  email: string;
+  passwordHash: string;
+  emailVerified: boolean;
+  companyId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Datos para crear un RefreshToken. */
+export interface CreateRefreshTokenData {
+  userId: string;
+  token: string;
+  expiresAt: Date;
+  revoked: boolean;
+  createdAt: Date;
+}
+
+/** Datos para encolar un email. */
+export interface EnqueueEmailData {
+  to: string;
+  template: EmailTemplate;
+  payload: Record<string, unknown>;
+  status: EmailQueueStatus;
+  attempts: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Entidad Company retornada por el repositorio. */
+export interface CompanyEntity {
+  id: string;
+  name: string;
+}
+
+/** Entidad User retornada por el repositorio. */
+export interface UserEntity {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  companyId: string;
+}
+
+// ─── Repository Interfaces ───────────────────────────────────────────────────
+
+export interface IUserRepository {
+  findByEmail(email: string): Promise<UserEntity | null>;
+  createWithSession(data: CreateUserData, session: TransactionSession): Promise<UserEntity>;
+}
+
+export interface ICompanyRepository {
+  createWithSession(data: CreateCompanyData, session: TransactionSession): Promise<CompanyEntity>;
+}
+
+export interface IRefreshTokenRepository {
+  createWithSession(data: CreateRefreshTokenData, session: TransactionSession): Promise<{ id: string }>;
+  revokeAllByUserId(userId: string, session: TransactionSession): Promise<void>;
+}
+
+export interface IVerifyTokenRepository {
+  createForUser(userId: string, type: string, token: string): Promise<{ id: string }>;
+}
+
+export interface IEmailQueueRepository {
+  enqueue(item: EnqueueEmailData): Promise<{ id: string }>;
+}
+
+// ─── Logger Interface ────────────────────────────────────────────────────────
+
+export interface Logger {
+  info(message: string, meta?: Record<string, unknown>): void;
+  error(message: string, meta?: Record<string, unknown>): void;
+  warn(message: string, meta?: Record<string, unknown>): void;
+}
+
+// ─── Service Dependencies ────────────────────────────────────────────────────
+
+export interface RegisterServiceDeps {
+  userRepository: IUserRepository;
+  companyRepository: ICompanyRepository;
+  refreshTokenRepository: IRefreshTokenRepository;
+  verifyTokenRepository: IVerifyTokenRepository;
+  emailQueueRepository: IEmailQueueRepository;
+  passwordService: PasswordService;
+  tokenService: TokenService;
+  captchaService: CaptchaService;
+  getSession: () => Promise<TransactionSession>;
+  logger: Logger;
+}
+
+// ─── RegisterService ─────────────────────────────────────────────────────────
+
+/** Refresh token expiration: 7 days in milliseconds. */
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+export class RegisterService {
+  private readonly deps: RegisterServiceDeps;
+
+  constructor(deps: RegisterServiceDeps) {
+    this.deps = deps;
+  }
+
+  /**
+   * Ejecuta el flujo completo de registro de empresa y usuario.
+   *
+   * @param dto - Datos de registro del formulario
+   * @returns Resultado con tokens y datos del usuario/empresa creados
+   * @throws {ValidationError} Si los datos son inválidos
+   * @throws {CaptchaError} Si el CAPTCHA falla
+   * @throws {DuplicateEmailError} Si el email ya existe
+   * @throws {TokenGenerationError} Si crypto no está disponible
+   */
+  async register(dto: RegisterDto): Promise<RegisterResult> {
+    // 1. Validar y sanitizar entrada
+    const validated = validateRegister(dto);
+
+    // 2. Verificar CAPTCHA
+    await this.deps.captchaService.verify(validated.captchaToken);
+
+    // 3. Ejecutar registro transaccional
+    return this.executeRegistration(validated);
+  }
+
+  private async executeRegistration(validated: {
+    companyName: string;
+    email: string;
+    password: string;
+    country: string;
+    category: ServiceCategory;
+    size: CompanySize;
+    phone?: string;
+    phoneCountryCode?: string;
+    referralSource?: ReferralSource;
+  }): Promise<RegisterResult> {
+    const session = await this.deps.getSession();
+
+    try {
+      session.startTransaction();
+
+      // 4. Verificar unicidad de email
+      const existingUser = await this.deps.userRepository.findByEmail(validated.email);
+      if (existingUser) {
+        await session.abortTransaction();
+        await session.endSession();
+        throw new DuplicateEmailError(validated.email);
+      }
+
+      // 5. Crear Company
+      const now = new Date();
+      const company = await this.deps.companyRepository.createWithSession(
+        {
+          name: validated.companyName,
+          country: validated.country,
+          category: validated.category,
+          size: validated.size,
+          phone: validated.phone,
+          referralSource: validated.referralSource,
+          status: CompanyStatus.ACTIVE,
+          createdAt: now,
+          updatedAt: now,
+        },
+        session,
+      );
+
+      // 6. Hash password y crear User
+      const passwordHash = await this.deps.passwordService.hash(validated.password);
+      const user = await this.deps.userRepository.createWithSession(
+        {
+          email: validated.email,
+          passwordHash,
+          emailVerified: false,
+          companyId: company.id,
+          createdAt: now,
+          updatedAt: now,
+        },
+        session,
+      );
+
+      // 7. Revocar tokens previos del usuario
+      await this.deps.refreshTokenRepository.revokeAllByUserId(user.id, session);
+
+      // 8. Crear Refresh Token
+      const refreshTokenValue = this.deps.tokenService.generateRefreshToken();
+      await this.deps.refreshTokenRepository.createWithSession(
+        {
+          userId: user.id,
+          token: refreshTokenValue,
+          expiresAt: new Date(now.getTime() + REFRESH_TOKEN_TTL_MS),
+          revoked: false,
+          createdAt: now,
+        },
+        session,
+      );
+
+      // 9. Commit transacción
+      await session.commitTransaction();
+      await session.endSession();
+
+      // 10. Generar Access Token (fuera de la transacción)
+      const accessTokenPayload: AccessTokenPayload = {
+        userId: user.id,
+        companyId: company.id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+      };
+      const accessToken = this.deps.tokenService.generateAccessToken(accessTokenPayload);
+
+      // 11. Encolar email de verificación (no bloqueante)
+      await this.enqueueVerificationEmail(user.id, user.email);
+
+      // 12. Log evento de registro (sin datos sensibles)
+      this.deps.logger.info('User registered successfully', {
+        userId: user.id,
+        companyId: company.id,
+        email: user.email,
+        timestamp: now.toISOString(),
+      });
+
+      return {
+        accessToken,
+        refreshToken: refreshTokenValue,
+        user: {
+          id: user.id,
+          email: user.email,
+          emailVerified: user.emailVerified,
+        },
+        company: {
+          id: company.id,
+          name: company.name,
+        },
+      };
+    } catch (error) {
+      // Si es un error de dominio conocido, re-lanzar
+      if (
+        error instanceof DuplicateEmailError ||
+        error instanceof ConcurrencyConflictError
+      ) {
+        throw error;
+      }
+
+      // Intentar abort de la transacción si aún está activa
+      try {
+        await session.abortTransaction();
+      } catch {
+        // Ignorar error de abort (la transacción puede ya estar abortada)
+      }
+
+      try {
+        await session.endSession();
+      } catch {
+        // Ignorar error de endSession
+      }
+
+      // Manejar conflicto de concurrencia (e.g., duplicate key en MongoDB)
+      if (this.isConcurrencyConflict(error)) {
+        // Reintentar validación de unicidad
+        const existingUser = await this.deps.userRepository.findByEmail(validated.email);
+        if (existingUser) {
+          throw new DuplicateEmailError(validated.email);
+        }
+        throw new ConcurrencyConflictError();
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Encola email de verificación. No bloqueante: log error si falla.
+   */
+  private async enqueueVerificationEmail(userId: string, email: string): Promise<void> {
+    try {
+      const verificationToken = this.deps.tokenService.generateVerificationToken();
+
+      await this.deps.verifyTokenRepository.createForUser(
+        userId,
+        'email_verification',
+        verificationToken,
+      );
+
+      const now = new Date();
+      await this.deps.emailQueueRepository.enqueue({
+        to: email,
+        template: EmailTemplate.VERIFICATION,
+        payload: {
+          token: verificationToken,
+          url: `/auth/verify-email?token=${verificationToken}`,
+        },
+        status: EmailQueueStatus.PENDING,
+        attempts: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch (error) {
+      // Email no bloqueante: log error pero no revertir registro
+      this.deps.logger.error('Failed to enqueue verification email', {
+        userId,
+        email,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Determina si un error es un conflicto de concurrencia (duplicate key).
+   */
+  private isConcurrencyConflict(error: unknown): boolean {
+    if (error instanceof Error) {
+      // MongoDB duplicate key error code
+      return error.message.includes('E11000') || error.message.includes('duplicate key');
+    }
+    return false;
+  }
+}

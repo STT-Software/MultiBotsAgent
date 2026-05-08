@@ -4,17 +4,20 @@
   "private": true,
   "scripts": {
     "type-check": "tsc --noEmit",
-    "lint": "eslint --ext .ts src/"
+    "lint": "eslint --ext .ts src/",
+    "test": "vitest --run"
   },
   "dependencies": {
     "@multibotagents/core": "workspace:*",
     "@multibotagents/db": "workspace:*",
-    "@multibotagents/types": "workspace:*"
+    "@multibotagents/types": "workspace:*",
+    "mongodb": "^6.12.0"
   },
   "devDependencies": {
     "@multibotagents/config": "workspace:*",
     "@types/aws-lambda": "^8.10.145",
     "@types/node": "^25.5.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.1.3"
   }
 }
