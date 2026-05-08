@@ -16,7 +16,6 @@ import "./shared/secrets";
 
 // Databases
 import "./databases/mongodb";
-import "./databases/secrets";
 
 // Services
 import "./services/cluster";
