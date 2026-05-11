@@ -8,6 +8,7 @@ export interface RegisterPayload {
   phone?: string;
   phoneCountryCode?: string;
   referralSource?: string;
+  captchaToken?: string;
 }
 
 export interface RegisterResponse {

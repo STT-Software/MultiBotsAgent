@@ -8,6 +8,7 @@ export interface FormData {
   phoneCountryCode: string;
   phone: string;
   referralSource: string;
+  captchaToken: string;
 }
 
 export interface FormErrors {

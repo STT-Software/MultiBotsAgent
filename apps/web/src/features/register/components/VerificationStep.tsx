@@ -1,3 +1,7 @@
+'use client';
+
+import { useCallback, useRef } from 'react';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { COUNTRIES } from '../constants';
 import { REFERRAL_LABELS } from '../constants';
 import { ChevronDown } from '@/components/ui/ChevronDown';
@@ -6,9 +10,25 @@ import type { FormData } from '../types';
 interface VerificationStepProps {
   formData: FormData;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onCaptchaChange: (token: string | null) => void;
 }
 
-export function VerificationStep({ formData, onChange }: VerificationStepProps) {
+const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '';
+
+export function VerificationStep({ formData, onChange, onCaptchaChange }: VerificationStepProps) {
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
+
+  const handleCaptchaChange = useCallback(
+    (token: string | null) => {
+      onCaptchaChange(token);
+    },
+    [onCaptchaChange],
+  );
+
+  const handleCaptchaExpired = useCallback(() => {
+    onCaptchaChange(null);
+  }, [onCaptchaChange]);
+
   return (
     <>
       {/* Phone (optional) */}
@@ -74,16 +94,21 @@ export function VerificationStep({ formData, onChange }: VerificationStepProps) 
         </div>
       </div>
 
-      {/* CAPTCHA placeholder */}
-      <div
-        className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-gray-600 bg-[#0d1117]/80 backdrop-blur-sm px-3 py-3 sm:px-4"
-        aria-label="Verificación CAPTCHA"
-      >
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-gray-500">
-          <div className="h-3 w-3 rounded-sm bg-gray-600" />
-        </div>
-        <span className="text-sm text-gray-300">No soy un robot</span>
-        <span className="ml-auto text-[10px] text-gray-500">reCAPTCHA</span>
+      {/* Google reCAPTCHA v2 */}
+      <div className="flex justify-center" aria-label="Verificación CAPTCHA">
+        {RECAPTCHA_SITE_KEY ? (
+          <ReCAPTCHA
+            ref={recaptchaRef}
+            sitekey={RECAPTCHA_SITE_KEY}
+            theme="dark"
+            onChange={handleCaptchaChange}
+            onExpired={handleCaptchaExpired}
+          />
+        ) : (
+          <p className="text-xs text-yellow-400">
+            reCAPTCHA no configurado (falta NEXT_PUBLIC_RECAPTCHA_SITE_KEY)
+          </p>
+        )}
       </div>
     </>
   );
