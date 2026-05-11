@@ -3,24 +3,25 @@
 import { usePathname } from 'next/navigation'
 import { NAV_ITEMS } from '../constants/navigation'
 import { NavItem } from './nav-item'
+import { FileText, HelpCircle } from 'lucide-react'
 
 export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="fixed left-0 top-0 z-50 flex h-screen w-[260px] flex-col border-r border-gray-800 bg-gray-950 px-4 py-6">
-      {/* Gradient glow — similar to auth layout */}
+    <aside className="fixed left-0 top-0 z-50 flex h-screen w-[260px] flex-col border-r border-[#3c4a41] bg-[#0e1510] px-4 py-6">
+      {/* Gradient glow top */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(16, 185, 129, 0.08), transparent 70%)',
+          background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0, 187, 122, 0.08), transparent 70%)',
         }}
         aria-hidden="true"
       />
 
       {/* Brand */}
       <div className="relative mb-10 flex items-center gap-2.5 px-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-700 bg-gray-900 text-emerald-400">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#3c4a41] bg-[#242c27] text-[#00bb7a]">
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z" />
             <path d="M2 17l10 5 10-5" />
@@ -28,10 +29,10 @@ export function Sidebar() {
           </svg>
         </div>
         <div>
-          <h1 className="text-sm font-bold leading-none text-white">
+          <h1 className="text-sm font-bold leading-none text-[#dde5dc]">
             MultiBotAgents
           </h1>
-          <p className="mt-1 text-[11px] font-medium text-gray-500">
+          <p className="mt-1 font-mono text-[11px] font-medium text-[#bbcabe]">
             Panel Admin
           </p>
         </div>
@@ -49,6 +50,18 @@ export function Sidebar() {
           />
         ))}
       </nav>
+
+      {/* Bottom links */}
+      <div className="relative mt-auto border-t border-[#3c4a41] pt-4 flex flex-col gap-1">
+        <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold text-[#bbcabe] transition-colors hover:bg-[#2f3731] hover:text-[#dde5dc]">
+          <FileText className="h-[18px] w-[18px]" strokeWidth={1.5} />
+          Docs
+        </a>
+        <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold text-[#bbcabe] transition-colors hover:bg-[#2f3731] hover:text-[#dde5dc]">
+          <HelpCircle className="h-[18px] w-[18px]" strokeWidth={1.5} />
+          Soporte
+        </a>
+      </div>
     </aside>
   )
 }
