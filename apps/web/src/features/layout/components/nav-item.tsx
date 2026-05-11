@@ -16,13 +16,13 @@ export function NavItem({ label, href, icon, isActive }: NavItemProps) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200 ${
         isActive
-          ? 'bg-gray-100 text-gray-900'
-          : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+          ? 'border-l-2 border-primary bg-primary/5 font-bold text-primary'
+          : 'text-on-surface-variant hover:bg-surface-container-highest'
       }`}
     >
-      {Icon && <Icon className="h-5 w-5" />}
+      {Icon && <Icon className="h-5 w-5" strokeWidth={1.5} />}
       <span>{label}</span>
     </Link>
   )

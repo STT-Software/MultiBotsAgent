@@ -8,11 +8,26 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="flex h-screen w-64 flex-col bg-gray-900 px-4 py-6">
-      <div className="mb-8 px-3">
-        <h1 className="text-lg font-semibold text-white">Panel Admin</h1>
+    <aside className="flex h-screen w-[260px] flex-col border-r border-outline-variant bg-surface px-md py-lg">
+      {/* Brand */}
+      <div className="mb-xl flex items-center gap-sm px-sm">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-high text-primary">
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+          </svg>
+        </div>
+        <div>
+          <h1 className="font-display text-sm font-bold leading-none text-on-surface">
+            MultiBotAgents
+          </h1>
+          <p className="mt-1 font-code text-[11px] text-on-surface-variant">
+            Panel Admin
+          </p>
+        </div>
       </div>
-      <nav className="flex flex-1 flex-col gap-1">
+
+      {/* Navigation */}
+      <nav className="flex flex-1 flex-col gap-xs">
         {NAV_ITEMS.map((item) => (
           <NavItem
             key={item.href}
