@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { NAV_ITEMS } from '../constants/navigation'
 import { NavItem } from './nav-item'
-import { FileText, HelpCircle } from 'lucide-react'
+import { FileText, HelpCircle, Plus } from 'lucide-react'
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -37,6 +37,12 @@ export function Sidebar() {
           </p>
         </div>
       </div>
+
+      {/* New Project button */}
+      <button className="relative mb-10 w-full rounded-lg bg-[#00bb7a] py-3 text-sm font-semibold text-[#004329] flex items-center justify-center gap-2 transition-colors duration-200 hover:bg-[#49df9a]">
+        <Plus className="h-[18px] w-[18px]" strokeWidth={2} />
+        Nuevo Proyecto
+      </button>
 
       {/* Navigation */}
       <nav className="relative flex flex-1 flex-col gap-1">
