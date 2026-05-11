@@ -113,6 +113,9 @@ export function RegisterForm() {
           <VerificationStep
             formData={form.formData}
             onChange={form.handleChange}
+            onCaptchaChange={(token) => {
+              form.setCaptchaToken(token || '');
+            }}
           />
         )}
       </div>

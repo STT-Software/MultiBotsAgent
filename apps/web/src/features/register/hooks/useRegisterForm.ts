@@ -37,6 +37,7 @@ const INITIAL_FORM_DATA: FormData = {
   phoneCountryCode: '+57',
   phone: '',
   referralSource: '',
+  captchaToken: '',
 };
 
 const INITIAL_TOUCHED: TouchedFields = {
@@ -101,6 +102,10 @@ export function useRegisterForm() {
     },
     [],
   );
+
+  const setCaptchaToken = useCallback((token: string) => {
+    setFormData((prev) => ({ ...prev, captchaToken: token }));
+  }, []);
 
   const handleBlur = useCallback(
     (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -177,5 +182,6 @@ export function useRegisterForm() {
     handleBack,
     touchAll,
     togglePassword,
+    setCaptchaToken,
   };
 }

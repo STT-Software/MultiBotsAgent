@@ -60,6 +60,9 @@ export function useRegisterSubmit({
           country: formData.country,
           category: formData.category,
           size: formData.size,
+          ...(formData.captchaToken && {
+            captchaToken: formData.captchaToken,
+          }),
           ...(formData.phone.trim() && {
             phone: formData.phone.trim(),
             phoneCountryCode: formData.phoneCountryCode,
