@@ -18,6 +18,9 @@ sst-env.d.ts
 # Kiro
 .kiro/
 
+# Agent Skills
+.agents/
+
 # Environment variables
 .env
 .env.*
