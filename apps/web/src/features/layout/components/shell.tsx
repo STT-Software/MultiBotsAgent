@@ -11,16 +11,19 @@ interface ShellProps {
 
 export function Shell({ children, empresaNombre, usuarioNombre }: ShellProps) {
   return (
-    <div className="flex h-screen bg-canvas">
+    <div className="flex h-screen overflow-hidden font-[Inter] bg-[#0a0a0a]">
+      {/* Sidebar - fixed */}
       <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
+
+      {/* Main content area - offset by sidebar width */}
+      <main className="flex-1 ml-[260px] flex flex-col h-screen overflow-y-auto">
         <Header empresaNombre={empresaNombre} usuarioNombre={usuarioNombre} />
-        <main className="flex-1 overflow-y-auto p-lg">
-          <div className="mx-auto w-full max-w-[1440px]">
-            {children}
-          </div>
-        </main>
-      </div>
+
+        {/* Canvas content */}
+        <div className="p-6 max-w-[1440px] mx-auto w-full flex-1">
+          {children}
+        </div>
+      </main>
     </div>
   )
 }
