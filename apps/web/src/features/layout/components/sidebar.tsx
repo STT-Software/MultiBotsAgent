@@ -8,28 +8,28 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="w-[260px] h-screen fixed left-0 top-0 border-r border-[#3c4a41] bg-[#0e1510] flex flex-col py-6 px-4 z-50">
+    <aside className="fixed left-0 top-0 z-50 flex h-screen w-[260px] flex-col border-r border-gray-800 bg-gray-950 px-4 py-6">
       {/* Brand */}
-      <div className="flex items-center gap-2 mb-12 px-2">
-        <div className="w-8 h-8 rounded-lg bg-[#242c27] flex items-center justify-center text-[#49df9a] border border-[#3c4a41]">
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <div className="mb-10 flex items-center gap-2.5 px-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-700 bg-gray-900 text-emerald-400">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z" />
             <path d="M2 17l10 5 10-5" />
             <path d="M2 12l10 5 10-5" />
           </svg>
         </div>
         <div>
-          <h1 className="font-[Geist] text-[16px] font-bold text-[#dde5dc] leading-none">
+          <h1 className="text-sm font-bold leading-none text-white">
             MultiBotAgents
           </h1>
-          <p className="font-[JetBrains_Mono] text-[11px] text-[#bbcabe] mt-1">
+          <p className="mt-1 text-[11px] text-gray-500">
             Panel Admin
           </p>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 flex flex-col gap-1">
+      <nav className="flex flex-1 flex-col gap-1">
         {NAV_ITEMS.map((item) => (
           <NavItem
             key={item.href}
