@@ -11,12 +11,12 @@ interface ShellProps {
 
 export function Shell({ children, empresaNombre, usuarioNombre }: ShellProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0a0d12]">
+    <div className="flex h-screen overflow-hidden bg-[#0a0a0a]">
       {/* Sidebar - fixed */}
       <Sidebar />
 
       {/* Main content area - offset by sidebar width */}
-      <main className="ml-[260px] flex flex-1 flex-col h-screen overflow-y-auto">
+      <main className="ml-[260px] flex flex-1 flex-col h-screen overflow-y-auto bg-[#0a0a0a]">
         <Header empresaNombre={empresaNombre} usuarioNombre={usuarioNombre} />
 
         {/* Canvas content */}
