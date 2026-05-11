@@ -10,7 +10,9 @@
 
 // DTOs
 export * from "./dtos/example.dto";
-export * from "./dtos/rag-engine.dto";
+// NOTA: rag-engine.dto usa class-validator/class-transformer (decoradores con reflect-metadata)
+// Se exporta desde sub-path "@multibotagents/types/rag-engine-dto" para evitar contaminar el frontend.
+// export * from "./dtos/rag-engine.dto";
 
 // Interfaces
 export * from "./interfaces/example.interface";

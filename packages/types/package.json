@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./rag-engine-dto": {
+      "types": "./dist/dtos/rag-engine.dto.d.ts",
+      "default": "./dist/dtos/rag-engine.dto.js"
     }
   },
   "scripts": {
