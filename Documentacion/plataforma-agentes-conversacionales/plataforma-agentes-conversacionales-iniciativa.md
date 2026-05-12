@@ -22,6 +22,9 @@ changelog:
   - date: 2026-05-07
     author: Solutions Architect
     description: Refinamiento del Solution Map — Decisiones técnicas transversales y notas para soluciones derivadas del diseño del Motor RAG.
+  - date: 2026-05-12
+    author: Solutions Architect
+    description: Refinamiento del Solution Map — SOL-06 Sistema de Base de Conocimiento diseñada (approved). Pipeline async Lambda+SQS para indexación.
 ---
 
 # Plataforma de Agentes Conversacionales
@@ -213,7 +216,7 @@ Una plataforma plug & play donde una empresa pueda:
 | 3 | **Motor de Agente Cotizador** | Consultar catálogo, armar cotizaciones, confirmar pedidos, seguimiento de estado | Core | Alta | Sin pagos. Notificación multi-canal (plataforma + WhatsApp + correo) |
 | 4 | **Motor de Agente Agendamiento** | Verificar disponibilidad, agendar, confirmar, recordatorios, cancelar/reprogramar | Core | Alta | Integración con Google Calendar únicamente |
 | 5 | **Conector de WhatsApp** | Envío/recepción de mensajes, asociación agente-número, multimedia | Core | Alta | API de WhatsApp Business. Arquitectura preparada para multi-canal |
-| 6 | **Sistema de Base de Conocimiento** | Carga de archivos, integraciones externas, creación directa, indexación para RAG | Core | Alta | Soporta PDF, docs, Excel, tablas. Integraciones: Google Drive, Notion, Confluence, SharePoint, Dropbox |
+| 6 | **Sistema de Base de Conocimiento** | Carga de archivos, integraciones externas, creación directa, indexación para RAG | Core | Alta | ✅ Diseñado. Pipeline async: API NestJS + S3 + SQS + Lambda. Chunking + Titan Embeddings + MongoDB Atlas Vector Search. Ver: `solutions/SOL-06-sistema-base-conocimiento/` |
 
 ### Soluciones Transversales
 
