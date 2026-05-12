@@ -11,12 +11,21 @@ export function DashboardView() {
   const { loading, error, data, retry } = useAgentesSummary()
 
   return (
-    <div className="flex flex-col gap-8">
-      <h1 className="font-[family-name:var(--font-geist-sans)] text-[32px] font-bold text-[#dde5dc]">
-        Dashboard
-      </h1>
+    <div className="flex flex-col gap-6 p-6 max-w-[1440px] mx-auto w-full">
+      {/* Page Header */}
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="font-[family-name:var(--font-geist-sans)] text-[32px] font-semibold leading-[1.2] text-[#dde5dc] mb-1">
+            Panel de Control
+          </h1>
+          <p className="font-[family-name:var(--font-inter)] text-base text-[#bbcabe]">
+            Resumen en tiempo real de tus agentes.
+          </p>
+        </div>
+        <QuickActions />
+      </div>
 
-      {/* Sección resumen de agentes */}
+      {/* KPI Cards */}
       <section aria-label="Resumen de agentes">
         {loading && <StatsSkeleton />}
         {error && <StatsError onRetry={retry} />}
@@ -29,12 +38,7 @@ export function DashboardView() {
         )}
       </section>
 
-      {/* Sección acciones rápidas */}
-      <section aria-label="Acciones rápidas">
-        <QuickActions />
-      </section>
-
-      {/* Sección navegación */}
+      {/* Navegación rápida */}
       <section aria-label="Navegación rápida">
         <NavCards />
       </section>

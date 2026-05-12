@@ -15,40 +15,56 @@ interface NavCardItem {
 }
 
 const NAV_ITEMS: NavCardItem[] = [
-  { label: 'Agentes', href: '/agentes', icon: <Bot className="h-6 w-6" /> },
-  { label: 'Inbox', href: '/inbox', icon: <Inbox className="h-6 w-6" /> },
+  { label: 'Agentes', href: '/agentes', icon: <Bot className="h-5 w-5" /> },
+  { label: 'Inbox', href: '/inbox', icon: <Inbox className="h-5 w-5" /> },
   {
     label: 'Pedidos',
     href: '/pedidos',
-    icon: <ShoppingCart className="h-6 w-6" />,
+    icon: <ShoppingCart className="h-5 w-5" />,
   },
   {
     label: 'Historial',
     href: '/historial',
-    icon: <History className="h-6 w-6" />,
+    icon: <History className="h-5 w-5" />,
   },
   {
     label: 'Métricas',
     href: '/metricas',
-    icon: <BarChart3 className="h-6 w-6" />,
+    icon: <BarChart3 className="h-5 w-5" />,
   },
 ]
 
 export function NavCards() {
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-      {NAV_ITEMS.map((item) => (
+    <div>
+      <div className="flex justify-between items-end mb-4">
+        <h2 className="font-[family-name:var(--font-inter)] text-xl font-semibold text-[#dde5dc]">
+          Secciones
+        </h2>
         <Link
-          key={item.href}
-          href={item.href}
-          className="flex flex-col items-center gap-3 rounded-lg border border-[#3c4a41] bg-[#1a211c] p-5 transition-colors hover:border-[#00bb7a]"
+          href="/agentes"
+          className="font-[family-name:var(--font-inter)] text-sm text-[#49df9a] flex items-center gap-1 hover:text-[#00bb7a] transition-colors duration-200"
         >
-          <span className="text-[#bbcabe]">{item.icon}</span>
-          <span className="text-sm font-medium text-[#dde5dc]">
-            {item.label}
-          </span>
+          Ver todo
+          <span className="text-xs">→</span>
         </Link>
-      ))}
+      </div>
+      <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-5">
+        {NAV_ITEMS.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="group flex flex-col items-center gap-3 rounded-xl border border-[#27272a] bg-[rgba(18,18,18,0.8)] backdrop-blur-[12px] p-5 transition-all duration-200 hover:border-[rgba(0,187,122,0.4)] hover:shadow-[inset_0_0_10px_rgba(0,187,122,0.05)]"
+          >
+            <span className="text-[#bbcabe] group-hover:text-[#49df9a] transition-colors duration-200">
+              {item.icon}
+            </span>
+            <span className="font-[family-name:var(--font-inter)] text-sm font-medium text-[#dde5dc]">
+              {item.label}
+            </span>
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }
