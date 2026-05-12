@@ -16,7 +16,7 @@ export function Shell({ children, empresaNombre, usuarioNombre }: ShellProps) {
       <Sidebar />
 
       {/* Main content area - offset by sidebar width */}
-      <main className="ml-[260px] flex flex-1 flex-col h-screen overflow-y-auto bg-[#0e1510]">
+      <main className="ml-[260px] flex flex-1 flex-col h-screen overflow-y-auto bg-[#0a0a0a]">
         <Header empresaNombre={empresaNombre} usuarioNombre={usuarioNombre} />
 
         {/* Canvas content */}

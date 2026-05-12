@@ -11,7 +11,7 @@ export function DashboardView() {
   const { loading, error, data, retry } = useAgentesSummary()
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-[1440px] mx-auto w-full">
+    <div className="flex flex-col gap-6">
       {/* Page Header */}
       <div className="flex justify-between items-end">
         <div>

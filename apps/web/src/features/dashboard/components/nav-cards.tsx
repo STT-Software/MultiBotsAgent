@@ -15,22 +15,22 @@ interface NavCardItem {
 }
 
 const NAV_ITEMS: NavCardItem[] = [
-  { label: 'Agentes', href: '/agentes', icon: <Bot className="h-5 w-5" /> },
-  { label: 'Inbox', href: '/inbox', icon: <Inbox className="h-5 w-5" /> },
+  { label: 'Agentes', href: '/agentes', icon: <Bot className="h-6 w-6" strokeWidth={2} /> },
+  { label: 'Inbox', href: '/inbox', icon: <Inbox className="h-6 w-6" strokeWidth={2} /> },
   {
     label: 'Pedidos',
     href: '/pedidos',
-    icon: <ShoppingCart className="h-5 w-5" />,
+    icon: <ShoppingCart className="h-6 w-6" strokeWidth={2} />,
   },
   {
     label: 'Historial',
     href: '/historial',
-    icon: <History className="h-5 w-5" />,
+    icon: <History className="h-6 w-6" strokeWidth={2} />,
   },
   {
     label: 'Métricas',
     href: '/metricas',
-    icon: <BarChart3 className="h-5 w-5" />,
+    icon: <BarChart3 className="h-6 w-6" strokeWidth={2} />,
   },
 ]
 
