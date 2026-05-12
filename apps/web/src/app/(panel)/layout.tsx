@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { useSession } from '@/features/layout/hooks/use-session'
-import { Shell } from '@/features/layout/components/shell'
+import { useSession } from '@/components/layout/hooks/use-session'
+import { Shell } from '@/components/layout/components/shell'
 
 export default function PanelLayout({ children }: { children: React.ReactNode }) {
   const session = useSession()
