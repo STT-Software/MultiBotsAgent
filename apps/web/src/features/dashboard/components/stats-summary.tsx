@@ -4,14 +4,15 @@ import { type ReactNode } from 'react'
 interface StatCardProps {
   value: number
   label: string
-  subtitle: string
+  subtitle: ReactNode
   icon: ReactNode
+  staggerClass: string
 }
 
-function StatCard({ value, label, subtitle, icon }: StatCardProps) {
+function StatCard({ value, label, subtitle, icon, staggerClass }: StatCardProps) {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-[#27272a] bg-[rgba(18,18,18,0.8)] backdrop-blur-[12px] p-6 flex flex-col justify-between h-[160px]">
-      {/* Ícono decorativo de fondo — grande y grueso como en la referencia */}
+    <div className={`relative overflow-hidden rounded-xl border border-[#27272a] bg-[rgba(18,18,18,0.8)] backdrop-blur-[12px] p-6 flex flex-col justify-between h-[160px] transition-all duration-200 hover:border-[rgba(0,187,122,0.3)] hover:shadow-[inset_0_0_12px_rgba(0,187,122,0.04)] ${staggerClass}`}>
+      {/* Ícono decorativo de fondo */}
       <div className="absolute -right-3 -bottom-3 opacity-[0.08]">
         {icon}
       </div>
@@ -33,9 +34,9 @@ function StatCard({ value, label, subtitle, icon }: StatCardProps) {
         </div>
       </div>
 
-      <p className="font-mono text-[11px] text-[#bbcabe]/60">
+      <div className="font-mono text-[11px] text-[#bbcabe]/60">
         {subtitle}
-      </p>
+      </div>
     </div>
   )
 }
@@ -54,18 +55,35 @@ export function StatsSummary({ total, activos, borradores }: StatsSummaryProps) 
         label="Total de agentes"
         subtitle="Últimos 30 días"
         icon={<Users className="h-[130px] w-[130px] text-[#dde5dc]" strokeWidth={2.5} />}
+        staggerClass="stagger-1"
       />
       <StatCard
         value={activos}
         label="Agentes activos"
-        subtitle="Operativos ahora"
+        subtitle={
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[#49df9a] animate-pulse" />
+            Operativos ahora
+          </span>
+        }
         icon={<Bot className="h-[130px] w-[130px] text-[#dde5dc]" strokeWidth={2.5} />}
+        staggerClass="stagger-2"
       />
       <StatCard
         value={borradores}
         label="Agentes en borrador"
-        subtitle="En configuración"
+        subtitle={
+          <div className="w-full">
+            <div className="w-full bg-[#242c27] rounded-full h-1.5">
+              <div
+                className="h-1.5 rounded-full bg-gradient-to-r from-[#00bb7a] to-[#008855]"
+                style={{ width: total > 0 ? `${((total - borradores) / total) * 100}%` : '0%' }}
+              />
+            </div>
+          </div>
+        }
         icon={<FileText className="h-[130px] w-[130px] text-[#dde5dc]" strokeWidth={2.5} />}
+        staggerClass="stagger-3"
       />
     </div>
   )
