@@ -20,7 +20,17 @@ RUN pnpm install --frozen-lockfile
 COPY packages/ ./packages/
 COPY apps/services/api-multi-bots/ ./apps/services/api-multi-bots/
 
-# Build
+# Build de paquetes internos (orden: types → core, db)
+WORKDIR /app/packages/types
+RUN pnpm run build
+
+WORKDIR /app/packages/core
+RUN pnpm run build
+
+WORKDIR /app/packages/db
+RUN pnpm run build
+
+# Build del servicio NestJS
 WORKDIR /app/apps/services/api-multi-bots
 RUN pnpm run build
 

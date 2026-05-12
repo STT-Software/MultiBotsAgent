@@ -16,3 +16,7 @@ export * from "./interfaces/example.interface";
 
 // Enums
 export * from "./enums/example.enum";
+
+// Auth — Registro de empresa y usuario
+export * from "./auth/register.types";
+export * from "./auth/errors.types";

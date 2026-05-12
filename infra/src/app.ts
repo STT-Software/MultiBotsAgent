@@ -11,6 +11,9 @@ import "./helpers/stage";
 // Networking
 import "./networking/vpc";
 
+// Shared (cross-cutting concerns)
+import "./shared/secrets";
+
 // Databases
 import "./databases/mongodb";
 
@@ -20,6 +23,7 @@ import "./services/api-multi-bots";
 
 // APIs
 import "./apis/services-api";
+import "./apis/functions-api";
 
 // Frontend
 import "./frontend/web";
