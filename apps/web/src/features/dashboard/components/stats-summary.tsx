@@ -53,19 +53,19 @@ export function StatsSummary({ total, activos, borradores }: StatsSummaryProps) 
         value={total}
         label="Total de agentes"
         subtitle="Últimos 30 días"
-        icon={<Users className="h-[100px] w-[100px] text-[#dde5dc]" strokeWidth={2.5} />}
+        icon={<Users className="h-[130px] w-[130px] text-[#dde5dc]" strokeWidth={2.5} />}
       />
       <StatCard
         value={activos}
         label="Agentes activos"
         subtitle="Operativos ahora"
-        icon={<Bot className="h-[100px] w-[100px] text-[#dde5dc]" strokeWidth={2.5} />}
+        icon={<Bot className="h-[130px] w-[130px] text-[#dde5dc]" strokeWidth={2.5} />}
       />
       <StatCard
         value={borradores}
         label="Agentes en borrador"
         subtitle="En configuración"
-        icon={<FileText className="h-[100px] w-[100px] text-[#dde5dc]" strokeWidth={2.5} />}
+        icon={<FileText className="h-[130px] w-[130px] text-[#dde5dc]" strokeWidth={2.5} />}
       />
     </div>
   )
