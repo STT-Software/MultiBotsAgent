@@ -15,7 +15,7 @@ export function DashboardView() {
       {/* Page Header */}
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="font-[family-name:var(--font-geist-sans)] text-[32px] font-semibold leading-[1.2] text-[#dde5dc] mb-1">
+          <h1 className="font-[family-name:var(--font-geist-sans)] text-[32px] font-bold leading-[1.2] text-[#dde5dc] mb-1">
             Panel de Control
           </h1>
           <p className="font-[family-name:var(--font-inter)] text-base text-[#bbcabe]">

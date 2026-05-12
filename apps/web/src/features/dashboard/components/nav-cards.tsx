@@ -38,7 +38,7 @@ export function NavCards() {
   return (
     <div>
       <div className="flex justify-between items-end mb-4">
-        <h2 className="font-[family-name:var(--font-inter)] text-xl font-semibold text-[#dde5dc]">
+        <h2 className="font-[family-name:var(--font-inter)] text-xl font-bold text-[#dde5dc]">
           Secciones
         </h2>
         <Link
@@ -59,7 +59,7 @@ export function NavCards() {
             <span className="text-[#bbcabe] group-hover:text-[#49df9a] transition-colors duration-200">
               {item.icon}
             </span>
-            <span className="font-[family-name:var(--font-inter)] text-sm font-medium text-[#dde5dc]">
+            <span className="font-[family-name:var(--font-inter)] text-sm font-bold text-[#dde5dc]">
               {item.label}
             </span>
           </Link>
