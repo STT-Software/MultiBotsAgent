@@ -1,153 +1,302 @@
 # AGENTS.md — multibotagents
 
-Monorepo cloud-native para una aplicación MultiBotAgents. Stack: Turborepo + pnpm, SST v3 (Ion/Pulumi) en AWS, Next.js 15 (App Router), Lambdas TypeScript nativas, NestJS en Fargate, MongoDB.
+Guía operativa para agentes de IA trabajando en este monorepo. Describe arquitectura, patrones y flujos de ejecución. Idioma del código, commits y comunicación: **español**. TypeScript strict en todo el monorepo.
 
-## Estructura del monorepo
+---
+
+## 1. Visión del proyecto
+
+Plataforma cloud-native multibot: empresas activan agentes de IA (RAG, cotizador, agendamiento) sobre canales conversacionales (WhatsApp, panel web). Monorepo mixto con frontend, lambdas para eventos/webhooks, servicios para APIs de larga vida y capa de datos con patrón adaptador.
+
+---
+
+## 2. Stack
+
+| Capa | Tecnología |
+|------|-----------|
+| Runtime | Node.js 20 |
+| Package manager | pnpm 9 |
+| Monorepo | Turborepo |
+| Lenguaje | TypeScript strict |
+| Frontend | Next.js (App Router) + React + Tailwind |
+| Lambdas | TypeScript nativo (sin framework) |
+| Servicios | NestJS |
+| LLM | LangChain + AWS Bedrock |
+| Base de datos | MongoDB Atlas (con patrón adaptador para otros motores) |
+| IaC | SST v3 (Ion/Pulumi) en AWS `us-east-1` |
+| Testing | Vitest |
+| Contenedores | Docker + Docker Compose |
+
+---
+
+## 3. Estructura del monorepo
 
 ```
 apps/
-  web/              → Frontend Next.js 15 (App Router)
-  functions/        → AWS Lambda handlers (TypeScript nativo, sin framework)
-  services/         → Servicios Fargate (NestJS)
+  web/              → Frontend Next.js (Screaming Architecture)
+  functions/        → AWS Lambda handlers nativos
+  services/         → Servicios NestJS en Fargate
+
 packages/
-  types/            → @multibotagents/types — tipos compartidos
-  core/             → @multibotagents/core — lógica de negocio (sin deps AWS)
-  db/               → @multibotagents/db — capa de BD con adaptadores (MongoDB, PostgreSQL, DynamoDB)
-  config/           → @multibotagents/config — tsconfig y eslint centralizados
-infra/              → Infraestructura SST v3 (apis, databases, events, networking, services, storage, shared)
-docs/               → Documentación de arquitectura (10 secciones + ARCHITECTURE.md)
+  types/            → Tipos, DTOs y enums compartidos
+  core/             → Lógica de negocio pura (sin deps de AWS)
+  db/               → Capa de datos con patrón adaptador
+  config/           → tsconfig y eslint centralizados
+
+infra/              → Infraestructura SST v3 por dominio de recursos
+infra-docs/         → Documentación técnica del monorepo
+Documentacion/      → Documentación funcional / producto
 ```
 
-## Comandos de setup
+La raíz define `pnpm-workspace.yaml`, `turbo.json`, `sst.config.ts` y `docker-compose.yml`. El `package.json` raíz solo delega a `turbo run <task>` — nunca contiene lógica de tareas.
 
-```bash
-pnpm install                    # Instalar dependencias de todo el monorepo
-pnpm run build                  # Build de todas las apps (Next.js + NestJS)
-pnpm run type-check             # Verificación de tipos en todo el monorepo
-pnpm run lint                   # Lint de todo el monorepo
-pnpm run clean                  # Limpiar builds y node_modules
+---
+
+## 4. Arquitectura por área
+
+### 4.1 Frontend — Screaming Architecture
+
+La estructura **grita el dominio del negocio**, no la técnica. Cada feature es autocontenida.
+
+```
+apps/web/src/
+├── app/                      → Routing Next.js (layouts, route groups, pages)
+├── features/<dominio>/       → 🎯 DOMINIOS DE NEGOCIO
+│   ├── <Feature>Container.tsx  → Entry point del feature
+│   ├── components/             → UI del feature
+│   ├── hooks/                  → Estado y lógica de presentación
+│   ├── services/               → Llamadas HTTP
+│   ├── types/                  → Tipos propios del feature
+│   ├── constants/              → Labels, enums locales, datos estáticos
+│   └── __tests__/
+├── components/               → UI transversal (no pertenece a un feature)
+└── lib/                      → Utilidades sin dominio
 ```
 
-## Desarrollo local
+**Patrones**
+
+- Las páginas en `app/` solo exportan `metadata` y renderizan el `Container` del feature correspondiente. No contienen lógica.
+- React Server Components por defecto; `'use client'` solo cuando se necesitan hooks, estado o eventos del navegador.
+- Llamadas HTTP siempre desde `features/<dominio>/services/`. Nada de `fetch` suelto en componentes.
+- Estado local por feature con hooks de React (`useState`, `useMemo`, `useCallback`). Sin store global a menos que se justifique.
+- Tipos compartidos con el backend viven en `packages/types` y se consumen como `@multibotagents/types`.
+- Path alias `@/*` → `src/*`.
+
+### 4.2 Lambdas — handlers nativos
+
+Handlers TypeScript **sin framework**, tipando directamente los eventos AWS.
+
+```
+apps/functions/src/
+├── handlers/<dominio>/<accion>.handler.ts   → Un archivo = un handler
+└── shared/                                  → logger, middleware, error-handler
+```
+
+**Patrones**
+
+- El handler solo orquesta entrada/salida y adapta errores. La lógica de negocio vive en `packages/core`; el acceso a datos en `packages/db`.
+- Respuestas y errores se construyen con helpers compartidos (`successResponse`, `errorResponse`, `parseBody`).
+- Las rutas se registran en `infra/src/apis/functions-api.ts`.
+
+### 4.3 Servicios NestJS — arquitectura modular por dominio
+
+NestJS con módulos organizados **por dominio de negocio**, no por capa técnica. Equivalente a Clean Architecture liviana: la lógica pura vive en `packages/core` y los módulos NestJS son la capa de adaptación/entrada.
+
+```
+apps/services/<servicio>/src/
+├── main.ts                       → Bootstrap + Swagger
+├── app.module.ts                 → Registra módulos de dominio
+└── modules/<dominio>/
+    ├── <dominio>.module.ts       → DI con tokens
+    ├── <dominio>.controller.ts   → HTTP + Swagger
+    ├── <dominio>.service.ts      → Adaptador NestJS → servicios de core
+    ├── dto/                      → class-validator + @ApiProperty
+    ├── providers/                → Adaptadores a servicios externos (LLM, BD, etc.)
+    ├── services/                 → Helpers del dominio (inyectables)
+    ├── exceptions/               → Excepciones del dominio
+    ├── constants/                → Injection tokens (Symbol)
+    └── __tests__/
+```
+
+**Patrones**
+
+- Un módulo por dominio; módulos desacoplados y enfocados (single responsibility).
+- Inyección de dependencias por **interfaces** usando tokens `Symbol` (no strings).
+- Repository pattern: los repos se consumen desde `@multibotagents/db` detrás de interfaces.
+- DTOs con `class-validator` y `@ApiProperty`; Swagger expuesto en `/docs`.
+- Errores de dominio tipados (extienden `DomainError`) mapeados a códigos HTTP en el controller.
+- Transacciones atómicas para flujos multi-documento con `abortTransaction` explícito en error.
+
+### 4.4 Capa compartida — `packages/*`
+
+**`@multibotagents/types`** — Solo interfaces, DTOs y enums. Sin lógica ni dependencias de runtime pesadas. Regla: tipo usado por ≥2 apps → aquí; tipo de una sola app → local en esa app.
+
+**`@multibotagents/core`** — Lógica de negocio pura. Prohibido importar `aws-sdk`, `aws-lambda`, `sst`, `@nestjs/*` o `next`. Los servicios reciben dependencias por constructor tipadas por interfaces, lo que los hace reutilizables desde lambdas, NestJS y el frontend.
+
+**`@multibotagents/db`** — Patrón adaptador: una interfaz `Repository<T>` común y adaptadores concretos por motor (`adapters/mongodb/`, `adapters/postgresql/`, `adapters/dynamodb/`). Cada adaptador define sus esquemas, índices y validación junto al código. Migraciones ejecutables vía script.
+
+**`@multibotagents/config`** — tsconfig y eslint base. Cada paquete/app extiende `tsconfig.nextjs.json` o `tsconfig.node.json` según su runtime.
+
+---
+
+## 5. Infraestructura (SST v3)
+
+`sst.config.ts` delega a `infra/src/app.ts`, que importa los recursos en un orden fijo (la importación crea el recurso en Pulumi).
+
+```
+infra/src/
+├── app.ts              → Orquestador (orden de creación)
+├── helpers/            → Utilidades de stage
+├── networking/         → VPC, subnets, NAT
+├── shared/             → Secrets, cross-cutting concerns
+├── databases/          → Conexiones y secrets de BD
+├── services/           → Cluster ECS + servicios Fargate
+├── apis/               → API Gateway (lambdas y servicios)
+└── frontend/           → Deploy del frontend
+```
+
+**Patrones**
+
+- Cada recurso en su archivo, exportado como constante. Se importa en `app.ts` en el bloque correspondiente para que se cree.
+- Valores sensibles con `sst.Secret` — nunca hardcodeados ni en `.env` commiteados.
+- Los servicios declaran sus `permissions` y `environment` junto a su definición de infra.
+- **Stages**: cada desarrollador tiene el suyo (`sst dev --stage <nombre>`); `dev` es compartido; `prod` aplica `removal: "retain"`. Nunca usar `prod` para desarrollo.
+
+---
+
+## 6. Turborepo
+
+Tareas definidas en `turbo.json` y ejecutadas vía `turbo run`:
+
+- **`build`** — depende de `^build`; produce `dist/**` y `.next/**`.
+- **`dev`** — no cachea, persistente.
+- **`transit`** — transit node: genera tipos en paralelo para que `lint` y `type-check` tengan las declaraciones de paquetes dependientes sin correr el build completo.
+- **`lint`** y **`type-check`** — dependen de `transit`.
+- **`clean`** — no cachea.
+
+Cada `package.json` define sus propios scripts. El `package.json` raíz solo invoca `turbo run`.
+
+---
+
+## 7. Convenciones de código
+
+- TypeScript strict: `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`.
+- Evitar `any`; parámetros no usados se prefijan con `_`.
+- Imports por paquete con `@multibotagents/<pkg>`. Nunca navegar al `dist` de otro paquete con rutas relativas.
+- Barrel files (`index.ts`) en subcarpetas de features y en dominios de los packages.
+- Errores de dominio con `code` + `statusCode`; el borde (controller/handler) los mapea a HTTP.
+- Logging estructurado en JSON. Nunca loguear passwords, tokens ni PII.
+- Comentarios y mensajes al usuario en español. Timestamps en ISO 8601.
+- IDs de Mongo se convierten `ObjectId ↔ string` en la frontera del adaptador; nunca fuera.
+
+---
+
+## 8. Comandos
+
+### Setup
 
 ```bash
-# Terminal 1: Lambdas con live reload
+nvm use
+pnpm install
+pnpm run type-check
+pnpm run build
+```
+
+### Desarrollo local (3 terminales)
+
+```bash
+# Terminal 1 — lambdas con live reload + recursos efímeros
 sst dev --stage <tu-nombre>
 
-# Terminal 2: Servicio NestJS
-pnpm --filter @multibotagents/api-multi-bots dev   # Sin Docker
-docker compose up                                   # Con Docker
+# Terminal 2 — servicio NestJS
+pnpm --filter @multibotagents/api-multi-bots dev      # o: docker compose up
 
-# Terminal 3: Frontend Next.js
-pnpm --filter @multibotagents/web dev
+# Terminal 3 — frontend
+pnpm --filter @multibotagents/web dev                 # http://localhost:3000
 ```
 
-## Filtrar comandos por paquete
+### Filtrar por paquete
 
 ```bash
-pnpm --filter @multibotagents/web <comando>
-pnpm --filter @multibotagents/core <comando>
-pnpm --filter @multibotagents/functions <comando>
+pnpm --filter @multibotagents/<paquete> <script>
 ```
 
-## Convenciones de código
-
-- TypeScript strict mode en todo el monorepo.
-- Configuraciones de tsconfig y eslint centralizadas en `packages/config/`.
-- Cada paquete extiende las configuraciones base de `@multibotagents/config`.
-- Turbo tasks: `build`, `dev`, `lint`, `type-check`, `transit`, `clean`.
-- El task `lint` y `type-check` dependen de `transit` (generación de tipos).
-
-## Patrones de arquitectura
-
-- Lambdas: handlers nativos en `apps/functions/src/handlers/<dominio>/<accion>.handler.ts`. Sin framework, tipado directo de eventos AWS.
-- Servicios Fargate: NestJS en `apps/services/<nombre>/`. Cada servicio tiene su propio `Dockerfile`.
-- Lógica de negocio: siempre en `packages/core/`, sin dependencias de AWS. Los handlers y servicios consumen core.
-- Tipos compartidos: definir en `packages/types/` para que sean consumidos por todas las apps y paquetes.
-- Capa de BD: `packages/db/` usa patrón adaptador (MongoDB, PostgreSQL, DynamoDB).
-
-## Infraestructura (SST v3)
-
-- Config raíz: `sst.config.ts` → delega a `infra/src/app.ts`.
-- Recursos organizados en: `apis/`, `databases/`, `events/`, `networking/`, `services/`, `storage/`, `shared/`.
-- Stages: cada dev usa su propio stage (`sst dev --stage <nombre>`). `prod` tiene política `retain`.
-- Región: `us-east-1`.
-- Deploy: `sst deploy --stage dev` / `sst deploy --stage prod`.
-- Eliminar: `sst remove --stage <nombre>`.
-
-## Comandos SST v3
-
-### Desarrollo local (live reload)
+### Tests
 
 ```bash
-sst dev --stage <tu-nombre>           # Arranca entorno de desarrollo con live reload
-sst dev --stage <tu-nombre> --verbose # Modo verbose para depuración
+pnpm --filter <paquete> test
 ```
 
-> Cada desarrollador usa su propio stage personal. Nunca usar `prod` para desarrollo.
-
-### Deploy
+### Base de datos
 
 ```bash
-sst deploy --stage dev                # Deploy al stage de desarrollo compartido
-sst deploy --stage prod               # Deploy a producción (recursos con política retain)
-sst deploy --stage <tu-nombre>        # Deploy a un stage personal
+pnpm --filter @multibotagents/db migrate
 ```
 
-### Eliminar stacks
+### SST
 
 ```bash
-sst remove --stage <tu-nombre>        # Elimina todos los recursos del stage
+sst dev     --stage <tu-nombre>
+sst deploy  --stage <stage>
+sst remove  --stage <tu-nombre>
+sst refresh --stage <stage>
+sst secrets list/set/remove --stage <stage>
+sst console
 ```
 
-> Precaución: `sst remove` destruye todos los recursos del stage. En `prod` los recursos con `retain` se conservan.
+Operaciones como `sst remove`, `sst deploy --stage prod` y `sst secrets remove` son de alto impacto: confirmar con el usuario antes de ejecutar.
 
-### Inspección y diagnóstico
+---
 
-```bash
-sst version                           # Verificar versión de SST instalada
-sst secrets list --stage <stage>      # Listar secrets configurados en un stage
-sst secrets set <KEY> <value> --stage <stage>  # Configurar un secret
-sst secrets remove <KEY> --stage <stage>       # Eliminar un secret
-```
+## 9. Testing
 
-### Consola SST
+- Vitest en todo el monorepo. Archivos `*.test.ts[x]` o `*.spec.ts`, agrupados en `__tests__/` junto al código.
+- Frontend: `jsdom` + `@testing-library/react`.
+- NestJS: `unplugin-swc` para decoradores; `Test.createTestingModule` con providers mockeados.
+- `packages/core` usa property-based tests con `fast-check`. Avisar al usuario antes de correrlos (pueden ser lentos).
+- Cobertura con provider `v8`, excluyendo `*.spec.ts`, `*.test.ts` e `index.ts`.
 
-```bash
-sst console                           # Abre la consola web de SST para monitoreo
-```
+No agregar tests sin que el usuario los pida, pero sí actualizar los existentes cuando se modifica código cubierto.
 
-### Refresh de estado
+---
 
-```bash
-sst refresh --stage <stage>           # Sincroniza el estado de SST con los recursos reales en AWS
-```
+## 10. Flujos recurrentes
 
-> Útil cuando se modifican recursos manualmente en la consola de AWS o hay drift.
+**Agregar un feature en el frontend** — crear `apps/web/src/features/<dominio>/` con la plantilla de carpetas; crear la página en `app/.../page.tsx` renderizando solo el `Container`; colocar tipos compartidos en `packages/types` si también los consume el backend.
 
-## Agregar nuevos componentes
+**Agregar un handler Lambda** — crear `apps/functions/src/handlers/<dominio>/<accion>.handler.ts` con la lógica delegada a `packages/core`; registrar la ruta en `infra/src/apis/functions-api.ts`.
 
-### Nuevo handler Lambda
+**Agregar un endpoint NestJS** — si es un dominio nuevo, crear `src/modules/<dominio>/`; mover la lógica pura a `packages/core/src/<dominio>/`; nuevos repos en `packages/db/src/adapters/mongodb/` con sus esquemas en `packages/db/src/schemas/`; registrar el módulo en `app.module.ts`.
 
-1. Crear carpeta en `apps/functions/src/handlers/<dominio>/`.
-2. Crear `<accion>.handler.ts` con el patrón de handler nativo.
-3. Definir la ruta en `infra/src/apis/main-api.ts`.
+**Agregar un servicio Fargate** — crear `apps/services/<nombre>/` siguiendo la misma estructura NestJS; definir el recurso en `infra/src/services/` e importarlo en `infra/src/app.ts`; exponerlo vía API Gateway; agregarlo al `docker-compose.yml` si se usará en local.
 
-### Nuevo servicio Fargate
+**Agregar un secret** — `sst secrets set` por cada stage, declararlo en `infra/src/shared/secrets.ts` y pasarlo al recurso en `environment` o `link`.
 
-1. Crear carpeta en `apps/services/<nombre-servicio>/`.
-2. Inicializar NestJS con `package.json`, `tsconfig.json`, `Dockerfile`.
-3. Agregar al `docker-compose.yml`.
-4. Definir en `infra/src/services/workers.ts`.
+**Agregar un adaptador de BD** — implementar `Repository<T>` en `packages/db/src/adapters/<motor>/`, definir esquemas equivalentes, declarar el recurso en `infra/src/databases/<motor>.ts`.
 
-## Prerequisitos
+---
 
-- Node.js >= 18 (recomendado: usar `nvm`)
-- pnpm >= 9.x (`npm install -g pnpm`)
-- Docker y Docker Compose
-- AWS CLI v2 configurado
-- SST CLI
+## 11. Verificación antes de dar por terminada una tarea
 
-## Documentación adicional
+1. `type-check` limpio en el paquete tocado.
+2. `lint` sin errores nuevos.
+3. Tests verdes en el área tocada si existían.
+4. Si se modificó `packages/core`, `packages/db` o `packages/types`: `pnpm run build` completo para validar el graph.
+5. Si se tocó infra: revisar cambios antes de hacer deploy.
+6. Comentarios y commits en español.
+7. Operaciones destructivas o de alto impacto: confirmar con el usuario antes de ejecutar.
 
-La documentación completa de arquitectura está en `docs/` (10 archivos numerados) y en `docs/ARCHITECTURE.md`.
+---
+
+## 12. Documentación complementaria
+
+- `infra-docs/` — Documentación técnica del monorepo e infraestructura (10 secciones numeradas + `ARCHITECTURE.md` + guía Turborepo).
+- `Documentacion/plataforma-agentes-conversacionales/` — Documentación funcional y de producto.
+- `README.md` — Overview de alto nivel.
+
+**Orden de consulta para una tarea nueva:**
+
+1. Este `AGENTS.md` (arquitectura y convenciones).
+2. `infra-docs/` si la tarea es de infra o monorepo.
+3. `Documentacion/` si es una feature de producto.
+4. Código existente del dominio más cercano (la mejor referencia).
