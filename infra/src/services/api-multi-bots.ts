@@ -11,7 +11,29 @@
 
 import { cluster } from "./cluster";
 import { mongoDbUri } from "../databases/mongodb";
-import { jwtSecrets, captchaSecret, captchaVerifyUrl } from "../shared/secrets";
+import {
+  jwtSecrets,
+  captchaSecret,
+  captchaVerifyUrl,
+  elasticEmailApiKey,
+  elasticEmailFromEmail,
+  elasticEmailFromName,
+  elasticEmailTemplateId,
+  frontendDomain,
+} from "../shared/secrets";
+
+/**
+ * URL del frontend para construir links de verificación de email.
+ * - En `sst dev`: http://localhost:3000 (Next.js local)
+ * - En deploy: se toma del secret FrontendDomain
+ */
+const frontendDomainValue = $dev ? "http://localhost:3000" : frontendDomain.value;
+
+/**
+ * Nombre del log group para el servicio API Multi Bots.
+ * Exportado para uso en CloudWatch Metric Filters y Alarms.
+ */
+export const apiMultiBotsLogGroupName = `/multibotagents/${$app.stage}/api-multi-bots`;
 
 export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   cluster,
@@ -27,6 +49,15 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     JWT_SECRETS: jwtSecrets.value,
     CAPTCHA_SECRET: captchaSecret.value,
     CAPTCHA_VERIFY_URL: captchaVerifyUrl.value,
+    ELASTIC_EMAIL_API_KEY: elasticEmailApiKey.value,
+    ELASTIC_EMAIL_FROM_EMAIL: elasticEmailFromEmail.value,
+    ELASTIC_EMAIL_FROM_NAME: elasticEmailFromName.value,
+    ELASTIC_EMAIL_TEMPLATE_ID: elasticEmailTemplateId.value,
+    FRONTEND_DOMAIN: frontendDomainValue,
+  },
+  logging: {
+    name: apiMultiBotsLogGroupName,
+    retention: "1 month",
   },
   serviceRegistry: {
     port: 3001,

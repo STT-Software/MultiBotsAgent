@@ -1,4 +1,4 @@
-import { Db, ObjectId } from "mongodb";
+import { type ClientSession, Db, ObjectId } from "mongodb";
 import {
   type EmailQueueItem,
   EmailQueueStatus,
@@ -63,6 +63,190 @@ export class EmailQueueRepository implements IEmailQueueRepository {
       ...doc,
     } as EmailQueueDocument);
   }
+
+  /**
+   * Encola un email para envío dentro de una transacción MongoDB.
+   * Misma lógica que enqueue pero con soporte de sesión.
+   */
+  async enqueueWithSession(item: EnqueueEmailData, session: ClientSession): Promise<EmailQueueItem> {
+    const now = new Date();
+    const doc: Omit<EmailQueueDocument, "_id"> = {
+      to: item.to,
+      template: item.template,
+      payload: item.payload,
+      status: EmailQueueStatus.PENDING as EmailQueueDocument["status"],
+      attempts: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const result = await this.collection.insertOne(
+      doc as EmailQueueDocument,
+      { session },
+    );
+
+    return toEntity({
+      _id: result.insertedId,
+      ...doc,
+    } as EmailQueueDocument);
+  }
+
+  /**
+   * Obtiene documentos elegibles para procesamiento.
+   * Elegibles: status 'pending' O status 'failed' con nextRetryAt <= now.
+   * Ordenados por createdAt ascendente (FIFO).
+   */
+  async findEligible(limit: number): Promise<EmailQueueItem[]> {
+    const now = new Date();
+
+    const docs = await this.collection
+      .find({
+        $or: [
+          { status: EmailQueueStatus.PENDING },
+          {
+            status: EmailQueueStatus.FAILED,
+            nextRetryAt: { $lte: now },
+          },
+        ],
+      })
+      .sort({ createdAt: 1 })
+      .limit(limit)
+      .toArray();
+
+    return docs.map(toEntity);
+  }
+
+  /**
+   * Toma un documento para procesamiento con lock atómico.
+   * Usa findOneAndUpdate con filtro del status original para evitar
+   * procesamiento concurrente (solo una invocación obtiene el documento).
+   */
+  async takeForProcessing(
+    id: string,
+    currentStatus: string,
+  ): Promise<EmailQueueItem | null> {
+    const now = new Date();
+
+    const doc = await this.collection.findOneAndUpdate(
+      {
+        _id: new ObjectId(id),
+        status: currentStatus as EmailQueueStatus,
+      },
+      {
+        $set: {
+          status: EmailQueueStatus.PROCESSING,
+          updatedAt: now,
+        },
+      },
+      { returnDocument: "after" },
+    );
+
+    return doc ? toEntity(doc) : null;
+  }
+
+  /**
+   * Marca un documento como enviado exitosamente.
+   * Actualiza status a 'sent' y el timestamp.
+   */
+  async markSent(id: string): Promise<void> {
+    const now = new Date();
+
+    await this.collection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          status: EmailQueueStatus.SENT,
+          updatedAt: now,
+        },
+      },
+    );
+  }
+
+  /**
+   * Marca un documento como fallido con información de retry.
+   * Actualiza status, lastError, nextRetryAt y attempts.
+   */
+  async markFailed(
+    id: string,
+    error: string,
+    nextRetryAt: Date | null,
+    attempts: number,
+  ): Promise<void> {
+    const now = new Date();
+
+    const updateFields: Record<string, unknown> = {
+      status: EmailQueueStatus.FAILED,
+      lastError: error,
+      attempts,
+      updatedAt: now,
+    };
+
+    if (nextRetryAt) {
+      updateFields.nextRetryAt = nextRetryAt;
+    } else {
+      updateFields.nextRetryAt = undefined;
+    }
+
+    await this.collection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateFields },
+    );
+  }
+
+  /**
+   * Cuenta documentos por status.
+   */
+  async countByStatus(status: string): Promise<number> {
+    return this.collection.countDocuments({ status: status as EmailQueueStatus });
+  }
+
+  /**
+   * Calcula tiempo promedio en cola de documentos pendientes (en ms).
+   * Usa aggregation pipeline para calcular la diferencia entre now y createdAt.
+   * Retorna 0 si no hay documentos pendientes.
+   */
+  async avgQueueTime(): Promise<number> {
+    const now = new Date();
+
+    const result = await this.collection
+      .aggregate<{ avgMs: number }>([
+        { $match: { status: EmailQueueStatus.PENDING } },
+        {
+          $group: {
+            _id: null,
+            avgMs: {
+              $avg: { $subtract: [now, "$createdAt"] },
+            },
+          },
+        },
+      ])
+      .toArray();
+
+    return result.length > 0 ? result[0].avgMs : 0;
+  }
+
+  /**
+   * Resetea documentos stuck en estado 'processing' por más de timeoutMs.
+   * Los devuelve a estado 'pending' para que sean reprocesados.
+   */
+  async resetStuckDocuments(timeoutMs: number): Promise<void> {
+    const cutoff = new Date(Date.now() - timeoutMs);
+
+    await this.collection.updateMany(
+      {
+        status: EmailQueueStatus.PROCESSING,
+        updatedAt: { $lte: cutoff },
+      },
+      {
+        $set: {
+          status: EmailQueueStatus.PENDING,
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  // ─── Base Repository Methods ─────────────────────────────────────────────────
 
   async findById(id: string): Promise<EmailQueueItem | null> {
     const doc = await this.collection.findOne({ _id: new ObjectId(id) });

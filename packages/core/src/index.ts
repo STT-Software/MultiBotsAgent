@@ -24,3 +24,6 @@ export * from "./auth/rate-limit.service";
 export * from "./auth/login.service";
 export * from "./auth/refresh.service";
 export * from "./auth/logout.service";
+
+// Email Verification
+export * from "./email-verification";

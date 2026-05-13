@@ -2,13 +2,13 @@
  * Servicio orquestador de registro de empresa y usuario.
  *
  * Flujo: validate → captcha → startTransaction → checkEmail → createCompany
- *        → createUser → revokeTokens → createRefreshToken → commitTransaction
- *        → generateAccessToken → enqueueEmail
+ *        → createUser → revokeTokens → createRefreshToken → createVerifyToken
+ *        → enqueueVerificationEmail → commitTransaction → generateAccessToken
  *
  * Maneja:
  * - Transacciones atómicas (abort en error)
  * - Concurrencia (retry si conflicto de unicidad)
- * - Email no bloqueante (log error si falla encolado)
+ * - Token de verificación y email encolados dentro de la transacción
  * - Logging seguro (sin datos sensibles)
  *
  * Este módulo es lógica pura sin dependencias de AWS.
@@ -153,11 +153,38 @@ export class RegisterService {
         session,
       );
 
-      // 9. Commit transacción
+      // 9. Generar VerifyToken y encolar email de verificación (dentro de la transacción)
+      const verificationToken = this.deps.tokenService.generateVerificationToken();
+      await this.deps.verifyTokenRepository.createForUserWithSession(
+        user.id,
+        'email_verification',
+        verificationToken,
+        session,
+      );
+
+      const verificationUrl = `${this.deps.frontendDomain}/verify-email?token=${verificationToken}`;
+      await this.deps.emailQueueRepository.enqueueWithSession(
+        {
+          to: user.email,
+          template: EmailTemplate.VERIFICATION,
+          payload: {
+            token: verificationToken,
+            url: verificationUrl,
+            username: user.email,
+          },
+          status: EmailQueueStatus.PENDING,
+          attempts: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+        session,
+      );
+
+      // 10. Commit transacción
       await session.commitTransaction();
       await session.endSession();
 
-      // 10. Generar Access Token (fuera de la transacción)
+      // 11. Generar Access Token (fuera de la transacción)
       const accessTokenPayload: AccessTokenPayload = {
         userId: user.id,
         companyId: company.id,
@@ -165,9 +192,6 @@ export class RegisterService {
         emailVerified: user.emailVerified,
       };
       const accessToken = this.deps.tokenService.generateAccessToken(accessTokenPayload);
-
-      // 11. Encolar email de verificación (no bloqueante)
-      await this.enqueueVerificationEmail(user.id, user.email);
 
       // 12. Log evento de registro (sin datos sensibles)
       this.deps.logger.info('User registered successfully', {
@@ -223,42 +247,6 @@ export class RegisterService {
       }
 
       throw error;
-    }
-  }
-
-  /**
-   * Encola email de verificación. No bloqueante: log error si falla.
-   */
-  private async enqueueVerificationEmail(userId: string, email: string): Promise<void> {
-    try {
-      const verificationToken = this.deps.tokenService.generateVerificationToken();
-
-      await this.deps.verifyTokenRepository.createForUser(
-        userId,
-        'email_verification',
-        verificationToken,
-      );
-
-      const now = new Date();
-      await this.deps.emailQueueRepository.enqueue({
-        to: email,
-        template: EmailTemplate.VERIFICATION,
-        payload: {
-          token: verificationToken,
-          url: `/auth/verify-email?token=${verificationToken}`,
-        },
-        status: EmailQueueStatus.PENDING,
-        attempts: 0,
-        createdAt: now,
-        updatedAt: now,
-      });
-    } catch (error) {
-      // Email no bloqueante: log error pero no revertir registro
-      this.deps.logger.error('Failed to enqueue verification email', {
-        userId,
-        email,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
     }
   }
 

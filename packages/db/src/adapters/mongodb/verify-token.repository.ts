@@ -1,4 +1,4 @@
-import { Db, ObjectId } from "mongodb";
+import { type ClientSession, Db, Filter, ObjectId } from "mongodb";
 import type { VerifyToken, VerifyTokenType } from "@multibotagents/types";
 import type { IVerifyTokenRepository } from "../../interfaces";
 import {
@@ -70,6 +70,114 @@ export class VerifyTokenRepository implements IVerifyTokenRepository {
       _id: result.insertedId,
       ...doc,
     } as VerifyTokenDocument);
+  }
+
+  /**
+   * Crea un token de verificación dentro de una transacción MongoDB.
+   * Misma lógica que createForUser pero con soporte de sesión.
+   */
+  async createForUserWithSession(
+    userId: string,
+    type: VerifyTokenType,
+    token: string,
+    session: ClientSession,
+  ): Promise<VerifyToken> {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + TOKEN_EXPIRATION_MS[type]);
+
+    const doc: Omit<VerifyTokenDocument, "_id"> = {
+      userId: new ObjectId(userId),
+      type,
+      token,
+      expiresAt,
+      createdAt: now,
+    };
+
+    const result = await this.collection.insertOne(
+      doc as VerifyTokenDocument,
+      { session },
+    );
+
+    return toEntity({
+      _id: result.insertedId,
+      ...doc,
+    } as VerifyTokenDocument);
+  }
+
+  /**
+   * Busca y marca un token como usado atómicamente.
+   * Usa findOneAndUpdate con filtro que garantiza:
+   * - El token existe
+   * - No ha sido usado (usedAt es null/undefined)
+   * - No ha expirado (expiresAt > now)
+   *
+   * Retorna null si el token no cumple las condiciones.
+   * Esto previene race conditions en validación concurrente.
+   */
+  async findAndMarkUsed(token: string): Promise<VerifyToken | null> {
+    const now = new Date();
+
+    const filter: Filter<VerifyTokenDocument> = {
+      token,
+      usedAt: { $eq: null } as unknown as Date,
+      expiresAt: { $gt: now },
+    };
+
+    const doc = await this.collection.findOneAndUpdate(
+      filter,
+      { $set: { usedAt: now } },
+      { returnDocument: "after" },
+    );
+
+    return doc ? toEntity(doc) : null;
+  }
+
+  /**
+   * Invalida todos los tokens de un tipo para un usuario.
+   * Marca usedAt = now en todos los tokens que aún no han sido usados.
+   */
+  async invalidateAllByUserAndType(
+    userId: string,
+    type: VerifyTokenType,
+  ): Promise<void> {
+    const now = new Date();
+
+    const filter: Filter<VerifyTokenDocument> = {
+      userId: new ObjectId(userId),
+      type,
+      usedAt: { $eq: null } as unknown as Date,
+    };
+
+    await this.collection.updateMany(filter, { $set: { usedAt: now } });
+  }
+
+  /**
+   * Busca un token por su valor.
+   * Útil para obtener el userId de un token expirado (para reenvío).
+   */
+  async findByToken(token: string): Promise<VerifyToken | null> {
+    const doc = await this.collection.findOne({ token });
+    return doc ? toEntity(doc) : null;
+  }
+
+  /**
+   * Obtiene el último token creado para un usuario y tipo.
+   * Ordena por createdAt descendente y retorna el primero.
+   * Útil para verificar cooldown de reenvío.
+   */
+  async findLatestByUserAndType(
+    userId: string,
+    type: VerifyTokenType,
+  ): Promise<VerifyToken | null> {
+    const doc = await this.collection.findOne(
+      {
+        userId: new ObjectId(userId),
+        type,
+      },
+      { sort: { createdAt: -1 } },
+    );
+
+    return doc ? toEntity(doc) : null;
   }
 
   async findById(id: string): Promise<VerifyToken | null> {

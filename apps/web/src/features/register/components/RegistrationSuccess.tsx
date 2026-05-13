@@ -1,52 +1,65 @@
-export function RegistrationSuccess() {
+'use client';
+
+interface RegistrationSuccessProps {
+  email?: string;
+}
+
+export function RegistrationSuccess({ email }: RegistrationSuccessProps) {
   return (
     <div className="flex w-full flex-col items-center justify-center space-y-6 py-12 animate-fade-in">
-      {/* Animated checkmark */}
-      <div className="relative flex h-24 w-24 items-center justify-center">
-        <div className="absolute inset-0 animate-success-ring rounded-full border-4 border-emerald-500" />
-        <svg
-          className="h-12 w-12 animate-success-check text-emerald-400"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M5 13l4 4L19 7"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="animate-draw-check"
-          />
-        </svg>
-        {/* Particle burst */}
-        <div className="absolute inset-0 animate-success-particles">
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute left-1/2 top-1/2 h-2 w-2 rounded-full bg-emerald-400"
-              style={{
-                transform: `rotate(${i * 45}deg) translateY(-32px)`,
-                opacity: 0,
-                animation: `particle-burst 0.6s ease-out ${0.3 + i * 0.05}s forwards`,
-              }}
+      {/* Email icon */}
+      <div className="relative flex h-20 w-20 items-center justify-center">
+        <div className="absolute inset-0 rounded-full border-2 border-emerald-500/30 animate-pulse" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 ring-1 ring-emerald-500/20">
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            className="text-emerald-400"
+            aria-hidden="true"
+          >
+            <rect
+              x="2"
+              y="5"
+              width="20"
+              height="14"
+              rx="2"
+              stroke="currentColor"
+              strokeWidth="1.5"
             />
-          ))}
+            <path
+              d="M2 7l8.165 5.715a3 3 0 003.67 0L22 7"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
         </div>
       </div>
 
-      <div className="text-center space-y-2">
+      <div className="text-center space-y-3 max-w-sm">
         <h2 className="text-xl font-bold text-white sm:text-2xl">
-          ¡Cuenta creada exitosamente!
+          Verifica tu email
         </h2>
-        <p className="text-sm text-gray-400">
-          Redirigiendo al panel de administración...
+        <p className="text-sm leading-relaxed text-gray-400">
+          Hemos enviado un correo de verificación a
+          {email ? (
+            <span className="block mt-1 font-medium text-gray-200">{email}</span>
+          ) : (
+            <span> tu dirección de correo</span>
+          )}
+        </p>
+        <p className="text-xs text-gray-500">
+          Revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.
         </p>
       </div>
 
-      {/* Loading bar */}
-      <div className="h-1 w-48 overflow-hidden rounded-full bg-gray-800">
-        <div className="h-full animate-progress-bar rounded-full bg-emerald-500" />
+      {/* Spam hint */}
+      <div className="rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3 text-center">
+        <p className="text-xs text-gray-500">
+          ¿No lo encuentras? Revisa tu carpeta de spam o correo no deseado.
+        </p>
       </div>
     </div>
   );

@@ -33,6 +33,7 @@ import { RefreshNestService } from './refresh.service';
 import { LogoutNestService } from './logout.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthExceptionFilter } from './filters/auth-exception.filter';
+import { SkipEmailVerification } from '../email-verification/decorators/skip-email-verification.decorator';
 import {
   RegisterRequestDto,
   RegisterSuccessResponseDto,
@@ -52,6 +53,7 @@ const REFRESH_COOKIE_OPTIONS = {
 };
 
 @ApiTags('Auth')
+@SkipEmailVerification()
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);

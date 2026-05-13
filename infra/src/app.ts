@@ -21,6 +21,9 @@ import "./databases/mongodb";
 import "./services/cluster";
 import "./services/api-multi-bots";
 
+// Monitoring & Alarms (depends on services for log group names)
+import "./shared/alarms";
+
 // APIs
 import "./apis/services-api";
 import "./apis/functions-api";

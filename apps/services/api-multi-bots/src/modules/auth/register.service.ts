@@ -49,6 +49,7 @@ export class RegisterNestService {
         passwordService,
         tokenService,
         captchaService,
+        frontendDomain: process.env.FRONTEND_DOMAIN || 'http://localhost:3000',
         getSession: async () => {
           await this.mongoClient.connect();
           return this.mongoClient.startSession();
