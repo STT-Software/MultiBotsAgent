@@ -2,6 +2,7 @@ export interface Session {
   empresa: {
     id: string
     nombre: string
+    logo?: string | null
   }
   usuario: {
     id: string

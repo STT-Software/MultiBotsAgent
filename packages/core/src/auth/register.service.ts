@@ -190,6 +190,7 @@ export class RegisterService {
         companyId: company.id,
         email: user.email,
         emailVerified: user.emailVerified,
+        companyName: company.name,
       };
       const accessToken = this.deps.tokenService.generateAccessToken(accessTokenPayload);
 

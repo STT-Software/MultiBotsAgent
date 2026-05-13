@@ -17,6 +17,9 @@ import "./shared/secrets";
 // Databases
 import "./databases/mongodb";
 
+// Storage
+import "./storage/company-logos";
+
 // Services
 import "./services/cluster";
 import "./services/api-multi-bots";

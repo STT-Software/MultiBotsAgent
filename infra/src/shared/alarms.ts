@@ -20,13 +20,23 @@ import { apiMultiBotsLogGroupName } from "../services/api-multi-bots";
 
 const metricsNamespace = "MultiBotsAgent/EmailWorker";
 
+// ─── Log Group (creado explícitamente para que los Metric Filters no fallen) ─
+
+const emailWorkerLogGroup = new aws.cloudwatch.LogGroup(
+  "EmailWorkerLogGroup",
+  {
+    name: apiMultiBotsLogGroupName,
+    retentionInDays: 30,
+  },
+);
+
 // ─── Metric Filter: pendingCount ────────────────────────────────────────────
 
 const pendingCountMetricFilter = new aws.cloudwatch.LogMetricFilter(
   "EmailQueuePendingCountFilter",
   {
     name: "EmailQueuePendingCount",
-    logGroupName: apiMultiBotsLogGroupName,
+    logGroupName: emailWorkerLogGroup.name,
     pattern: '{ $.metricType = "EMAIL_WORKER_METRICS" }',
     metricTransformation: {
       name: "EmailQueuePendingCount",
@@ -43,7 +53,7 @@ const failedCountMetricFilter = new aws.cloudwatch.LogMetricFilter(
   "EmailQueueFailedCountFilter",
   {
     name: "EmailQueueFailedCount",
-    logGroupName: apiMultiBotsLogGroupName,
+    logGroupName: emailWorkerLogGroup.name,
     pattern: '{ $.metricType = "EMAIL_WORKER_METRICS" }',
     metricTransformation: {
       name: "EmailQueueFailedCount",
@@ -60,7 +70,7 @@ const avgQueueTimeMetricFilter = new aws.cloudwatch.LogMetricFilter(
   "EmailQueueAvgTimeFilter",
   {
     name: "EmailQueueAvgQueueTimeMs",
-    logGroupName: apiMultiBotsLogGroupName,
+    logGroupName: emailWorkerLogGroup.name,
     pattern: '{ $.metricType = "EMAIL_WORKER_METRICS" }',
     metricTransformation: {
       name: "EmailQueueAvgQueueTimeMs",

@@ -14,6 +14,9 @@ import type {
   VerifyTokenType,
   EmailQueueItem,
   EmailTemplate,
+  ServiceCategory,
+  CompanySize,
+  ReferralSource,
 } from '@multibotagents/types';
 import type { Repository } from './repository.interface';
 
@@ -29,8 +32,21 @@ export interface CreateCompanyData {
   referralSource?: string;
 }
 
+/** Datos para actualizar el perfil de empresa (PATCH parcial). */
+export interface UpdateCompanyProfileData {
+  name?: string;
+  country?: string;
+  category?: ServiceCategory;
+  size?: CompanySize;
+  phone?: string | null;
+  logo?: string | null;
+  referralSource?: ReferralSource | null;
+}
+
 export interface ICompanyRepository extends Repository<Company> {
   createWithSession(data: CreateCompanyData, session: ClientSession): Promise<Company>;
+  /** Actualiza parcialmente el perfil de una empresa. Retorna el documento actualizado o null si no existe. */
+  updateProfile(companyId: string, data: Partial<UpdateCompanyProfileData>): Promise<Company | null>;
 }
 
 // ─── User ────────────────────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   return (
     <Shell
       empresaNombre={session.empresa.nombre}
+      empresaLogo={session.empresa.logo}
       usuarioNombre={session.usuario.nombre}
     >
       {children}
