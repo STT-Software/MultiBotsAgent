@@ -1,8 +1,5 @@
+import { DashboardView } from '@/features/dashboard/components/dashboard-view'
+
 export default function DashboardPage() {
-  return (
-    <div>
-      <h1>Dashboard</h1>
-      <p>Próximamente</p>
-    </div>
-  )
+  return <DashboardView />
 }
