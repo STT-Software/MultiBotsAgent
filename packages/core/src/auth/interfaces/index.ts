@@ -14,3 +14,10 @@ export type {
   Logger,
   RegisterServiceDeps,
 } from './register.interfaces';
+
+export type {
+  CaptchaConfig,
+  HttpClient,
+  TokenServiceConfig,
+  ValidatedRegisterData,
+} from './services.interfaces';

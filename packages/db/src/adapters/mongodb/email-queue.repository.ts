@@ -1,29 +1,13 @@
 import { Db, ObjectId } from "mongodb";
 import {
   type EmailQueueItem,
-  type EmailTemplate,
   EmailQueueStatus,
 } from "@multibotagents/types";
-import type { Repository } from "../../interfaces/repository.interface";
+import type { IEmailQueueRepository, EnqueueEmailData } from "../../interfaces";
 import {
   EMAIL_QUEUE_COLLECTION,
   type EmailQueueDocument,
 } from "../../schemas/email-queue.schema";
-
-// ─── DTOs ────────────────────────────────────────────────────────────────────
-
-/** Datos necesarios para encolar un email. */
-export interface EnqueueEmailData {
-  to: string;
-  template: EmailTemplate;
-  payload: Record<string, unknown>;
-}
-
-// ─── Repository Interface ────────────────────────────────────────────────────
-
-export interface IEmailQueueRepository extends Repository<EmailQueueItem> {
-  enqueue(item: EnqueueEmailData): Promise<EmailQueueItem>;
-}
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
