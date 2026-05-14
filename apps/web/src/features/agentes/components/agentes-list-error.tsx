@@ -1,4 +1,4 @@
-import { AlertCircle } from "lucide-react";
+import { CloudOff, RefreshCw, ExternalLink, AlertTriangle, Clock } from "lucide-react";
 
 interface AgentesListErrorProps {
   onRetry: () => void;
@@ -6,22 +6,112 @@ interface AgentesListErrorProps {
 
 export function AgentesListError({ onRetry }: AgentesListErrorProps) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-16">
-      <AlertCircle size={32} color="#ffb4ab" aria-hidden="true" />
-      <p className="text-base" style={{ color: "#bbcabe" }}>
-        No pudimos cargar los agentes
+    <div className="flex flex-col items-center justify-center gap-6 py-16">
+      {/* Icon */}
+      <div
+        className="flex h-24 w-24 items-center justify-center rounded-xl border border-dashed"
+        style={{ borderColor: "#3c4a41", backgroundColor: "#1a211c" }}
+      >
+        <CloudOff size={40} style={{ color: "#49df9a" }} aria-hidden="true" />
+      </div>
+
+      {/* Title */}
+      <h2
+        className="text-xl font-semibold"
+        style={{ color: "#dde5dc", fontFamily: "Geist, sans-serif" }}
+      >
+        Error al cargar los agentes
+      </h2>
+
+      {/* Description */}
+      <p
+        className="max-w-md text-center text-sm leading-relaxed"
+        style={{ color: "#bbcabe" }}
+      >
+        La conexión con el núcleo de orquestación se ha visto interrumpida por un fallo en la red o un tiempo de espera excedido.
       </p>
+
+      {/* Retry button */}
       <button
         onClick={onRetry}
-        className="px-4 py-2 rounded-md text-sm font-medium transition-all hover:shadow-[0_0_8px_rgba(0,187,122,0.3)]"
+        className="inline-flex items-center gap-2 rounded-md px-6 py-2.5 text-sm font-medium transition-all hover:shadow-[0_0_12px_rgba(0,187,122,0.3)]"
         style={{
           color: "#00bb7a",
           border: "1px solid #00bb7a",
           backgroundColor: "transparent",
         }}
       >
+        <RefreshCw size={14} aria-hidden="true" />
         Reintentar
       </button>
+
+      {/* System status link */}
+      <a
+        href="#"
+        className="inline-flex items-center gap-1 text-xs transition-colors hover:underline"
+        style={{ color: "#869489" }}
+      >
+        Ver estado del sistema
+        <ExternalLink size={11} aria-hidden="true" />
+      </a>
+
+      {/* Technical info cards */}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div
+          className="flex items-start gap-3 rounded-lg border px-4 py-3"
+          style={{ backgroundColor: "#1a211c", borderColor: "#3c4a41" }}
+        >
+          <AlertTriangle size={16} style={{ color: "#ffb4ab" }} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <div className="flex flex-col">
+            <span
+              className="text-xs font-semibold"
+              style={{ color: "#dde5dc" }}
+            >
+              API Endpoint Error
+            </span>
+            <span
+              className="text-[11px]"
+              style={{ color: "#869489", fontFamily: "JetBrains Mono, monospace" }}
+            >
+              v2/agents/list – Code 503 (Service Unavailable)
+            </span>
+          </div>
+        </div>
+
+        <div
+          className="flex items-start gap-3 rounded-lg border px-4 py-3"
+          style={{ backgroundColor: "#1a211c", borderColor: "#3c4a41" }}
+        >
+          <Clock size={16} style={{ color: "#bbcabe" }} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <div className="flex flex-col">
+            <span
+              className="text-xs font-semibold"
+              style={{ color: "#dde5dc" }}
+            >
+              System Timestamp
+            </span>
+            <span
+              className="text-[11px]"
+              style={{ color: "#869489", fontFamily: "JetBrains Mono, monospace" }}
+            >
+              {new Date().toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}{" "}
+              –{" "}
+              {new Date().toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false,
+                timeZone: "UTC",
+              })}{" "}
+              UTC
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

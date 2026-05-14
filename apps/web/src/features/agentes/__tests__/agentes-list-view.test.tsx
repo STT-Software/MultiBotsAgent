@@ -24,6 +24,15 @@ vi.mock("next/link", () => ({
 describe("AgentesListView", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    // Mock metrics by default
+    vi.spyOn(agentesService, "fetchAgentesMetrics").mockResolvedValue({
+      agentesActivos: 24,
+      cambioSemanal: "+12% esta semana",
+      latenciaMedia: "342ms",
+      latenciaEstado: "Dentro del SLA",
+      tokenUsage: "1.2M",
+      tokenEstado: "Cerca del límite",
+    });
   });
 
   afterEach(() => {
@@ -55,7 +64,7 @@ describe("AgentesListView", () => {
     );
 
     expect(
-      screen.getByText("Crea tu primer agente para empezar")
+      screen.getByText(/Comienza creando tu primer agente/)
     ).toBeInTheDocument();
     expect(screen.getByText("Crear tu primer agente")).toBeInTheDocument();
   });
@@ -66,8 +75,10 @@ describe("AgentesListView", () => {
         {
           id: "1",
           nombre: "Agente Test",
+          codigoId: "agt_tst_001",
           tipo: "rag",
           estado: "activo",
+          vencimiento: "1 may 2026",
           createdAt: "2026-05-01T10:00:00Z",
         },
       ],
@@ -90,8 +101,10 @@ describe("AgentesListView", () => {
         {
           id: "99",
           nombre: "Agente Custom",
+          codigoId: "agt_cst_099",
           tipo: "cotizador",
           estado: "borrador",
+          vencimiento: "1 jun 2026",
           createdAt: "2026-06-01T10:00:00Z",
         },
       ],
@@ -117,7 +130,7 @@ describe("AgentesListView", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText("No pudimos cargar los agentes")
+        screen.getByText("Error al cargar los agentes")
       ).toBeInTheDocument()
     );
 

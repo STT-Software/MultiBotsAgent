@@ -7,6 +7,15 @@ import * as agentesService from "../services/agentes.service";
 describe("useAgentesList", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    // Mock metrics by default so tests focus on agentes behavior
+    vi.spyOn(agentesService, "fetchAgentesMetrics").mockResolvedValue({
+      agentesActivos: 24,
+      cambioSemanal: "+12% esta semana",
+      latenciaMedia: "342ms",
+      latenciaEstado: "Dentro del SLA",
+      tokenUsage: "1.2M",
+      tokenEstado: "Cerca del límite",
+    });
   });
 
   afterEach(() => {
@@ -24,8 +33,10 @@ describe("useAgentesList", () => {
                   {
                     id: "1",
                     nombre: "Test",
+                    codigoId: "agt_tst_001",
                     tipo: "rag",
                     estado: "activo",
+                    vencimiento: "1 may 2026",
                     createdAt: "2026-05-01T10:00:00Z",
                   },
                 ],
@@ -72,8 +83,10 @@ describe("useAgentesList", () => {
           {
             id: "1",
             nombre: "Test",
+            codigoId: "agt_tst_001",
             tipo: "rag",
             estado: "activo",
+            vencimiento: "1 may 2026",
             createdAt: "2026-05-01T10:00:00Z",
           },
         ],
@@ -110,8 +123,10 @@ describe("useAgentesList", () => {
                 {
                   id: "1",
                   nombre: "Test",
+                  codigoId: "agt_tst_001",
                   tipo: "rag",
                   estado: "activo",
+                  vencimiento: "1 may 2026",
                   createdAt: "2026-05-01T10:00:00Z",
                 },
               ],
@@ -146,22 +161,28 @@ describe("useAgentesList", () => {
         {
           id: "1",
           nombre: "Primero",
+          codigoId: "agt_001",
           tipo: "rag",
           estado: "activo",
+          vencimiento: "1 may 2026",
           createdAt: "2026-05-01T10:00:00Z",
         },
         {
           id: "2",
           nombre: "Último",
+          codigoId: "agt_002",
           tipo: "cotizador",
           estado: "activo",
+          vencimiento: "10 may 2026",
           createdAt: "2026-05-10T10:00:00Z",
         },
         {
           id: "3",
           nombre: "Medio",
+          codigoId: "agt_003",
           tipo: "agendamiento",
           estado: "borrador",
+          vencimiento: "5 may 2026",
           createdAt: "2026-05-05T10:00:00Z",
         },
       ],

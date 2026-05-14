@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Agente } from "../types/agentes.types";
-import { fetchAgentes } from "../services/agentes.service";
+import { Agente, AgentesMetrics } from "../types/agentes.types";
+import { fetchAgentes, fetchAgentesMetrics } from "../services/agentes.service";
 
 interface UseAgentesListReturn {
   loading: boolean;
   error: string | null;
   agentes: Agente[];
+  metrics: AgentesMetrics | null;
   retry: () => void;
 }
 
@@ -16,6 +17,7 @@ export function useAgentesList(): UseAgentesListReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [agentes, setAgentes] = useState<Agente[]>([]);
+  const [metrics, setMetrics] = useState<AgentesMetrics | null>(null);
 
   const loadAgentes = useCallback(async () => {
     setLoading(true);
@@ -23,12 +25,16 @@ export function useAgentesList(): UseAgentesListReturn {
     setAgentes([]);
 
     try {
-      const response = await fetchAgentes();
+      const [response, metricsData] = await Promise.all([
+        fetchAgentes(),
+        fetchAgentesMetrics(),
+      ]);
       const sorted = [...response.data].sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       setAgentes(sorted);
+      setMetrics(metricsData);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Error al cargar agentes";
@@ -46,5 +52,5 @@ export function useAgentesList(): UseAgentesListReturn {
     loadAgentes();
   }, [loadAgentes]);
 
-  return { loading, error, agentes, retry };
+  return { loading, error, agentes, metrics, retry };
 }

@@ -7,35 +7,44 @@ interface AgentesTableProps {
 
 export function AgentesTable({ agentes }: AgentesTableProps) {
   return (
-    <div className="w-full rounded-lg overflow-hidden" style={{ backgroundColor: "#1a211c" }}>
+    <div
+      className="w-full rounded-lg overflow-hidden border"
+      style={{ backgroundColor: "#1a211c", borderColor: "#3c4a41" }}
+    >
       {/* Header */}
       <div
-        className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-4 py-3"
-        style={{ backgroundColor: "#242c27" }}
+        className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-4 px-5 py-3"
+        style={{ borderBottom: "1px solid #3c4a41" }}
       >
         <span
-          className="text-xs font-medium uppercase tracking-wide"
-          style={{ color: "#bbcabe" }}
+          className="text-[11px] font-medium uppercase tracking-wider"
+          style={{ color: "#869489", fontFamily: "JetBrains Mono, monospace" }}
         >
-          Nombre
+          Nombre del Agente
         </span>
         <span
-          className="text-xs font-medium uppercase tracking-wide"
-          style={{ color: "#bbcabe" }}
+          className="text-[11px] font-medium uppercase tracking-wider"
+          style={{ color: "#869489", fontFamily: "JetBrains Mono, monospace" }}
         >
-          Tipo
+          Tipo / Misión
         </span>
         <span
-          className="text-xs font-medium uppercase tracking-wide"
-          style={{ color: "#bbcabe" }}
+          className="text-[11px] font-medium uppercase tracking-wider"
+          style={{ color: "#869489", fontFamily: "JetBrains Mono, monospace" }}
         >
           Estado
         </span>
         <span
-          className="text-xs font-medium uppercase tracking-wide"
-          style={{ color: "#bbcabe" }}
+          className="text-[11px] font-medium uppercase tracking-wider"
+          style={{ color: "#869489", fontFamily: "JetBrains Mono, monospace" }}
         >
-          Creado
+          Vencimiento / Release
+        </span>
+        <span
+          className="text-[11px] font-medium uppercase tracking-wider"
+          style={{ color: "#869489", fontFamily: "JetBrains Mono, monospace" }}
+        >
+          Acciones
         </span>
       </div>
 
