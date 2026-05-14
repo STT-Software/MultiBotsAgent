@@ -1,8 +1,17 @@
 import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
 import { HealthModule } from "./modules/health/health.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { EmailVerificationModule } from "./modules/email-verification/email-verification.module";
+import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-verified.guard";
 
 @Module({
-  imports: [HealthModule, AuthModule],
+  imports: [HealthModule, AuthModule, EmailVerificationModule],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: EmailVerifiedGuard,
+    },
+  ],
 })
 export class AppModule {}

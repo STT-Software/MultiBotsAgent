@@ -112,6 +112,13 @@ export class UserRepository implements IUserRepository {
     return toEntity(result);
   }
 
+  async markEmailVerified(userId: string): Promise<void> {
+    await this.collection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { emailVerified: true, updatedAt: new Date() } },
+    );
+  }
+
   async delete(id: string): Promise<boolean> {
     const result = await this.collection.deleteOne({ _id: new ObjectId(id) });
     return result.deletedCount === 1;
