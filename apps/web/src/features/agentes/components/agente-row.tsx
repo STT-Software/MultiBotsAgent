@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MoreVertical, MessageSquare, Calculator, Calendar, Wrench } from "lucide-react";
+import { MoreVertical, MessageSquare, Calculator, Calendar } from "lucide-react";
 
 import { Agente } from "../types/agentes.types";
 import { AgenteTipoBadge } from "./agente-tipo-badge";
