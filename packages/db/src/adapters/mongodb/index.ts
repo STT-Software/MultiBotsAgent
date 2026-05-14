@@ -18,6 +18,7 @@ export { RateLimitRepository } from "./rate-limit.repository";
 // Re-export interfaces desde la carpeta centralizada
 export type {
   CreateCompanyData,
+  UpdateCompanyProfileData,
   ICompanyRepository,
   CreateUserData,
   IUserRepository,

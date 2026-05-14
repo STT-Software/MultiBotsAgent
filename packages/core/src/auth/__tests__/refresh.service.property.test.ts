@@ -155,6 +155,7 @@ describe('Feature: flujo-2.2-autenticacion, Property 10: Valid refresh produces 
           companyId: userData.companyId,
           email: userData.email,
           emailVerified: userData.emailVerified,
+          companyName: company.name,
         });
       }),
       { numRuns: 100 },

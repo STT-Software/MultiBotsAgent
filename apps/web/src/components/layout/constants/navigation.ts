@@ -29,6 +29,6 @@ export const NAV_ITEMS: NavItemConfig[] = [
   {
     label: 'Métricas',
     href: '/metricas',
-    icon: 'BarChart3',
+    icon: 'ChartBar',
   },
 ]

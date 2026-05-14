@@ -112,6 +112,7 @@ export class RefreshService {
       companyId: user.companyId,
       email: user.email,
       emailVerified: user.emailVerified,
+      companyName: company.name,
     };
 
     const accessToken = this.deps.tokenService.generateAccessToken(payload);

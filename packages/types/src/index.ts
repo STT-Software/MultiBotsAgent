@@ -27,3 +27,6 @@ export * from "./auth/rate-limit.types";
 
 // Email Verification
 export * from "./email-verification";
+
+// Company Profile
+export * from "./company-profile";
