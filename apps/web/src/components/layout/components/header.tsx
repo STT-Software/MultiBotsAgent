@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, Bell, Search, Settings, User } from 'lucide-react'
+import { LogOut, Bell, Search, Settings } from 'lucide-react'
+import { logout } from '@/lib/auth'
 
 interface HeaderProps {
   empresaNombre: string
@@ -29,16 +30,12 @@ export function Header({ empresaNombre, empresaLogo, usuarioNombre }: HeaderProp
   }, [menuOpen])
 
   const handleLogout = useCallback(() => {
-    // Clear tokens/session
-    document.cookie = 'refreshToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('session')
-    router.push('/login')
-  }, [router])
+    logout()
+  }, [])
 
-  const handleGoToProfile = useCallback(() => {
+  const handleGoToSettings = useCallback(() => {
     setMenuOpen(false)
-    router.push('/settings/profile')
+    router.push('/settings')
   }, [router])
 
   return (
@@ -124,22 +121,12 @@ export function Header({ empresaNombre, empresaLogo, usuarioNombre }: HeaderProp
 
               <div className="py-1">
                 <button
-                  onClick={handleGoToProfile}
+                  onClick={handleGoToSettings}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#dde5dc] transition-colors hover:bg-[#2f3731]"
                   role="menuitem"
                 >
-                  <User className="h-4 w-4 text-[#bbcabe]" strokeWidth={1.5} />
-                  Perfil de empresa
-                </button>
-                <button
-                  disabled
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#bbcabe]/50 cursor-not-allowed"
-                  role="menuitem"
-                  aria-disabled="true"
-                >
-                  <Settings className="h-4 w-4 text-[#bbcabe]/50" strokeWidth={1.5} />
+                  <Settings className="h-4 w-4 text-[#bbcabe]" strokeWidth={1.5} />
                   Configuración
-                  <span className="ml-auto text-[10px] rounded bg-[#2f3731] px-1.5 py-0.5 text-[#bbcabe]">Próximamente</span>
                 </button>
               </div>
 

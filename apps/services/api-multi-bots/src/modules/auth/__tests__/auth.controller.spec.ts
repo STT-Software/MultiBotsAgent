@@ -38,11 +38,13 @@ describe('AuthController', () => {
     const loginService = { login: vi.fn() };
     const refreshService = { refresh: vi.fn() };
     const logoutService = { logout: vi.fn() };
+    const changePasswordNestService = { changePassword: vi.fn() };
     controller = new AuthController(
       registerService as unknown as RegisterNestService,
       loginService as any,
       refreshService as any,
       logoutService as any,
+      changePasswordNestService as any,
     );
 
     mockResponse = {

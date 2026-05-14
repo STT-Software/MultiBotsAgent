@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { NAV_ITEMS } from '../constants/navigation'
 import { NavItem } from './nav-item'
 import { FileText, HelpCircle, Plus } from 'lucide-react'
+import { BrandIcon } from '@/components/icons'
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -21,16 +22,11 @@ export function Sidebar() {
 
       {/* Brand */}
       <div className="relative mb-10 flex items-center gap-2.5 px-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#3c4a41] bg-[#242c27] text-[#00bb7a]">
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
-        </div>
+        <BrandIcon size="sm" />
         <div>
-          <h1 className="text-sm font-bold leading-none text-[#dde5dc]">
-            MultiBotAgents
+          <h1 className="text-sm font-bold leading-none">
+            <span className="text-white">MultiBot</span>
+            <span className="text-emerald-400">Agents</span>
           </h1>
           <p className="mt-1 font-mono text-[11px] font-medium text-[#bbcabe]">
             Panel Admin

@@ -2,6 +2,7 @@
  * Utilidades de autenticación para el frontend.
  *
  * - AuthStore: almacenamiento de access token en memoria (NUNCA localStorage/sessionStorage)
+ * - SessionCookie: cookie indicadora de sesión activa (leída por el middleware)
  * - fetchWithAuth: wrapper de fetch con Authorization header y refresh transparente
  * - refreshAccessToken: renueva el access token usando la cookie httpOnly
  * - logout: cierra sesión y redirige a /login
@@ -33,6 +34,31 @@ export class AuthStore {
   }
 }
 
+// ─── Session Cookie ──────────────────────────────────────────────────────────
+
+/**
+ * Cookie indicadora de sesión activa.
+ * NO contiene datos sensibles — solo indica al middleware que el usuario
+ * tiene una sesión válida. El valor es "1".
+ *
+ * La cookie `refreshToken` tiene path `/auth/refresh` y no es visible
+ * en otras rutas, por eso necesitamos esta cookie auxiliar con path `/`.
+ */
+export class SessionCookie {
+  private static readonly NAME = 'session';
+  private static readonly MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 días (igual que refreshToken)
+
+  static set(): void {
+    if (typeof document === 'undefined') return;
+    document.cookie = `${SessionCookie.NAME}=1; path=/; max-age=${SessionCookie.MAX_AGE_SECONDS}; SameSite=Strict`;
+  }
+
+  static clear(): void {
+    if (typeof document === 'undefined') return;
+    document.cookie = `${SessionCookie.NAME}=; path=/; max-age=0; SameSite=Strict`;
+  }
+}
+
 // ─── Refresh ─────────────────────────────────────────────────────────────────
 
 /**
@@ -49,14 +75,17 @@ export async function refreshAccessToken(): Promise<boolean> {
     if (res.status === 200) {
       const data = await res.json();
       AuthStore.setToken(data.accessToken);
+      SessionCookie.set();
       return true;
     }
 
     // Token expirado o sesión reemplazada → limpiar y redirigir
     AuthStore.clearToken();
+    SessionCookie.clear();
     return false;
   } catch {
     AuthStore.clearToken();
+    SessionCookie.clear();
     return false;
   }
 }
@@ -87,7 +116,8 @@ export async function fetchWithAuth(
       if (newToken) headers.set('Authorization', `Bearer ${newToken}`);
       res = await fetch(url, { ...options, headers, credentials: 'include' });
     } else {
-      // Refresh falló → redirigir a login
+      // Refresh falló → limpiar sesión y redirigir a login
+      SessionCookie.clear();
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }
@@ -107,6 +137,7 @@ export async function logout(): Promise<void> {
     await fetchWithAuth('/auth/logout', { method: 'POST' });
   } finally {
     AuthStore.clearToken();
+    SessionCookie.clear();
     if (typeof window !== 'undefined') {
       window.location.href = '/login';
     }

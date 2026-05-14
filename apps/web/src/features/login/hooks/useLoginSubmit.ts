@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { AuthStore } from '@/lib/auth';
+import { AuthStore, SessionCookie } from '@/lib/auth';
 import { loginUser } from '../services';
 import type { LoginApiError } from '../services/loginApi';
 import type { LoginFormData, ServerErrorState } from '../types';
@@ -54,6 +54,7 @@ export function useLoginSubmit({ formData, isFormValid, touchAll }: UseLoginSubm
       try {
         const data = await loginUser(formData.email, formData.password);
         AuthStore.setToken(data.accessToken);
+        SessionCookie.set();
         setLoginSuccess(true);
         setTimeout(() => {
           router.push('/dashboard');

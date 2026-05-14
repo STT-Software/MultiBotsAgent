@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Patch,
   Body,
   Req,
   Res,
@@ -27,14 +28,20 @@ import {
   ConcurrencyConflictError,
   TokenExpiredError,
 } from '@multibotagents/types';
+import { sanitizePasswordInput } from '@multibotagents/core';
 import { RegisterNestService } from './register.service';
 import { LoginNestService } from './login.service';
 import { RefreshNestService } from './refresh.service';
 import { LogoutNestService } from './logout.service';
+import { ChangePasswordNestService } from './change-password-nest.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthExceptionFilter } from './filters/auth-exception.filter';
 import { SkipEmailVerification } from '../email-verification/decorators/skip-email-verification.decorator';
 import {
+  ChangePasswordRequestDto,
+  ChangePasswordSuccessResponseDto,
+  ChangePasswordBadRequestResponseDto,
+  ChangePasswordRateLimitResponseDto,
   RegisterRequestDto,
   RegisterSuccessResponseDto,
   ValidationErrorResponseDto,
@@ -46,7 +53,7 @@ import {
 /** Cookie configuration for refresh token (7 days in ms). */
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: true,
+  secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict' as const,
   path: '/auth/refresh',
   maxAge: 604800000,
@@ -63,6 +70,7 @@ export class AuthController {
     private readonly loginService: LoginNestService,
     private readonly refreshService: RefreshNestService,
     private readonly logoutService: LogoutNestService,
+    private readonly changePasswordNestService: ChangePasswordNestService,
   ) {}
 
   // ─── POST /auth/register ─────────────────────────────────────────────────
@@ -288,5 +296,95 @@ En respuesta exitosa (201), se setea una cookie \`refreshToken\`:
 
     res.status(HttpStatus.OK);
     return { message: 'Sesión cerrada exitosamente' };
+  }
+
+  // ─── PATCH /auth/change-password ─────────────────────────────────────────
+
+  @Patch('change-password')
+  @UseGuards(JwtAuthGuard)
+  @UseFilters(AuthExceptionFilter)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Cambiar contraseña',
+    description: `
+Permite al usuario autenticado cambiar su contraseña verificando la actual.
+
+## Flujo
+1. Verifica la contraseña actual contra el hash almacenado (bcrypt)
+2. Valida que la nueva contraseña cumpla los requisitos de seguridad (mín. 8 chars, mayúscula, minúscula, dígito, carácter especial)
+3. Verifica que la nueva contraseña sea diferente a la actual
+4. Genera nuevo hash bcrypt (cost factor 12)
+5. Actualiza el hash en MongoDB con operación atómica (updateOne)
+6. Resetea el contador de intentos fallidos
+
+## Autenticación
+Requiere **Bearer token JWT** válido en el header \`Authorization\`.
+El userId se extrae exclusivamente del JWT (no se acepta como parámetro del body).
+
+## Rate Limiting
+Máximo **5 intentos fallidos** por userId en una ventana de **15 minutos**.
+Tras exceder el límite, se bloquea la funcionalidad hasta que transcurra el período.
+
+## Sanitización
+Los campos de contraseña se sanitizan antes del procesamiento:
+- Se eliminan caracteres de control (U+0000–U+001F, U+007F–U+009F)
+- Se recortan espacios en blanco al inicio y final
+    `,
+  })
+  @ApiBody({
+    type: ChangePasswordRequestDto,
+    description: 'Contraseña actual y nueva contraseña del usuario.',
+    examples: {
+      'cambio-basico': {
+        summary: 'Cambio de contraseña válido',
+        description: 'Ejemplo con contraseña actual correcta y nueva contraseña que cumple todos los requisitos de seguridad.',
+        value: {
+          currentPassword: 'MiPassActual123!',
+          newPassword: 'NuevaSegura456@',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Contraseña actualizada exitosamente.',
+    type: ChangePasswordSuccessResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validación fallida, contraseña actual incorrecta o nueva contraseña igual a la actual.',
+    type: ChangePasswordBadRequestResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Token JWT inválido, expirado o ausente.',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Rate limit excedido (5 intentos fallidos en 15 minutos).',
+    type: ChangePasswordRateLimitResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Error interno del servidor.',
+    type: InternalErrorResponseDto,
+  })
+  async changePassword(
+    @Body() dto: ChangePasswordRequestDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const user = (req as any).user;
+    const sanitizedCurrentPassword = sanitizePasswordInput(dto.currentPassword);
+    const sanitizedNewPassword = sanitizePasswordInput(dto.newPassword);
+
+    await this.changePasswordNestService.changePassword(
+      user.userId,
+      sanitizedCurrentPassword,
+      sanitizedNewPassword,
+    );
+
+    res.status(HttpStatus.OK);
+    return { success: true, message: 'Contraseña actualizada exitosamente' };
   }
 }

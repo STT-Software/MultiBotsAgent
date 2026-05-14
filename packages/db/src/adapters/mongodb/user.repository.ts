@@ -119,6 +119,18 @@ export class UserRepository implements IUserRepository {
     );
   }
 
+  /**
+   * Actualiza el hash de contraseña de un usuario de forma atómica.
+   * Retorna true si el documento fue modificado, false si no se encontró el usuario.
+   */
+  async updatePasswordHash(userId: string, newHash: string): Promise<boolean> {
+    const result = await this.collection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { passwordHash: newHash, updatedAt: new Date() } },
+    );
+    return result.modifiedCount === 1;
+  }
+
   async delete(id: string): Promise<boolean> {
     const result = await this.collection.deleteOne({ _id: new ObjectId(id) });
     return result.deletedCount === 1;
