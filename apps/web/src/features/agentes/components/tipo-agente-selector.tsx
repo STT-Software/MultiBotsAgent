@@ -25,7 +25,7 @@ const TIPOS_AGENTE: TipoAgenteOption[] = [
   },
 ];
 
-const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
   BookOpen,
   Calculator,
   Calendar,
