@@ -4,6 +4,25 @@ import { BookOpen, Calculator, Calendar } from "lucide-react";
 
 import { TipoAgenteOption } from "../types/agentes.types";
 
+// Colores por tipo de agente (extraídos del diseño de referencia)
+const TIPO_COLORS: Record<string, { icon: string; bg: string; border: string }> = {
+  BookOpen: {
+    icon: "#5b9bd5",      // azul
+    bg: "#1e2a35",        // fondo azul-gris oscuro
+    border: "#3a5068",
+  },
+  Calculator: {
+    icon: "#e6a817",      // amarillo/dorado
+    bg: "#2a2410",        // fondo amarillo oscuro
+    border: "#5c4a10",
+  },
+  Calendar: {
+    icon: "#b366ff",      // púrpura
+    bg: "#1f1530",        // fondo púrpura oscuro
+    border: "#4a2d6e",
+  },
+};
+
 const TIPOS_AGENTE: TipoAgenteOption[] = [
   {
     value: "rag",
@@ -43,10 +62,11 @@ export function TipoAgenteSelector({ value, onChange, error }: TipoAgenteSelecto
       <div
         role="radiogroup"
         aria-label="Tipo de agente"
-        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+        className="flex flex-col gap-3"
       >
         {TIPOS_AGENTE.map((option) => {
           const Icon = ICON_MAP[option.icon];
+          const colors = TIPO_COLORS[option.icon];
           const isSelected = value === option.value;
 
           return (
@@ -56,32 +76,60 @@ export function TipoAgenteSelector({ value, onChange, error }: TipoAgenteSelecto
               role="radio"
               aria-checked={isSelected}
               onClick={() => onChange(option.value)}
-              className="flex flex-col items-center gap-2 rounded-lg p-4 text-center transition-all duration-150"
+              className="flex items-center gap-4 rounded-lg px-4 py-4 text-left transition-all duration-150"
               style={{
-                backgroundColor: isSelected ? "#1a2f23" : "#111d17",
+                backgroundColor: isSelected ? "#1a2f23" : "#0e1510",
                 border: `1.5px solid ${isSelected ? "#00bb7a" : "#3c4a41"}`,
                 cursor: "pointer",
               }}
             >
-              {Icon && (
-                <Icon
-                  size={24}
-                  className="transition-colors"
-                  style={{ color: isSelected ? "#00bb7a" : "#bbcabe" }}
-                />
+              {/* Icon con color propio por tipo */}
+              {Icon && colors && (
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                  style={{
+                    backgroundColor: colors.bg,
+                    border: `1px solid ${colors.border}`,
+                  }}
+                >
+                  <Icon
+                    size={20}
+                    className="transition-colors"
+                    style={{ color: colors.icon }}
+                  />
+                </div>
               )}
-              <span
-                className="text-sm font-semibold"
-                style={{ color: isSelected ? "#e8f0ea" : "#bbcabe" }}
+
+              {/* Text */}
+              <div className="flex flex-1 flex-col">
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: isSelected ? "#e8f0ea" : "#bbcabe" }}
+                >
+                  {option.label}
+                </span>
+                <span
+                  className="text-xs"
+                  style={{ color: "#869489" }}
+                >
+                  {option.description}
+                </span>
+              </div>
+
+              {/* Radio indicator */}
+              <div
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                style={{
+                  border: `2px solid ${isSelected ? "#00bb7a" : "#3c4a41"}`,
+                }}
               >
-                {option.label}
-              </span>
-              <span
-                className="text-xs"
-                style={{ color: "#869489" }}
-              >
-                {option.description}
-              </span>
+                {isSelected && (
+                  <div
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: "#00bb7a" }}
+                  />
+                )}
+              </div>
             </button>
           );
         })}
