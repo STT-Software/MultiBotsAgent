@@ -6,17 +6,23 @@ import { useSession } from '@/components/layout/hooks/use-session'
 import { Shell } from '@/components/layout/components/shell'
 
 export default function PanelLayout({ children }: { children: React.ReactNode }) {
-  const session = useSession()
+  const { session, loading } = useSession()
   const router = useRouter()
 
+  // Redirige a login solo cuando el refresh terminó y no hay sesión
   useEffect(() => {
-    if (session === null) {
-      router.push('/login')
+    if (!loading && session === null) {
+      router.replace('/login')
     }
-  }, [session, router])
+  }, [session, loading, router])
 
-  if (session === null) {
-    return null
+  // Mientras se recupera la sesión (refresh en curso), mostrar spinner
+  if (loading || session === null) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#0a0a0a]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+      </div>
+    )
   }
 
   return (

@@ -21,3 +21,18 @@ export type {
   TokenServiceConfig,
   ValidatedRegisterData,
 } from './services.interfaces';
+
+export type {
+  ChangePasswordUser,
+  IChangePasswordUserRepository,
+  ChangePasswordDeps,
+} from './change-password.interfaces';
+
+export {
+  ChangePasswordError,
+  InvalidCurrentPasswordError,
+  SameAsCurrentError,
+  PasswordValidationError,
+  UserNotFoundError,
+  RateLimitExceededError,
+} from './change-password.interfaces';

@@ -17,13 +17,8 @@ export * from "./interfaces/example.interface";
 // Enums
 export * from "./enums/example.enum";
 
-// Auth — Registro de empresa y usuario
-export * from "./auth/register.types";
-export * from "./auth/errors.types";
-
-// Auth — Login, refresh, logout
-export * from "./auth/login.types";
-export * from "./auth/rate-limit.types";
+// Auth — Registro, login, cambio de contraseña y validación
+export * from "./auth";
 
 // Email Verification
 export * from "./email-verification";

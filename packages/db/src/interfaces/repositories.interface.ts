@@ -62,6 +62,8 @@ export interface IUserRepository extends Repository<User> {
   findByEmail(email: string): Promise<User | null>;
   createWithSession(data: CreateUserData, session: ClientSession): Promise<User>;
   markEmailVerified(userId: string): Promise<void>;
+  /** Actualiza el hash de contraseña de un usuario de forma atómica. Retorna true si se actualizó. */
+  updatePasswordHash(userId: string, newHash: string): Promise<boolean>;
 }
 
 // ─── RefreshToken ────────────────────────────────────────────────────────────

@@ -16,6 +16,7 @@ export * from "./validators/example.validator";
 
 // Auth
 export * from "./auth/register.validator";
+export * from "./auth/password.validator";
 export * from "./auth/password.service";
 export * from "./auth/token.service";
 export * from "./auth/captcha.service";
@@ -24,6 +25,8 @@ export * from "./auth/rate-limit.service";
 export * from "./auth/login.service";
 export * from "./auth/refresh.service";
 export * from "./auth/logout.service";
+export * from "./auth/change-password.service";
+export * from "./auth/interfaces/change-password.interfaces";
 
 // Email Verification
 export * from "./email-verification";
