@@ -13,8 +13,8 @@ COPY packages/core/package.json ./packages/core/
 COPY packages/db/package.json ./packages/db/
 COPY apps/services/api-multi-bots/package.json ./apps/services/api-multi-bots/
 
-# Instalar dependencias
-RUN pnpm install --frozen-lockfile
+# Instalar dependencias (shamefully-hoist para compatibilidad con nest build en Docker)
+RUN pnpm install --frozen-lockfile --shamefully-hoist
 
 # Copiar código fuente
 COPY packages/ ./packages/
@@ -46,7 +46,7 @@ COPY --from=builder /app/packages/ ./packages/
 COPY --from=builder /app/apps/services/api-multi-bots/package.json ./apps/services/api-multi-bots/
 COPY --from=builder /app/apps/services/api-multi-bots/dist/ ./apps/services/api-multi-bots/dist/
 
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --shamefully-hoist
 
 WORKDIR /app/apps/services/api-multi-bots
 
