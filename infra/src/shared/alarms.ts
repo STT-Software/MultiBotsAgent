@@ -1,34 +1,19 @@
 /**
  * CloudWatch Alarms — Monitoreo de la cola de emails.
  *
- * Define Metric Filters que extraen métricas del log estructurado JSON
- * emitido por el EmailWorkerCronService (metricType: "EMAIL_WORKER_METRICS"),
- * y CloudWatch Alarms que alertan cuando:
+ * Define un Log Group explícito, Metric Filters que extraen métricas del log
+ * estructurado JSON emitido por el EmailWorkerCronService, y CloudWatch Alarms.
  *
- * - email-queue-backlog: pendingCount > 50 por 10 minutos
- * - email-queue-failures: failedCount > 20
- *
- * Los logs del servicio Fargate se envían a CloudWatch Logs automáticamente.
- * El worker emite un JSON con la estructura:
- *   { "metricType": "EMAIL_WORKER_METRICS", "pendingCount": N, "failedCount": N, ... }
+ * El Log Group se crea aquí explícitamente para garantizar que existe antes
+ * de que los Metric Filters intenten usarlo (resuelve race condition con el servicio).
  *
  * Validates: Requirements 8.1, 8.2, 8.3
  */
 
 import * as aws from "@pulumi/aws";
-import { apiMultiBotsLogGroupName } from "../services/api-multi-bots";
+import { apiMultiBotsLogGroup } from "./log-groups";
 
 const metricsNamespace = "MultiBotsAgent/EmailWorker";
-
-// ─── Log Group (creado explícitamente para que los Metric Filters no fallen) ─
-
-const emailWorkerLogGroup = new aws.cloudwatch.LogGroup(
-  "EmailWorkerLogGroup",
-  {
-    name: apiMultiBotsLogGroupName,
-    retentionInDays: 30,
-  },
-);
 
 // ─── Metric Filter: pendingCount ────────────────────────────────────────────
 
@@ -36,7 +21,7 @@ const pendingCountMetricFilter = new aws.cloudwatch.LogMetricFilter(
   "EmailQueuePendingCountFilter",
   {
     name: "EmailQueuePendingCount",
-    logGroupName: emailWorkerLogGroup.name,
+    logGroupName: apiMultiBotsLogGroup.name,
     pattern: '{ $.metricType = "EMAIL_WORKER_METRICS" }',
     metricTransformation: {
       name: "EmailQueuePendingCount",
@@ -53,7 +38,7 @@ const failedCountMetricFilter = new aws.cloudwatch.LogMetricFilter(
   "EmailQueueFailedCountFilter",
   {
     name: "EmailQueueFailedCount",
-    logGroupName: emailWorkerLogGroup.name,
+    logGroupName: apiMultiBotsLogGroup.name,
     pattern: '{ $.metricType = "EMAIL_WORKER_METRICS" }',
     metricTransformation: {
       name: "EmailQueueFailedCount",
@@ -70,7 +55,7 @@ const avgQueueTimeMetricFilter = new aws.cloudwatch.LogMetricFilter(
   "EmailQueueAvgTimeFilter",
   {
     name: "EmailQueueAvgQueueTimeMs",
-    logGroupName: emailWorkerLogGroup.name,
+    logGroupName: apiMultiBotsLogGroup.name,
     pattern: '{ $.metricType = "EMAIL_WORKER_METRICS" }',
     metricTransformation: {
       name: "EmailQueueAvgQueueTimeMs",
@@ -82,7 +67,6 @@ const avgQueueTimeMetricFilter = new aws.cloudwatch.LogMetricFilter(
 );
 
 // ─── Alarm: email-queue-backlog ─────────────────────────────────────────────
-// Triggers when pendingCount > 50 for 10 minutes
 
 const emailQueueBacklogAlarm = new aws.cloudwatch.MetricAlarm(
   "EmailQueueBacklogAlarm",
@@ -93,7 +77,7 @@ const emailQueueBacklogAlarm = new aws.cloudwatch.MetricAlarm(
     metricName: "EmailQueuePendingCount",
     namespace: metricsNamespace,
     statistic: "Maximum",
-    period: 600, // 10 minutos
+    period: 600,
     evaluationPeriods: 1,
     threshold: 50,
     comparisonOperator: "GreaterThanThreshold",
@@ -102,7 +86,6 @@ const emailQueueBacklogAlarm = new aws.cloudwatch.MetricAlarm(
 );
 
 // ─── Alarm: email-queue-failures ────────────────────────────────────────────
-// Triggers when failedCount > 20
 
 const emailQueueFailuresAlarm = new aws.cloudwatch.MetricAlarm(
   "EmailQueueFailuresAlarm",
@@ -113,7 +96,7 @@ const emailQueueFailuresAlarm = new aws.cloudwatch.MetricAlarm(
     metricName: "EmailQueueFailedCount",
     namespace: metricsNamespace,
     statistic: "Maximum",
-    period: 300, // 5 minutos
+    period: 300,
     evaluationPeriods: 1,
     threshold: 20,
     comparisonOperator: "GreaterThanThreshold",

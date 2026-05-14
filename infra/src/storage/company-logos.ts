@@ -7,9 +7,6 @@
  * - Acceso público de lectura para servir logos directamente desde S3.
  *
  * Key pattern: logos/{companyId}/{timestamp}-{sanitizedFileName}
- *
- * El servicio api-multi-bots genera presigned URLs para upload
- * y gestiona el ciclo de vida de los objetos (crear/eliminar).
  */
 
 import { frontendDomain } from "../shared/secrets";

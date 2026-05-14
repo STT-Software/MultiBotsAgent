@@ -12,6 +12,7 @@
 import { cluster } from "./cluster";
 import { mongoDbUri } from "../databases/mongodb";
 import { companyLogosBucket } from "../storage/company-logos";
+import { apiMultiBotsLogGroupName } from "../shared/log-groups";
 import {
   jwtSecrets,
   captchaSecret,
@@ -30,11 +31,7 @@ import {
  */
 const frontendDomainValue = $dev ? "http://localhost:3000" : frontendDomain.value;
 
-/**
- * Nombre del log group para el servicio API Multi Bots.
- * Exportado para uso en CloudWatch Metric Filters y Alarms.
- */
-export const apiMultiBotsLogGroupName = `/multibotagents/${$app.stage}/api-multi-bots`;
+export { apiMultiBotsLogGroupName };
 
 export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   cluster,

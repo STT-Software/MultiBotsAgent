@@ -70,5 +70,5 @@ declare const $dev: boolean;
  */
 declare function $interpolate(
   literals: TemplateStringsArray,
-  ...placeholders: any[]
+  ...placeholders: unknown[]
 ): string;
