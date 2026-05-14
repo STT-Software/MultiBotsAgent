@@ -1,4 +1,4 @@
-import { Agente, AgentesResponse, AgentesMetrics } from "../types/agentes.types";
+import { Agente, AgentesResponse, AgentesMetrics, CreateAgenteDTO } from "../types/agentes.types";
 
 const MOCK_AGENTES: Agente[] = [
   {
@@ -58,4 +58,38 @@ export async function fetchAgentes(): Promise<AgentesResponse> {
 export async function fetchAgentesMetrics(): Promise<AgentesMetrics> {
   await new Promise((resolve) => setTimeout(resolve, 400));
   return MOCK_METRICS;
+}
+
+const TIPO_PREFIJO: Record<string, string> = {
+  rag: "rag",
+  cotizador: "ctx",
+  agendamiento: "agc",
+};
+
+// TODO: Reemplazar mock por fetch real a POST /api/agentes cuando el backend esté disponible
+export async function createAgente(dto: CreateAgenteDTO): Promise<Agente> {
+  await new Promise((resolve) => setTimeout(resolve, 800));
+
+  // Simular error en desarrollo: si nombre contiene "error", lanza excepción
+  if (dto.nombre.toLowerCase().includes("error")) {
+    throw new Error("Error simulado en la creación del agente.");
+  }
+
+  const prefijo = TIPO_PREFIJO[dto.tipo];
+  const randomDigits = Math.floor(Math.random() * 900 + 100).toString();
+
+  const nuevoAgente: Agente = {
+    id: crypto.randomUUID(),
+    nombre: dto.nombre.trim(),
+    codigoId: `agt_${prefijo}_${randomDigits}`,
+    tipo: dto.tipo,
+    estado: "borrador",
+    vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(
+      "es-ES",
+      { day: "numeric", month: "short", year: "numeric" }
+    ),
+    createdAt: new Date().toISOString(),
+  };
+
+  return nuevoAgente;
 }
