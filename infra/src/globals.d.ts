@@ -64,4 +64,11 @@ declare const $app: {
 
 declare const $dev: boolean;
 
-declare const $dev: boolean;
+/**
+ * Interpolación de strings con Outputs de Pulumi.
+ * Permite componer strings a partir de valores Output sin resolverlos manualmente.
+ */
+declare function $interpolate(
+  literals: TemplateStringsArray,
+  ...placeholders: unknown[]
+): string;
