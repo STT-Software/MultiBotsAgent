@@ -20,3 +20,23 @@ export interface AgentesMetrics {
   tokenUsage: string;
   tokenEstado: string;
 }
+
+// DTO para crear un agente
+export interface CreateAgenteDTO {
+  nombre: string;
+  tipo: "rag" | "cotizador" | "agendamiento";
+}
+
+// Errores de validación del formulario de creación
+export interface CrearAgenteValidationErrors {
+  nombre?: string;
+  tipo?: string;
+}
+
+// Metadata de cada tipo de agente (para el selector visual)
+export interface TipoAgenteOption {
+  value: "rag" | "cotizador" | "agendamiento";
+  label: string;
+  description: string;
+  icon: string;
+}
