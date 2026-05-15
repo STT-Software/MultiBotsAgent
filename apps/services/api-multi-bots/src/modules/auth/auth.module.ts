@@ -13,6 +13,8 @@ import { LoginNestService } from './login.service';
 import { RefreshNestService } from './refresh.service';
 import { LogoutNestService } from './logout.service';
 import { ChangePasswordNestService } from './change-password-nest.service';
+import { ForgotPasswordNestService } from './forgot-password-nest.service';
+import { ResetPasswordNestService } from './reset-password-nest.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthController } from './auth.controller';
 
@@ -62,6 +64,8 @@ import { AuthController } from './auth.controller';
     RefreshNestService,
     LogoutNestService,
     ChangePasswordNestService,
+    ForgotPasswordNestService,
+    ResetPasswordNestService,
     JwtAuthGuard,
   ],
 })

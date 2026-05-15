@@ -6,6 +6,10 @@
  * - CORS: permite PUT desde el dominio del frontend (presigned URL upload).
  * - Acceso público de lectura para servir logos directamente desde S3.
  *
+ * En desarrollo ($dev): todos los stages comparten el mismo bucket para evitar
+ * crear un bucket por cada desarrollador.
+ * En producción: bucket dedicado con política retain.
+ *
  * Key pattern: logos/{companyId}/{timestamp}-{sanitizedFileName}
  */
 

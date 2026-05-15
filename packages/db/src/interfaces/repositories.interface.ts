@@ -139,3 +139,36 @@ export interface IEmailQueueRepository extends Repository<EmailQueueItem> {
   /** Resetea documentos stuck en estado 'processing' por más de timeoutMs. */
   resetStuckDocuments(timeoutMs: number): Promise<void>;
 }
+
+// ─── Password Recovery ───────────────────────────────────────────────────────
+
+export interface IForgotPasswordUserRepository {
+  findByEmail(email: string): Promise<{ id: string; email: string } | null>;
+}
+
+export interface IForgotPasswordTokenRepository {
+  invalidateByUserAndType(userId: string, type: string): Promise<void>;
+  create(data: { userId: string; type: string; token: string; expiresAt: Date }): Promise<void>;
+}
+
+export interface IForgotPasswordEmailRepository {
+  enqueue(data: { to: string; template: string; payload: Record<string, string> }): Promise<void>;
+}
+
+export interface IResetPasswordTokenRepository {
+  findByTokenAndType(token: string, type: string): Promise<{
+    id: string;
+    userId: string;
+    type: string;
+    token: string;
+    expiresAt: Date;
+    usedAt: Date | null;
+    createdAt: Date;
+  } | null>;
+  markAsUsed(tokenId: string): Promise<void>;
+}
+
+export interface IResetPasswordUserRepository {
+  findById(userId: string): Promise<{ id: string; passwordHash: string } | null>;
+  updatePasswordHash(userId: string, newHash: string): Promise<boolean>;
+}

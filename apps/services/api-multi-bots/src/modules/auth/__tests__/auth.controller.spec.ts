@@ -39,12 +39,16 @@ describe('AuthController', () => {
     const refreshService = { refresh: vi.fn() };
     const logoutService = { logout: vi.fn() };
     const changePasswordNestService = { changePassword: vi.fn() };
+    const forgotPasswordNestService = { execute: vi.fn() };
+    const resetPasswordNestService = { execute: vi.fn() };
     controller = new AuthController(
       registerService as unknown as RegisterNestService,
       loginService as any,
       refreshService as any,
       logoutService as any,
       changePasswordNestService as any,
+      forgotPasswordNestService as any,
+      resetPasswordNestService as any,
     );
 
     mockResponse = {
