@@ -19,6 +19,9 @@ changelog:
   - date: 2026-05-05
     author: Por definir
     description: Fase 3 - Solution Map Preliminar y Roadmap de Ejecución.
+  - date: 2026-05-15
+    author: Felipe Lamos
+    description: "Refinamiento del Solution Map — Solución 5 (Conector de WhatsApp) diseñada. Status: drafting."
 ---
 
 # Plataforma de Agentes Conversacionales
@@ -209,7 +212,7 @@ Una plataforma plug & play donde una empresa pueda:
 | 2 | **Motor de Agente RAG** | Responder preguntas, consulta a base de conocimiento, soporte multimedia, memoria temporal | Core | Alta | Basado en RAG + prompting, modelos económicos |
 | 3 | **Motor de Agente Cotizador** | Consultar catálogo, armar cotizaciones, confirmar pedidos, seguimiento de estado | Core | Alta | Sin pagos. Notificación multi-canal (plataforma + WhatsApp + correo) |
 | 4 | **Motor de Agente Agendamiento** | Verificar disponibilidad, agendar, confirmar, recordatorios, cancelar/reprogramar | Core | Alta | Integración con Google Calendar únicamente |
-| 5 | **Conector de WhatsApp** | Envío/recepción de mensajes, asociación agente-número, multimedia | Core | Alta | API de WhatsApp Business. Arquitectura preparada para multi-canal |
+| 5 | **Conector de WhatsApp** | Envío/recepción de mensajes, asociación agente-número, multimedia | Core | Alta | API de WhatsApp Business (Cloud API directa). Embedded Signup para conexión. Lambda + SQS. Status: `drafting` |
 | 6 | **Sistema de Base de Conocimiento** | Carga de archivos, integraciones externas, creación directa, indexación para RAG | Core | Alta | Soporta PDF, docs, Excel, tablas. Integraciones: Google Drive, Notion, Confluence, SharePoint, Dropbox |
 
 ### Soluciones Transversales
