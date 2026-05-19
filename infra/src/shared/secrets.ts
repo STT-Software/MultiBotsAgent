@@ -25,4 +25,8 @@ export const elasticEmailApiKey = new sst.Secret("ElasticEmailApiKey");
 export const elasticEmailFromEmail = new sst.Secret("ElasticEmailFromEmail");
 export const elasticEmailFromName = new sst.Secret("ElasticEmailFromName");
 export const elasticEmailTemplateId = new sst.Secret("ElasticEmailTemplateId");
+
+// Elastic Email — Password Recovery
+export const elasticEmailPasswordResetTemplateId = new sst.Secret("ElasticEmailPasswordResetTemplateId");
+
 export const frontendDomain = new sst.Secret("FrontendDomain");

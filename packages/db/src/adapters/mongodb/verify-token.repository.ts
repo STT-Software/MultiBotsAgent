@@ -152,6 +152,68 @@ export class VerifyTokenRepository implements IVerifyTokenRepository {
   }
 
   /**
+   * Invalida todos los tokens no usados de un usuario por tipo (string).
+   * Marca usedAt = now en todos los tokens que aún no han sido usados.
+   * Usado por el flujo de forgot-password para invalidar tokens previos.
+   */
+  async invalidateByUserAndType(userId: string, type: string): Promise<void> {
+    const now = new Date();
+
+    const filter: Filter<VerifyTokenDocument> = {
+      userId: new ObjectId(userId),
+      type: type as VerifyTokenType,
+      usedAt: { $eq: null } as unknown as Date,
+    };
+
+    await this.collection.updateMany(filter, { $set: { usedAt: now } });
+  }
+
+  /**
+   * Marca un token como usado seteando usedAt a la fecha actual.
+   * Usado por el flujo de reset de contraseña tras actualizar la contraseña.
+   */
+  async markAsUsed(tokenId: string): Promise<void> {
+    await this.collection.updateOne(
+      { _id: new ObjectId(tokenId) },
+      { $set: { usedAt: new Date() } },
+    );
+  }
+
+  /**
+   * Busca un token por su valor y tipo.
+   * Retorna el documento mapeado o null si no existe.
+   * Usado por el flujo de reset de contraseña para validar el token.
+   */
+  async findByTokenAndType(
+    token: string,
+    type: string,
+  ): Promise<{
+    id: string;
+    userId: string;
+    type: string;
+    token: string;
+    expiresAt: Date;
+    usedAt: Date | null;
+    createdAt: Date;
+  } | null> {
+    const doc = await this.collection.findOne({
+      token,
+      type: type as VerifyTokenType,
+    });
+    if (!doc) return null;
+
+    return {
+      id: doc._id.toHexString(),
+      userId: doc.userId.toHexString(),
+      type: doc.type,
+      token: doc.token,
+      expiresAt: doc.expiresAt,
+      usedAt: doc.usedAt ?? null,
+      createdAt: doc.createdAt,
+    };
+  }
+
+  /**
    * Busca un token por su valor.
    * Útil para obtener el userId de un token expirado (para reenvío).
    */
@@ -197,23 +259,40 @@ export class VerifyTokenRepository implements IVerifyTokenRepository {
     return docs.map(toEntity);
   }
 
-  async create(entity: Omit<VerifyToken, "id">): Promise<VerifyToken> {
+  /**
+   * Crea un token de verificación/reset.
+   * Overload 1: Acepta datos mínimos (userId, type, token, expiresAt) y setea usedAt: null, createdAt: new Date().
+   * Usado por el flujo de forgot-password (IForgotPasswordTokenRepository).
+   */
+  async create(data: { userId: string; type: string; token: string; expiresAt: Date }): Promise<void>;
+  /**
+   * Overload 2: Acepta la entidad completa sin id (Repository<VerifyToken> base).
+   */
+  async create(entity: Omit<VerifyToken, "id">): Promise<VerifyToken>;
+  async create(
+    data: { userId: string; type: string; token: string; expiresAt: Date } | Omit<VerifyToken, "id">,
+  ): Promise<VerifyToken | void> {
+    const isFullEntity = "createdAt" in data;
+
     const doc: Omit<VerifyTokenDocument, "_id"> = {
-      userId: new ObjectId(entity.userId),
-      type: entity.type,
-      token: entity.token,
-      expiresAt: entity.expiresAt,
-      usedAt: entity.usedAt,
-      createdAt: entity.createdAt,
+      userId: new ObjectId(data.userId),
+      type: data.type as VerifyTokenType,
+      token: data.token,
+      expiresAt: data.expiresAt,
+      usedAt: isFullEntity ? (data as Omit<VerifyToken, "id">).usedAt : undefined,
+      createdAt: isFullEntity ? (data as Omit<VerifyToken, "id">).createdAt : new Date(),
     };
 
     const result = await this.collection.insertOne(
       doc as VerifyTokenDocument,
     );
-    return toEntity({
-      _id: result.insertedId,
-      ...doc,
-    } as VerifyTokenDocument);
+
+    if (isFullEntity) {
+      return toEntity({
+        _id: result.insertedId,
+        ...doc,
+      } as VerifyTokenDocument);
+    }
   }
 
   async update(

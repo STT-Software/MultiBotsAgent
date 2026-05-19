@@ -21,6 +21,7 @@ import {
   elasticEmailFromEmail,
   elasticEmailFromName,
   elasticEmailTemplateId,
+  elasticEmailPasswordResetTemplateId,
   frontendDomain,
 } from "../shared/secrets";
 
@@ -57,6 +58,7 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     ELASTIC_EMAIL_FROM_EMAIL: elasticEmailFromEmail.value,
     ELASTIC_EMAIL_FROM_NAME: elasticEmailFromName.value,
     ELASTIC_EMAIL_TEMPLATE_ID: elasticEmailTemplateId.value,
+    ELASTIC_EMAIL_PASSWORD_RESET_TEMPLATE_ID: elasticEmailPasswordResetTemplateId.value,
     FRONTEND_DOMAIN: frontendDomainValue,
     COMPANY_LOGOS_BUCKET: companyLogosBucket.name,
   },

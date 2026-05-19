@@ -38,6 +38,8 @@ describe('PATCH /auth/change-password — AuthController.changePassword', () => 
     const loginService = { login: vi.fn() };
     const refreshService = { refresh: vi.fn() };
     const logoutService = { logout: vi.fn() };
+    const forgotPasswordNestService = { execute: vi.fn() };
+    const resetPasswordNestService = { execute: vi.fn() };
 
     controller = new AuthController(
       registerService as any,
@@ -45,6 +47,8 @@ describe('PATCH /auth/change-password — AuthController.changePassword', () => 
       refreshService as any,
       logoutService as any,
       changePasswordNestService as unknown as ChangePasswordNestService,
+      forgotPasswordNestService as any,
+      resetPasswordNestService as any,
     );
 
     mockResponse = {

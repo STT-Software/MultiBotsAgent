@@ -27,4 +27,9 @@ export type {
   IVerifyTokenRepository,
   EnqueueEmailData,
   IEmailQueueRepository,
+  IForgotPasswordEmailRepository,
+  IForgotPasswordUserRepository,
+  IForgotPasswordTokenRepository,
+  IResetPasswordTokenRepository,
+  IResetPasswordUserRepository,
 } from "../../interfaces";

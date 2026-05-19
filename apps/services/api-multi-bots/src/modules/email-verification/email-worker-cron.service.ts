@@ -33,7 +33,7 @@ export class EmailWorkerCronService {
     this.frontendDomain = process.env.FRONTEND_DOMAIN ?? 'http://localhost:3000';
   }
 
-  @Interval(30_000)
+  @Interval(10_000)
   async handleCron(): Promise<void> {
     try {
       // 1. Reset stuck documents (processing > 5 min)
@@ -91,6 +91,7 @@ export class EmailWorkerCronService {
 
   /**
    * Sends an email via Elastic Email API v4.
+   * Supports multiple templates: verification and password recovery.
    */
   private async sendEmail(item: EmailQueueItem): Promise<void> {
     if (!this.apiKey) {
@@ -98,20 +99,15 @@ export class EmailWorkerCronService {
     }
 
     const payload = item.payload as Record<string, unknown>;
-    const username = (payload.username as string) || 'Usuario';
-    const token = payload.token as string;
-    const verificationUrl = `${this.frontendDomain}/verify-email?token=${token}`;
+    const { subject, templateName, merge } = this.resolveTemplate(item.template, payload);
 
     const body = {
       Recipients: { To: [item.to] },
       Content: {
         From: `${this.fromName} <${this.fromEmail}>`,
-        Subject: 'Verifica tu email - MultiBotAgents',
-        TemplateName: this.templateId,
-        Merge: {
-          username,
-          verification_url: verificationUrl,
-        },
+        Subject: subject,
+        TemplateName: templateName,
+        Merge: merge,
       },
     };
 
@@ -133,6 +129,40 @@ export class EmailWorkerCronService {
     const result = await response.json().catch(() => null) as Record<string, unknown> | null;
     if (result && !result.TransactionID) {
       throw new Error(`Elastic Email unexpected response: ${JSON.stringify(result)}`);
+    }
+  }
+
+  /**
+   * Resolves template-specific subject, templateName, and merge variables
+   * based on the email queue item's template field.
+   */
+  private resolveTemplate(
+    template: string,
+    payload: Record<string, unknown>,
+  ): { subject: string; templateName: string; merge: Record<string, string> } {
+    const username = (payload.username as string) || 'Usuario';
+
+    switch (template) {
+      case 'MultibotAgents-password-recover':
+      case 'password_reset': {
+        const resetLink = payload.resetLink as string;
+        return {
+          subject: 'Restablece tu contraseña - MultiBotAgents',
+          templateName: process.env.ELASTIC_EMAIL_PASSWORD_RESET_TEMPLATE_ID || 'MultibotAgents-password-recover',
+          merge: { username, resetLink: resetLink || '' },
+        };
+      }
+
+      case 'verification':
+      default: {
+        const token = payload.token as string;
+        const verificationUrl = `${this.frontendDomain}/verify-email?token=${token}`;
+        return {
+          subject: 'Verifica tu email - MultiBotAgents',
+          templateName: this.templateId,
+          merge: { username, verification_url: verificationUrl },
+        };
+      }
     }
   }
 

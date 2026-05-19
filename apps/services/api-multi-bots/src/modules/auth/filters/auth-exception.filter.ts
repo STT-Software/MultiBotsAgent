@@ -2,6 +2,7 @@ import {
   ExceptionFilter,
   Catch,
   ArgumentsHost,
+  HttpException,
   Logger,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -19,6 +20,9 @@ import {
  * Filtro de excepciones centralizado para el módulo de autenticación.
  * Mapea errores de dominio a respuestas HTTP consistentes con formato:
  * { error: { code, message } }
+ *
+ * También pasa a través las HttpException ya traducidas por los servicios
+ * NestJS (e.g., BadRequestException de ResetPasswordNestService).
  */
 @Catch()
 export class AuthExceptionFilter implements ExceptionFilter {
@@ -89,6 +93,15 @@ export class AuthExceptionFilter implements ExceptionFilter {
           message: exception.message,
         },
       });
+      return;
+    }
+
+    // Pass through HttpExceptions already translated by NestJS services
+    // (e.g., BadRequestException from ResetPasswordNestService.translateError)
+    if (exception instanceof HttpException) {
+      const status = exception.getStatus();
+      const body = exception.getResponse();
+      response.status(status).json(body);
       return;
     }
 

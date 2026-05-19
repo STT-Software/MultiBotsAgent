@@ -27,6 +27,17 @@ export * from "./auth/refresh.service";
 export * from "./auth/logout.service";
 export * from "./auth/change-password.service";
 export * from "./auth/interfaces/change-password.interfaces";
+export * from "./auth/forgot-password.service";
+export {
+  ResetPasswordService,
+  PasswordValidationError as ResetPasswordValidationError,
+} from "./auth/reset-password.service";
+export {
+  TokenInvalidError as ResetTokenInvalidError,
+  TokenExpiredError as ResetTokenExpiredError,
+  TokenAlreadyUsedError as ResetTokenAlreadyUsedError,
+} from "./auth/reset-password.service";
+export * from "./auth/interfaces/password-recovery.interfaces";
 
 // Email Verification
 export * from "./email-verification";
