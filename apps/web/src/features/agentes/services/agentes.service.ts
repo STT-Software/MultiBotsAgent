@@ -1,4 +1,4 @@
-import { Agente, AgentesResponse, AgentesMetrics, CreateAgenteDTO } from "../types/agentes.types";
+import { Agente, AgentesResponse, AgentesMetrics, CreateAgenteDTO, UpdateAgenteDTO } from "../types/agentes.types";
 
 const MOCK_AGENTES: Agente[] = [
   {
@@ -92,4 +92,35 @@ export async function createAgente(dto: CreateAgenteDTO): Promise<Agente> {
   };
 
   return nuevoAgente;
+}
+
+// TODO: Reemplazar mock por fetch real a GET /api/agentes/:id cuando el backend esté disponible
+export async function fetchAgenteById(id: string): Promise<Agente | null> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  const agente = MOCK_AGENTES.find((a) => a.id === id);
+  return agente ?? null;
+}
+
+// TODO: Reemplazar mock por fetch real a PATCH /api/agentes/:id cuando el backend esté disponible
+export async function updateAgente(id: string, dto: UpdateAgenteDTO): Promise<Agente> {
+  await new Promise((resolve) => setTimeout(resolve, 600));
+
+  // Simular error: si nombre contiene "error", lanza excepción (mismo patrón que createAgente)
+  if (dto.nombre && dto.nombre.toLowerCase().includes("error")) {
+    throw new Error("Error simulado en la actualización del agente.");
+  }
+
+  const index = MOCK_AGENTES.findIndex((a) => a.id === id);
+  if (index === -1) {
+    throw new Error("Agente no encontrado.");
+  }
+
+  if (dto.nombre !== undefined) {
+    MOCK_AGENTES[index].nombre = dto.nombre.trim();
+  }
+  if (dto.tipo !== undefined) {
+    MOCK_AGENTES[index].tipo = dto.tipo;
+  }
+
+  return { ...MOCK_AGENTES[index] };
 }
