@@ -124,3 +124,20 @@ export async function updateAgente(id: string, dto: UpdateAgenteDTO): Promise<Ag
 
   return { ...MOCK_AGENTES[index] };
 }
+
+// TODO: Reemplazar mock por fetch real a DELETE /api/agentes/:id cuando el backend esté disponible
+export async function deleteAgente(id: string): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 600));
+
+  const index = MOCK_AGENTES.findIndex((a) => a.id === id);
+  if (index === -1) {
+    throw new Error("Agente no encontrado.");
+  }
+
+  // Simular error: si nombre contiene "error-delete", lanza excepción
+  if (MOCK_AGENTES[index].nombre.toLowerCase().includes("error-delete")) {
+    throw new Error("Error simulado en la eliminación del agente.");
+  }
+
+  MOCK_AGENTES.splice(index, 1);
+}
