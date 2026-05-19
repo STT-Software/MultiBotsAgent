@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { MoreVertical, MessageSquare, Calculator, Calendar } from "lucide-react";
+import { MessageSquare, Calculator, Calendar } from "lucide-react";
 
 import { Agente } from "../types/agentes.types";
 import { AgenteTipoBadge } from "./agente-tipo-badge";
 import { AgenteEstadoBadge } from "./agente-estado-badge";
+import { AgenteRowMenu } from "./agente-row-menu";
 
 interface AgenteRowProps {
   agente: Agente;
+  onEliminar: (agente: Agente) => void;
 }
 
 const TIPO_ICON: Record<Agente["tipo"], React.ReactNode> = {
@@ -15,7 +17,7 @@ const TIPO_ICON: Record<Agente["tipo"], React.ReactNode> = {
   agendamiento: <Calendar size={18} style={{ color: "#c87df0" }} aria-hidden="true" />,
 };
 
-export function AgenteRow({ agente }: AgenteRowProps) {
+export function AgenteRow({ agente, onEliminar }: AgenteRowProps) {
   return (
     <Link
       href={`/agentes/${agente.id}`}
@@ -61,23 +63,7 @@ export function AgenteRow({ agente }: AgenteRowProps) {
       </span>
 
       {/* Acciones */}
-      <button
-        className="flex h-8 w-8 items-center justify-center rounded-md transition-colors"
-        style={{ color: "#bbcabe" }}
-        onMouseEnter={(e) =>
-          (e.currentTarget.style.backgroundColor = "#2f3731")
-        }
-        onMouseLeave={(e) =>
-          (e.currentTarget.style.backgroundColor = "transparent")
-        }
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-        aria-label={`Acciones para ${agente.nombre}`}
-      >
-        <MoreVertical size={16} aria-hidden="true" />
-      </button>
+      <AgenteRowMenu agente={agente} onEliminar={onEliminar} />
     </Link>
   );
 }
