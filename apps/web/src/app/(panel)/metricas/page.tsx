@@ -1,8 +1,16 @@
+import { BarChart3 } from "lucide-react";
+
+import { PlaceholderPage } from "@/features/placeholders/components/placeholder-page";
+import { MetricasMock } from "@/features/placeholders/components/metricas-mock";
+
 export default function MetricasPage() {
   return (
-    <div>
-      <h1>Métricas</h1>
-      <p>Próximamente</p>
-    </div>
-  )
+    <PlaceholderPage
+      icon={<BarChart3 size={32} aria-hidden="true" />}
+      title="Métricas"
+      message="Los dashboards de métricas estarán disponibles cuando se implemente la solución de analítica."
+    >
+      <MetricasMock />
+    </PlaceholderPage>
+  );
 }
