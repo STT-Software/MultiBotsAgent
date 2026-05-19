@@ -27,6 +27,12 @@ export interface CreateAgenteDTO {
   tipo: "rag" | "cotizador" | "agendamiento";
 }
 
+// DTO para actualizar un agente
+export interface UpdateAgenteDTO {
+  nombre?: string;
+  tipo?: "rag" | "cotizador" | "agendamiento";
+}
+
 // Errores de validación del formulario de creación
 export interface CrearAgenteValidationErrors {
   nombre?: string;
