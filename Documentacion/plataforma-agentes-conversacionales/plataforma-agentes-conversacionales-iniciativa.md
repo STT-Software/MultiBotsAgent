@@ -22,6 +22,9 @@ changelog:
   - date: 2026-05-15
     author: Felipe Lamos
     description: "Refinamiento del Solution Map — Solución 5 (Conector de WhatsApp) diseñada. Status: drafting."
+  - date: 2026-05-20
+    author: Oscar Gomez
+    description: "Refinamiento del Solution Map — Solución 8 (Sistema de Escalamiento a Humano) diseñada. Status: drafting."
 ---
 
 # Plataforma de Agentes Conversacionales
@@ -220,7 +223,7 @@ Una plataforma plug & play donde una empresa pueda:
 | # | Solución | Capacidades que cubre | Tipo | Prioridad | Notas |
 |---|----------|----------------------|------|-----------|-------|
 | 7 | **Gestión de Memoria Conversacional** | Contexto temporal por conversación, reinicio tras ventana de tiempo | Transversal | Alta | Aplica a todos los agentes. Memoria básica (no persistente) |
-| 8 | **Sistema de Escalamiento a Humano** | Detección de incapacidad del agente, transferencia a inbox, notificación | Transversal | Alta | Inbox en plataforma + respuesta desde WhatsApp |
+| 8 | **Sistema de Escalamiento a Humano** | Detección de incapacidad del agente, transferencia a inbox, notificación | Transversal | Alta | Inbox en plataforma. Status: `drafting` |
 | 9 | **Motor de Mensajes Proactivos** | Recordatorios de citas, actualizaciones de pedido, mensajes según gestión del agente | Transversal | Media | Aplica a agendamiento y cotizador principalmente |
 | 10 | **Sistema de Notificaciones** | Notificar a empresa (pedidos, escalamientos), notificar a cliente (estados, confirmaciones) | Transversal | Alta | Canales: plataforma, WhatsApp, correo |
 | 11 | **Motor de Personalidad del Agente** | Tono, nombre, idioma, restricciones, mensaje de bienvenida | Transversal | Media | Configurable por agente, aplica a todos los tipos |
