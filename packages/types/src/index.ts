@@ -13,9 +13,12 @@ export * from "./dtos/example.dto";
 
 // Interfaces
 export * from "./interfaces/example.interface";
+export * from "./interfaces/rag-engine.interfaces";
+export * from "./interfaces/rag-engine-io.interfaces";
 
 // Enums
 export * from "./enums/example.enum";
+export * from "./enums/rag-engine.enums";
 
 // Auth — Registro, login, cambio de contraseña y validación
 export * from "./auth";
@@ -25,3 +28,6 @@ export * from "./email-verification";
 
 // Company Profile
 export * from "./company-profile";
+
+// Knowledge Base
+export * from "./knowledge";

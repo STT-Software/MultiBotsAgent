@@ -14,6 +14,10 @@ export { RefreshTokenRepository } from "./refresh-token.repository";
 export { VerifyTokenRepository } from "./verify-token.repository";
 export { EmailQueueRepository } from "./email-queue.repository";
 export { RateLimitRepository } from "./rate-limit.repository";
+export { KnowledgeSourceRepository } from "./knowledge-source.repository";
+export type { IKnowledgeSourceRepository } from "./knowledge-source.repository";
+export { KnowledgeFragmentRepository } from "./knowledge-fragment.repository";
+export type { IKnowledgeFragmentRepository } from "./knowledge-fragment.repository";
 
 // Re-export interfaces desde la carpeta centralizada
 export type {

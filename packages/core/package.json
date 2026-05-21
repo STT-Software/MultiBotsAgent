@@ -6,7 +6,9 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
-      "email-verification": ["./dist/email-verification/index.d.ts"]
+      "email-verification": [
+        "./dist/email-verification/index.d.ts"
+      ]
     }
   },
   "exports": {
@@ -29,7 +31,8 @@
   "dependencies": {
     "@multibotagents/types": "workspace:*",
     "bcryptjs": "^3.0.3",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "pdf-parse": "^2.4.5"
   },
   "devDependencies": {
     "@multibotagents/config": "workspace:*",

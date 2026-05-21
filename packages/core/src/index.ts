@@ -44,3 +44,9 @@ export * from "./email-verification";
 
 // Company Profile
 export * from "./company-profile";
+
+// RAG Engine
+export * from "./rag-engine";
+
+// Knowledge
+export * from "./knowledge";
