@@ -34,3 +34,19 @@ export {
   type EnqueueEmailData,
   type IEmailQueueRepository,
 } from "./email-queue.repository";
+
+export {
+  KnowledgeSourceRepository,
+  type IKnowledgeSourceRepository,
+} from "./knowledge-source.repository";
+
+export {
+  KnowledgeFragmentRepository,
+  type IKnowledgeFragmentRepository,
+} from "./knowledge-fragment.repository";
+
+export {
+  MongoVectorSearchService,
+  type IVectorSearchService,
+  type EmbeddingService,
+} from "./knowledge-vector-search";

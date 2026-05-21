@@ -42,3 +42,17 @@ export {
   EMAIL_QUEUE_VALIDATION,
   type EmailQueueDocument,
 } from "./email-queue.schema";
+
+export {
+  KNOWLEDGE_FRAGMENTS_COLLECTION,
+  KNOWLEDGE_FRAGMENTS_INDEXES,
+  KNOWLEDGE_FRAGMENTS_VALIDATION,
+  type KnowledgeFragmentDocument,
+} from "./knowledge-fragment.schema";
+
+export {
+  KNOWLEDGE_SOURCES_COLLECTION,
+  KNOWLEDGE_SOURCES_INDEXES,
+  KNOWLEDGE_SOURCES_VALIDATION,
+  type KnowledgeSourceDocument,
+} from "./knowledge-source.schema";

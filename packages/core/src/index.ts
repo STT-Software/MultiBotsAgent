@@ -25,3 +25,6 @@ export * from "./auth/register.service";
 export * from "./rag-engine/threshold-filter";
 export * from "./rag-engine/token-management";
 export * from "./rag-engine/prompt-building";
+
+// Knowledge — Extracción de texto y chunking
+export * from "./knowledge";

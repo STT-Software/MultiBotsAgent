@@ -16,7 +16,8 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint --ext .ts src/",
     "test": "vitest --run",
-    "migrate": "npx tsx src/migrations/create-indexes.ts"
+    "migrate": "npx tsx src/migrations/create-indexes.ts",
+    "verify-vector-index": "npx tsx ../../scripts/verify-vector-index.ts"
   },
   "dependencies": {
     "@multibotagents/types": "workspace:*",

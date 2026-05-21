@@ -26,3 +26,6 @@ export * from "./enums/rag-engine.enums";
 // Auth — Registro de empresa y usuario
 export * from "./auth/register.types";
 export * from "./auth/errors.types";
+
+// Knowledge — Base de conocimiento y pipeline de ingesta
+export * from "./knowledge";

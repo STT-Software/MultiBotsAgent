@@ -8,6 +8,8 @@
     "test": "vitest --run"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1045.0",
+    "@aws-sdk/client-s3": "^3.1045.0",
     "@multibotagents/core": "workspace:*",
     "@multibotagents/db": "workspace:*",
     "@multibotagents/types": "workspace:*",
