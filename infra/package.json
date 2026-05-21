@@ -6,10 +6,10 @@
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pulumi/aws": "^6.0.0",
     "@multibotagents/config": "workspace:*",
-    "@types/node": "^25.5.0",
-    "sst": "^3.7.0",
-    "typescript": "^5.7.0"
+    "@pulumi/aws": "^6.83.3",
+    "@types/node": "^25.7.0",
+    "sst": "^3.19.3",
+    "typescript": "^5.9.3"
   }
 }

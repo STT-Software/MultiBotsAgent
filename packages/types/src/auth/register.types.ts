@@ -125,6 +125,8 @@ export interface AccessTokenPayload {
   email: string;
   /** Si el email ha sido verificado. */
   emailVerified: boolean;
+  /** Nombre de la empresa (para display en el frontend). */
+  companyName?: string;
 }
 
 // ─── Entidades ───────────────────────────────────────────────────────────────

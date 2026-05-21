@@ -16,3 +16,6 @@ export * from "./schemas/index";
 
 // Adaptadores MongoDB (repositorios concretos)
 export * from "./adapters/mongodb/index";
+
+// Adaptadores S3 (storage)
+export * from "./adapters/s3/index";

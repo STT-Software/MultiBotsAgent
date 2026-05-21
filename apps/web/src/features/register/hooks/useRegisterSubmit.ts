@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { registerUser } from '../services';
 import type { RegisterError } from '../services/registerApi';
 import type { FormData, StepId } from '../types';
@@ -23,8 +22,6 @@ export function useRegisterSubmit({
   touchAll,
   setStep,
 }: UseRegisterSubmitOptions) {
-  const router = useRouter();
-
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string> | null>(null);
@@ -75,9 +72,8 @@ export function useRegisterSubmit({
         await registerUser(payload);
         setRegistrationSuccess(true);
 
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 2000);
+        // No redirect — user needs to verify email first.
+        // The protected layout will show BlockedScreen if they navigate manually.
       } catch (err: unknown) {
         const error = err as RegisterError;
 
@@ -95,7 +91,7 @@ export function useRegisterSubmit({
         setSubmitting(false);
       }
     },
-    [formData, isFormValid, step1Valid, step2Valid, touchAll, setStep, clearServerErrors, router],
+    [formData, isFormValid, step1Valid, step2Valid, touchAll, setStep, clearServerErrors],
   );
 
   return {

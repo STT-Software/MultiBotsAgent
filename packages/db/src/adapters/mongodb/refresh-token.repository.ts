@@ -1,29 +1,10 @@
 import { ClientSession, Db, ObjectId } from "mongodb";
 import type { RefreshToken } from "@multibotagents/types";
-import type { Repository } from "../../interfaces/repository.interface";
+import type { IRefreshTokenRepository, CreateRefreshTokenData } from "../../interfaces";
 import {
   REFRESH_TOKENS_COLLECTION,
   type RefreshTokenDocument,
 } from "../../schemas/refresh-token.schema";
-
-// ─── DTOs ────────────────────────────────────────────────────────────────────
-
-/** Datos necesarios para crear un refresh token dentro de una transacción. */
-export interface CreateRefreshTokenData {
-  userId: string;
-  token: string;
-  expiresAt: Date;
-}
-
-// ─── Repository Interface ────────────────────────────────────────────────────
-
-export interface IRefreshTokenRepository extends Repository<RefreshToken> {
-  createWithSession(
-    data: CreateRefreshTokenData,
-    session: ClientSession,
-  ): Promise<RefreshToken>;
-  revokeAllByUserId(userId: string, session: ClientSession): Promise<void>;
-}
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 

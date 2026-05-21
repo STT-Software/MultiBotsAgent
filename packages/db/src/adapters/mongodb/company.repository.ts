@@ -1,31 +1,10 @@
 import { ClientSession, Db, ObjectId } from "mongodb";
 import type { Company, CompanyStatus } from "@multibotagents/types";
-import type { Repository } from "../../interfaces/repository.interface";
+import type { ICompanyRepository, CreateCompanyData, UpdateCompanyProfileData } from "../../interfaces";
 import {
   COMPANIES_COLLECTION,
   type CompanyDocument,
 } from "../../schemas/company.schema";
-
-// ─── DTOs ────────────────────────────────────────────────────────────────────
-
-/** Datos necesarios para crear una empresa dentro de una transacción. */
-export interface CreateCompanyData {
-  name: string;
-  country: string;
-  category: string;
-  size: string;
-  phone?: string;
-  referralSource?: string;
-}
-
-// ─── Repository Interface ────────────────────────────────────────────────────
-
-export interface ICompanyRepository extends Repository<Company> {
-  createWithSession(
-    data: CreateCompanyData,
-    session: ClientSession,
-  ): Promise<Company>;
-}
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
@@ -125,6 +104,35 @@ export class CompanyRepository implements ICompanyRepository {
     );
     if (!result) throw new Error(`Company not found: ${id}`);
     return toEntity(result);
+  }
+
+  async updateProfile(
+    companyId: string,
+    data: Partial<UpdateCompanyProfileData>,
+  ): Promise<Company | null> {
+    // Separate null values (to $unset) from defined values (to $set)
+    const $set: Record<string, unknown> = { updatedAt: new Date() };
+    const $unset: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(data)) {
+      if (value === null) {
+        $unset[key] = "";
+      } else if (value !== undefined) {
+        $set[key] = value;
+      }
+    }
+
+    const update: Record<string, unknown> = { $set };
+    if (Object.keys($unset).length > 0) {
+      update.$unset = $unset;
+    }
+
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(companyId) },
+      update,
+      { returnDocument: "after" },
+    );
+    return result ? toEntity(result) : null;
   }
 
   async delete(id: string): Promise<boolean> {

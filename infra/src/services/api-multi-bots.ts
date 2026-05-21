@@ -7,13 +7,32 @@
  *
  * El service registry en puerto 3001 habilita el descubrimiento de servicio
  * y la exposición pública vía API Gateway automáticamente.
- *
- * Permisos de Bedrock habilitados para el Motor de Agente RAG (Solución 2).
  */
 
 import { cluster } from "./cluster";
 import { mongoDbUri } from "../databases/mongodb";
-import { jwtSecrets, captchaSecret, captchaVerifyUrl } from "../shared/secrets";
+import { companyLogosBucket } from "../storage/company-logos";
+import { apiMultiBotsLogGroupName } from "../shared/log-groups";
+import {
+  jwtSecrets,
+  captchaSecret,
+  captchaVerifyUrl,
+  elasticEmailApiKey,
+  elasticEmailFromEmail,
+  elasticEmailFromName,
+  elasticEmailTemplateId,
+  elasticEmailPasswordResetTemplateId,
+  frontendDomain,
+} from "../shared/secrets";
+
+/**
+ * URL del frontend para construir links de verificación de email.
+ * - En `sst dev`: http://localhost:3000 (Next.js local)
+ * - En deploy: se toma del secret FrontendDomain
+ */
+const frontendDomainValue = $dev ? "http://localhost:3000" : frontendDomain.value;
+
+export { apiMultiBotsLogGroupName };
 
 export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   cluster,
@@ -24,28 +43,29 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   cpu: "0.25 vCPU",
   memory: "0.5 GB",
   capacity: "spot",
+  permissions: [
+    {
+      actions: ["s3:PutObject", "s3:DeleteObject", "s3:GetObject"],
+      resources: [$interpolate`arn:aws:s3:::${companyLogosBucket.name}/*`],
+    },
+  ],
   environment: {
     MONGODB_URI: mongoDbUri.value,
     JWT_SECRETS: jwtSecrets.value,
     CAPTCHA_SECRET: captchaSecret.value,
     CAPTCHA_VERIFY_URL: captchaVerifyUrl.value,
-    // Motor RAG — AWS Bedrock
-    AWS_REGION: "us-east-1",
-    BEDROCK_MODEL_ID: "minimax.minimax-m2.5",
-    BEDROCK_EMBEDDING_MODEL_ID: "amazon.titan-embed-text-v2:0",
-    BEDROCK_TIMEOUT_MS: "30000",
+    ELASTIC_EMAIL_API_KEY: elasticEmailApiKey.value,
+    ELASTIC_EMAIL_FROM_EMAIL: elasticEmailFromEmail.value,
+    ELASTIC_EMAIL_FROM_NAME: elasticEmailFromName.value,
+    ELASTIC_EMAIL_TEMPLATE_ID: elasticEmailTemplateId.value,
+    ELASTIC_EMAIL_PASSWORD_RESET_TEMPLATE_ID: elasticEmailPasswordResetTemplateId.value,
+    FRONTEND_DOMAIN: frontendDomainValue,
+    COMPANY_LOGOS_BUCKET: companyLogosBucket.name,
   },
-  permissions: [
-    {
-      actions: [
-        "bedrock:InvokeModel",
-        "bedrock:InvokeModelWithResponseStream",
-      ],
-      resources: [
-        "arn:aws:bedrock:us-east-1::foundation-model/*",
-      ],
-    },
-  ],
+  logging: {
+    name: apiMultiBotsLogGroupName,
+    retention: "1 month",
+  },
   serviceRegistry: {
     port: 3001,
   },

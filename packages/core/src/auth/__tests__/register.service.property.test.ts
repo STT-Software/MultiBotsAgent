@@ -93,10 +93,12 @@ function createMockDeps(overrides: Partial<RegisterServiceDeps> = {}): RegisterS
 
   const verifyTokenRepository: IVerifyTokenRepository = {
     createForUser: vi.fn().mockResolvedValue({ id: 'vt-1' }),
+    createForUserWithSession: vi.fn().mockResolvedValue({ id: 'vt-1' }),
   };
 
   const emailQueueRepository: IEmailQueueRepository = {
     enqueue: vi.fn().mockResolvedValue({ id: 'eq-1' }),
+    enqueueWithSession: vi.fn().mockResolvedValue({ id: 'eq-1' }),
   };
 
   // Use a mock password service to avoid slow bcrypt in property tests
@@ -116,6 +118,7 @@ function createMockDeps(overrides: Partial<RegisterServiceDeps> = {}): RegisterS
     captchaService: new CaptchaService({}), // No config = skip
     getSession: vi.fn().mockResolvedValue(session),
     logger,
+    frontendDomain: 'https://app.example.com',
     ...overrides,
   };
 }
@@ -376,10 +379,10 @@ describe('Property 7: Encolado correcto de email de verificación', () => {
 
         await service.register(dto);
 
-        // Email queue should have been called exactly once
-        expect(deps.emailQueueRepository.enqueue).toHaveBeenCalledTimes(1);
+        // Email queue should have been called exactly once (within transaction)
+        expect(deps.emailQueueRepository.enqueueWithSession).toHaveBeenCalledTimes(1);
 
-        const enqueueCall = (deps.emailQueueRepository.enqueue as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        const enqueueCall = (deps.emailQueueRepository.enqueueWithSession as ReturnType<typeof vi.fn>).mock.calls[0][0];
         expect(enqueueCall.to).toBe(dto.email.toLowerCase());
         expect(enqueueCall.template).toBe(EmailTemplate.VERIFICATION);
         expect(enqueueCall.status).toBe(EmailQueueStatus.PENDING);
@@ -403,12 +406,13 @@ describe('Property 7: Encolado correcto de email de verificación', () => {
 
         await service.register(dto);
 
-        // Verify token should have been created
-        expect(deps.verifyTokenRepository.createForUser).toHaveBeenCalledTimes(1);
-        const createCall = (deps.verifyTokenRepository.createForUser as ReturnType<typeof vi.fn>).mock.calls[0];
+        // Verify token should have been created within the transaction
+        expect(deps.verifyTokenRepository.createForUserWithSession).toHaveBeenCalledTimes(1);
+        const createCall = (deps.verifyTokenRepository.createForUserWithSession as ReturnType<typeof vi.fn>).mock.calls[0];
         expect(createCall[0]).toBeDefined(); // userId
         expect(createCall[1]).toBe('email_verification'); // type
         expect(createCall[2]).toMatch(/^[0-9a-f]{64}$/); // token
+        expect(createCall[3]).toBeDefined(); // session
       }),
       { numRuns: 50 },
     );

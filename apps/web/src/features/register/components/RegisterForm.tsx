@@ -19,9 +19,9 @@ export function RegisterForm() {
     setStep: form.setStep,
   });
 
-  // Success state — show celebration animation before redirect
+  // Success state — show email verification message
   if (submit.registrationSuccess) {
-    return <RegistrationSuccess />;
+    return <RegistrationSuccess email={form.formData.email} />;
   }
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {

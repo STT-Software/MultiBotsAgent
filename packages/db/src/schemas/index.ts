@@ -44,15 +44,8 @@ export {
 } from "./email-queue.schema";
 
 export {
-  KNOWLEDGE_FRAGMENTS_COLLECTION,
-  KNOWLEDGE_FRAGMENTS_INDEXES,
-  KNOWLEDGE_FRAGMENTS_VALIDATION,
-  type KnowledgeFragmentDocument,
-} from "./knowledge-fragment.schema";
-
-export {
-  KNOWLEDGE_SOURCES_COLLECTION,
-  KNOWLEDGE_SOURCES_INDEXES,
-  KNOWLEDGE_SOURCES_VALIDATION,
-  type KnowledgeSourceDocument,
-} from "./knowledge-source.schema";
+  RATE_LIMITS_COLLECTION,
+  RATE_LIMITS_INDEXES,
+  RATE_LIMITS_VALIDATION,
+  type RateLimitDocument,
+} from "./rate-limit.schema";

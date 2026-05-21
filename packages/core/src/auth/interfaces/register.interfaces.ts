@@ -99,10 +99,12 @@ export interface IRefreshTokenRepository {
 
 export interface IVerifyTokenRepository {
   createForUser(userId: string, type: string, token: string): Promise<{ id: string }>;
+  createForUserWithSession(userId: string, type: string, token: string, session: TransactionSession): Promise<{ id: string }>;
 }
 
 export interface IEmailQueueRepository {
   enqueue(item: EnqueueEmailData): Promise<{ id: string }>;
+  enqueueWithSession(item: EnqueueEmailData, session: TransactionSession): Promise<{ id: string }>;
 }
 
 // ─── Logger ──────────────────────────────────────────────────────────────────
@@ -126,4 +128,6 @@ export interface RegisterServiceDeps {
   captchaService: CaptchaService;
   getSession: () => Promise<TransactionSession>;
   logger: Logger;
+  /** Dominio del frontend para construir URLs de verificación (e.g., https://app.example.com). */
+  frontendDomain: string;
 }

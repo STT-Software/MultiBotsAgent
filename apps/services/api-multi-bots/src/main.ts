@@ -17,9 +17,19 @@ API REST para la plataforma **MultiBotAgents** — sistema multiagente gestionad
 
 ## Autenticación
 
-La API usa **JWT Bearer tokens** para autenticación:
+La API usa **JWT Bearer tokens** (HS256) con refresh token rotativo:
 - El **Access Token** (30 min) se envía en el header \`Authorization: Bearer <token>\`
-- El **Refresh Token** (7 días) se maneja como cookie httpOnly en \`/auth/refresh\`
+- El **Refresh Token** (7 días) se maneja como cookie \`httpOnly; Secure; SameSite=Strict\` en \`/auth/refresh\`
+
+## Rate Limiting
+
+El endpoint de login aplica rate limiting:
+- **Por IP**: 5 intentos fallidos/minuto → bloqueo 5 minutos
+- **Por email**: 10 intentos fallidos/10 minutos → bloqueo 15 minutos
+
+## Sesión Única
+
+Solo se permite una sesión activa por usuario. Al iniciar sesión en un nuevo dispositivo, la sesión anterior se invalida automáticamente.
 
 ## Entornos
 
@@ -48,7 +58,7 @@ La API usa **JWT Bearer tokens** para autenticación:
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        description: 'Access Token JWT obtenido del endpoint POST /auth/register o POST /auth/login',
+        description: 'Access Token JWT (HS256, 30 min). Obtenido de POST /auth/register o POST /auth/login',
       },
       'access-token',
     )
@@ -57,10 +67,11 @@ La API usa **JWT Bearer tokens** para autenticación:
       {
         type: 'apiKey',
         in: 'cookie',
+        name: 'refreshToken',
         description: 'Refresh Token httpOnly cookie (7 días). Se setea automáticamente en registro/login.',
       },
     )
-    .addTag('Auth', 'Endpoints de autenticación: registro, login, refresh, logout')
+    .addTag('Auth', 'Registro, login, refresh y logout de usuarios')
     .addServer('http://localhost:3001', 'Desarrollo local')
     .build();
 

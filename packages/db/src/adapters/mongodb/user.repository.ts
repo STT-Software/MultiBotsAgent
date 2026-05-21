@@ -1,29 +1,10 @@
 import { ClientSession, Db, ObjectId } from "mongodb";
 import type { User } from "@multibotagents/types";
-import type { Repository } from "../../interfaces/repository.interface";
+import type { IUserRepository, CreateUserData } from "../../interfaces";
 import {
   USERS_COLLECTION,
   type UserDocument,
 } from "../../schemas/user.schema";
-
-// ─── DTOs ────────────────────────────────────────────────────────────────────
-
-/** Datos necesarios para crear un usuario dentro de una transacción. */
-export interface CreateUserData {
-  email: string;
-  passwordHash: string;
-  companyId: string;
-}
-
-// ─── Repository Interface ────────────────────────────────────────────────────
-
-export interface IUserRepository extends Repository<User> {
-  findByEmail(email: string): Promise<User | null>;
-  createWithSession(
-    data: CreateUserData,
-    session: ClientSession,
-  ): Promise<User>;
-}
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
@@ -129,6 +110,25 @@ export class UserRepository implements IUserRepository {
     );
     if (!result) throw new Error(`User not found: ${id}`);
     return toEntity(result);
+  }
+
+  async markEmailVerified(userId: string): Promise<void> {
+    await this.collection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { emailVerified: true, updatedAt: new Date() } },
+    );
+  }
+
+  /**
+   * Actualiza el hash de contraseña de un usuario de forma atómica.
+   * Retorna true si el documento fue modificado, false si no se encontró el usuario.
+   */
+  async updatePasswordHash(userId: string, newHash: string): Promise<boolean> {
+    const result = await this.collection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { passwordHash: newHash, updatedAt: new Date() } },
+    );
+    return result.modifiedCount === 1;
   }
 
   async delete(id: string): Promise<boolean> {

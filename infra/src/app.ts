@@ -13,19 +13,20 @@ import "./networking/vpc";
 
 // Shared (cross-cutting concerns)
 import "./shared/secrets";
+import "./shared/log-groups";
 
 // Databases
 import "./databases/mongodb";
 
-// Knowledge Base — Pipeline de ingesta de documentos
-// Orden: bucket (sin deps) → colas (dependen del bucket) → handler (depende de bucket + cola)
-import "./storage/knowledge-bucket";
-import "./queues/indexation-queue";
-import "./functions/indexation-handler";
+// Storage
+import "./storage/company-logos";
 
 // Services
 import "./services/cluster";
 import "./services/api-multi-bots";
+
+// Monitoring & Alarms (depends on log-groups for LogGroup resource)
+import "./shared/alarms";
 
 // APIs
 import "./apis/services-api";

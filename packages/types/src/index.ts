@@ -10,22 +10,18 @@
 
 // DTOs
 export * from "./dtos/example.dto";
-// NOTA: rag-engine.dto usa class-validator/class-transformer (decoradores con reflect-metadata)
-// Se exporta desde sub-path "@multibotagents/types/rag-engine-dto" para evitar contaminar el frontend.
-// export * from "./dtos/rag-engine.dto";
 
 // Interfaces
 export * from "./interfaces/example.interface";
-export * from "./interfaces/rag-engine-io.interfaces";
-export * from "./interfaces/rag-engine.interfaces";
 
 // Enums
 export * from "./enums/example.enum";
-export * from "./enums/rag-engine.enums";
 
-// Auth — Registro de empresa y usuario
-export * from "./auth/register.types";
-export * from "./auth/errors.types";
+// Auth — Registro, login, cambio de contraseña y validación
+export * from "./auth";
 
-// Knowledge — Base de conocimiento y pipeline de ingesta
-export * from "./knowledge";
+// Email Verification
+export * from "./email-verification";
+
+// Company Profile
+export * from "./company-profile";

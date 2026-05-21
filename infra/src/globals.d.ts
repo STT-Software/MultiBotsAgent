@@ -18,10 +18,7 @@ declare namespace sst {
     class Bucket {
       constructor(name: string, args?: Record<string, unknown>);
       static get(name: string, arn: string): Bucket;
-      notify(args: Record<string, unknown>): void;
-      subscribeQueue(queueArn: string, args?: Record<string, unknown>): void;
       name: string;
-      arn: string;
     }
     class Function {
       constructor(name: string, args?: Record<string, unknown>);
@@ -35,9 +32,7 @@ declare namespace sst {
     }
     class Queue {
       constructor(name: string, args?: Record<string, unknown>);
-      subscribe(handler: string | Function, args?: Record<string, unknown>): void;
-      arn: string;
-      url: string;
+      subscribe(handler: string, args?: Record<string, unknown>): void;
     }
     class Cluster {
       constructor(name: string, args?: Record<string, unknown>);
@@ -69,11 +64,11 @@ declare const $app: {
 
 declare const $dev: boolean;
 
-/** Interpola Output<string> en template literals (equivalente a pulumi.interpolate) */
-declare const $interpolate: (
+/**
+ * Interpolación de strings con Outputs de Pulumi.
+ * Permite componer strings a partir de valores Output sin resolverlos manualmente.
+ */
+declare function $interpolate(
   literals: TemplateStringsArray,
-  ...placeholders: any[]
-) => any;
-
-/** Concatena strings y Output<string> (equivalente a pulumi.concat) */
-declare function $concat(...args: any[]): any;
+  ...placeholders: unknown[]
+): string;

@@ -5,8 +5,8 @@ initiative: Plataforma de Agentes Conversacionales
 product: Por definir
 author: Por definir
 created: 2026-05-05
-updated: 2026-05-07
-version: 0.2.0
+updated: 2026-05-05
+version: 0.1.0
 status: discovery
 language: es
 changelog:
@@ -19,12 +19,9 @@ changelog:
   - date: 2026-05-05
     author: Por definir
     description: Fase 3 - Solution Map Preliminar y Roadmap de Ejecución.
-  - date: 2026-05-07
-    author: Solutions Architect
-    description: Refinamiento del Solution Map — Decisiones técnicas transversales y notas para soluciones derivadas del diseño del Motor RAG.
-  - date: 2026-05-12
-    author: Solutions Architect
-    description: Refinamiento del Solution Map — SOL-06 Sistema de Base de Conocimiento diseñada (approved). Pipeline async Lambda+SQS para indexación.
+  - date: 2026-05-15
+    author: Felipe Lamos
+    description: "Refinamiento del Solution Map — Solución 5 (Conector de WhatsApp) diseñada. Status: drafting."
 ---
 
 # Plataforma de Agentes Conversacionales
@@ -212,11 +209,11 @@ Una plataforma plug & play donde una empresa pueda:
 | # | Solución | Capacidades que cubre | Tipo | Prioridad | Notas |
 |---|----------|----------------------|------|-----------|-------|
 | 1 | **Panel de Administración Web** | Gestión de agentes, configuración de personalidad, asociación a canal, gestión de pedidos, historial, métricas | Core | Alta | UI orientada a usuarios no técnicos |
-| 2 | **Motor de Agente RAG** | Responder preguntas, consulta a base de conocimiento, soporte multimedia, memoria temporal | Core | Alta | ✅ Diseñado. Basado en RAG + prompting, AWS Bedrock (modelos económicos), MongoDB Atlas Vector Search. Ver: `solutions/motor-agente-rag/` |
+| 2 | **Motor de Agente RAG** | Responder preguntas, consulta a base de conocimiento, soporte multimedia, memoria temporal | Core | Alta | Basado en RAG + prompting, modelos económicos |
 | 3 | **Motor de Agente Cotizador** | Consultar catálogo, armar cotizaciones, confirmar pedidos, seguimiento de estado | Core | Alta | Sin pagos. Notificación multi-canal (plataforma + WhatsApp + correo) |
 | 4 | **Motor de Agente Agendamiento** | Verificar disponibilidad, agendar, confirmar, recordatorios, cancelar/reprogramar | Core | Alta | Integración con Google Calendar únicamente |
-| 5 | **Conector de WhatsApp** | Envío/recepción de mensajes, asociación agente-número, multimedia | Core | Alta | API de WhatsApp Business. Arquitectura preparada para multi-canal |
-| 6 | **Sistema de Base de Conocimiento** | Carga de archivos, integraciones externas, creación directa, indexación para RAG | Core | Alta | ✅ Diseñado. Pipeline async: API NestJS + S3 + SQS + Lambda. Chunking + Titan Embeddings + MongoDB Atlas Vector Search. Ver: `solutions/SOL-06-sistema-base-conocimiento/` |
+| 5 | **Conector de WhatsApp** | Envío/recepción de mensajes, asociación agente-número, multimedia | Core | Alta | API de WhatsApp Business (Cloud API directa). Embedded Signup para conexión. Lambda + SQS. Status: `drafting` |
+| 6 | **Sistema de Base de Conocimiento** | Carga de archivos, integraciones externas, creación directa, indexación para RAG | Core | Alta | Soporta PDF, docs, Excel, tablas. Integraciones: Google Drive, Notion, Confluence, SharePoint, Dropbox |
 
 ### Soluciones Transversales
 
@@ -293,64 +290,3 @@ FASE 0 ────────────────────────�
 
 - **Fase 2 + Fase 3** → pueden ejecutarse simultáneamente (no dependen entre sí)
 - **Fase 4 + Fase 5** → pueden ejecutarse simultáneamente (no dependen entre sí, pero Fase 4 requiere Fase 3 completada)
-
-
----
-
-## Notas Técnicas Transversales (derivadas del diseño de soluciones)
-
-> Esta sección recopila decisiones y descubrimientos técnicos que surgieron durante el diseño de soluciones individuales y que impactan a otras soluciones. Sirve como referencia para cuando se diseñen las soluciones afectadas.
-
-### Decisiones de infraestructura global
-
-| Decisión | Detalle | Afecta a |
-|----------|---------|----------|
-| LLM Provider | AWS Bedrock. Modelos de bajo costo para PoC/desarrollo; modelos más capaces para producción con clientes reales. Diseño agnóstico al proveedor via interface `LlmProvider` | Soluciones 2, 3, 4 |
-| Vector Store | MongoDB Atlas Vector Search (incluido en el cluster existente, sin costo adicional) | Soluciones 2, 6 |
-| Modelo de ejecución de agentes | Módulo NestJS dentro del servicio existente, diseñado con interfaces para ser extraíble a microservicio | Soluciones 2, 3, 4 |
-| Streaming | No aplica. WhatsApp no soporta streaming. Respuesta completa siempre | Soluciones 2, 3, 4, 5 |
-
-### Notas para Solución 5 (Conector de WhatsApp)
-
-- **Capa de preprocesamiento multimedia**: Debe existir una capa entre el Conector de WhatsApp y los Motores de Agente que transforme mensajes multimedia (audio, imágenes) a texto. Los motores de agente siempre reciben texto normalizado.
-- **Flujo**: Mensaje WhatsApp (texto/audio/imagen) → Preprocesamiento (transcripción/descripción) → Texto enriquecido → Motor del Agente.
-- **Responsabilidad**: Esta capa es parte de la Solución 5 o un componente transversal nuevo. Definir al diseñar la Solución 5.
-- **Deduplicación de mensajes en ráfaga**: El conector debe implementar una ventana de agrupación (3-5 segundos) para detectar cuando un usuario envía múltiples mensajes antes de recibir respuesta. Los mensajes en ráfaga se concatenan y se entregan al motor como un solo input.
-- **Soporte multi-mensaje en respuesta**: El conector debe soportar recibir múltiples mensajes del motor y enviarlos secuencialmente al usuario por WhatsApp.
-- **Acknowledgment**: El conector debe soportar enviar un mensaje de acknowledgment ("Dame un momento...") cuando el motor lo solicite por latencia alta.
-
-### Notas para Solución 6 (Sistema de Base de Conocimiento)
-
-- **Indexación vectorial**: La Solución 6 es responsable de generar embeddings y almacenarlos en MongoDB Atlas Vector Search. El Motor RAG (Solución 2) solo consulta lo que ya está indexado.
-- **Modelo de embeddings**: Usar modelos de embeddings de Bedrock (ej: Amazon Titan Embeddings). Mismo proveedor que el LLM para simplificar.
-- **Colección de vectores**: Los embeddings se almacenan en MongoDB con un índice `vectorSearch`. Cada fragmento debe tener referencia al agente y a la fuente original.
-- **⚠️ CRÍTICO (Premortem)**: La calidad de la segmentación de documentos determina directamente la calidad del RAG. Fragmentos mal cortados (demasiado cortos, demasiado largos, o cortados en puntos incorrectos) producen respuestas parciales o incorrectas. El diseño de la Solución 6 debe priorizar una estrategia de chunking inteligente (por secciones semánticas, no por tamaño fijo). El re-ranking post-retrieval en el Motor RAG mitiga parcialmente pero no resuelve el problema de raíz.
-
-### Notas para Solución 7 (Gestión de Memoria Conversacional)
-
-- **Consumo desde motores**: Los motores de agente consumen la memoria como servicio. No implementan su propia lógica de memoria.
-- **Ventana por sesión lógica (no por tiempo fijo)**: WhatsApp es asíncrono por naturaleza. Los usuarios escriben, se van, vuelven horas después. La ventana de memoria debe ser por sesión lógica: una sesión se cierra por inactividad prolongada (2-4 horas configurable), no por un tiempo fijo corto (30 min). Esto evita que el usuario pierda contexto al volver después de una pausa normal.
-- **Alternativas a explorar**:
-  - Ventana por inactividad (2-4 horas): La sesión se mantiene activa mientras haya interacción dentro de ese rango.
-  - Historial completo con resumen: Mantener todo el historial pero enviar al LLM solo un resumen de los mensajes antiguos + los mensajes recientes completos.
-  - Memoria híbrida: Ventana reciente completa + "hechos clave" extraídos de conversaciones anteriores (ej: "el usuario preguntó por ortodoncia").
-- **Reinicio de sesión**: Si la conversación lleva más de X tiempo sin actividad, se considera nueva sesión.
-- **Degradación graceful**: Si la memoria no está disponible, el motor procesa sin contexto histórico (no falla).
-- **Nota PoC**: Para la PoC inicial, una ventana simple por inactividad (2-4 horas) es suficiente. Las alternativas más sofisticadas se evalúan post-beta.
-
-### Notas para Solución 8 (Sistema de Escalamiento a Humano)
-
-- **Evento de escalamiento**: Los motores emiten un evento con: ID conversación, ID agente, motivo del escalamiento, último contexto.
-- **Condiciones de escalamiento**: Score bajo en búsqueda vectorial, solicitud explícita del usuario, N intentos fallidos consecutivos, indicador de incertidumbre del LLM.
-- **Pausa del agente**: Cuando se escala, el agente deja de responder temporalmente.
-- **Timeout con retorno al agente**: Si el escalamiento no se atiende dentro de un tiempo configurable (ej: 15-30 minutos), el agente retoma la conversación con un mensaje tipo "No pude comunicarte con alguien. ¿Puedo intentar ayudarte de otra forma?". Esto evita dejar al usuario en limbo cuando no hay personal disponible (especialmente en empresas pequeñas fuera de horario).
-
-### Notas para Solución 11 (Motor de Personalidad del Agente)
-
-- **Template de prompt**: El system prompt del LLM se construye a partir de la configuración de personalidad (tono, nombre, idioma, restricciones). Debe ser un template configurable sin cambiar código.
-- **Mensaje de bienvenida**: Se envía en la primera interacción o cuando la sesión se reinicia.
-
-### Notas sobre respuestas de agentes
-
-- **Longitud de respuesta**: Configurable por agente. Rango sugerido: 500-1000 caracteres dependiendo de la complejidad de la pregunta. Se controla via prompt engineering.
-- **Múltiples mensajes**: Los agentes pueden responder con múltiples mensajes (ej: texto + imagen). El sistema de envío debe soportar respuestas multi-parte.

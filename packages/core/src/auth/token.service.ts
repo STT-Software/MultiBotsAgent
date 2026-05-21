@@ -14,15 +14,10 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import type { AccessTokenPayload } from '@multibotagents/types';
 import { TokenGenerationError } from '@multibotagents/types';
+import type { TokenServiceConfig } from './interfaces';
 
 /** Expiración del Access Token en segundos (30 minutos). */
 const ACCESS_TOKEN_EXPIRATION = '30m';
-
-/** Configuración del TokenService. */
-export interface TokenServiceConfig {
-  /** Array de secrets para JWT. El primero se usa para firmar, todos para verificar (rotación). */
-  secrets: string[];
-}
 
 export class TokenService {
   private readonly secrets: string[];

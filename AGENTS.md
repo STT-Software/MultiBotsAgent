@@ -288,6 +288,105 @@ No agregar tests sin que el usuario los pida, pero sí actualizar los existentes
 
 ---
 
+## Screaming Architecture (Patrón obligatorio para features)
+
+Se usa **Screaming Architecture** en todo el proyecto. "Las carpetas gritan su propósito": la organización está centrada en capacidades del producto, no en tipos de archivos.
+
+Referencias:
+- https://github.com/juanF18/screaming-architecture-react-native
+- https://github.com/juanF18/SGR-Frontend
+
+### Estructura por Feature
+
+```
+src/
+  features/
+    <nombre-feature>/
+      ├── components/       # Componentes UI específicos del feature
+      │   └── index.ts      # Barrel export
+      ├── hooks/            # Lógica de negocio reutilizable
+      │   └── index.ts
+      ├── services/         # Conexión con APIs/externos
+      │   └── index.ts
+      ├── context/          # Context API si el feature lo requiere
+      ├── types/            # Tipos TS específicos del feature
+      │   └── index.ts
+      └── <Feature>Container.tsx  # Contenedor principal del feature
+  components/               # Componentes compartidos (reutilizables entre features)
+  hooks/                    # Hooks compartidos globales
+  providers/                # Providers globales (Theme, Auth, etc.)
+  types/                    # Tipos globales compartidos
+```
+
+### Flujo de datos (unidireccional)
+
+```
+Contenedor Routeado (page/route) → Contenedor UI (FeatureContainer)
+  → Componentes UI → Hook de Negocio → Servicio API → Backend
+```
+
+### Reglas de oro
+
+1. **Flujo unidireccional**: UI → Hook (opcional) → Service → Backend. No saltarse capas.
+2. **Componentes específicos** del feature van dentro de `features/<nombre>/components/`. Componentes compartidos van en `src/components/`.
+3. **Hooks de negocio** nunca importan componentes. Pueden consumir servicios y contextos.
+4. **Services** encapsulan toda comunicación con sistemas externos (HTTP, storage, etc.).
+5. **Types** siempre tipados. Prohibido usar `any`. Usar `unknown` si el tipo es incierto.
+6. **Dependencias internas**: un feature solo puede importar de:
+   - Sus propios archivos
+   - Features más abstractos (ej: `shared/`)
+   - Componentes/hooks/types globales (`src/components/`, `src/hooks/`, `src/types/`)
+   - Librerías externas
+
+### Context API (manejo de estado)
+
+- Contextos modulares y específicos por feature.
+- Patrón `useXContext()` para encapsular acceso seguro al contexto.
+- Providers colocados solo donde se necesitan (no envolver toda la app innecesariamente).
+- Composición limpia entre contextos y el router.
+
+```typescript
+// Patrón de Context por feature
+const FeatureContext = createContext<FeatureContextType | undefined>(undefined);
+
+export function FeatureProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<State>(initialState);
+  return (
+    <FeatureContext.Provider value={{ state, setState }}>
+      {children}
+    </FeatureContext.Provider>
+  );
+}
+
+export const useFeatureContext = () => {
+  const context = useContext(FeatureContext);
+  if (!context) {
+    throw new Error("useFeatureContext must be used within a FeatureProvider");
+  }
+  return context;
+};
+```
+
+### Aplicación en este monorepo
+
+| App/Paquete | Aplicación de Screaming Architecture |
+|-------------|--------------------------------------|
+| `apps/web/` (Next.js) | `src/features/<feature>/` con components, hooks, services, types |
+| `apps/functions/` (Lambdas) | `src/handlers/<dominio>/` ya sigue el patrón por dominio |
+| `apps/services/` (NestJS) | Módulos NestJS organizados por dominio/feature |
+| `packages/core/` | Lógica de negocio organizada por dominio |
+
+### Beneficios
+
+| Ventaja | Descripción |
+|---------|-------------|
+| Descubribilidad | Todo lo relacionado a un feature está en su carpeta |
+| Reusabilidad | Hooks y services se pueden reutilizar entre plataformas |
+| Testabilidad | Se puede mockear cada capa fácilmente |
+| Escalabilidad | Nuevos features copian la misma estructura |
+
+---
+
 ## 12. Documentación complementaria
 
 - `infra-docs/` — Documentación técnica del monorepo e infraestructura (10 secciones numeradas + `ARCHITECTURE.md` + guía Turborepo).
