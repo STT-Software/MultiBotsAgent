@@ -31,6 +31,18 @@ import {
 } from '@multibotagents/db';
 import { BedrockEmbeddingService } from './services/embedding.service';
 
+// ─── Logger estructurado ─────────────────────────────────────────────────────
+
+function log(level: 'INFO' | 'ERROR' | 'WARN' | 'DEBUG', message: string, data?: Record<string, unknown>) {
+  const now = new Date();
+  const ts = now.toISOString().replace('T', ' ').substring(0, 19);
+  const pad = level.padEnd(5);
+  const dataStr = data && Object.keys(data).length > 0
+    ? ' ' + JSON.stringify(data)
+    : '';
+  console.log(`[${ts}] ${pad} [IndexationHandler] ${message}${dataStr}`);
+}
+
 // ─── Conexión MongoDB (reutilizada entre invocaciones de Lambda) ─────────────
 
 let mongoClient: MongoClient | null = null;
@@ -39,8 +51,10 @@ async function getMongoClient(): Promise<MongoClient> {
   if (!mongoClient) {
     const uri = process.env.MONGODB_URI;
     if (!uri) throw new Error('MONGODB_URI no está configurada');
+    log('INFO', 'Conectando a MongoDB...');
     mongoClient = new MongoClient(uri);
     await mongoClient.connect();
+    log('INFO', 'Conexión a MongoDB establecida');
   }
   return mongoClient;
 }
@@ -55,21 +69,30 @@ const chunkingService = new ChunkingService();
 
 // ─── Handler principal ───────────────────────────────────────────────────────
 
-/**
- * Handler SQS que procesa mensajes de indexación.
- * Cada record contiene un IndexationMessage con la información del documento a procesar.
- */
 export async function handler(event: SQSEvent): Promise<void> {
+  log('INFO', `Recibidos ${event.Records.length} mensaje(s) de SQS`);
+
   for (const record of event.Records) {
     await processRecord(record);
   }
+
+  log('INFO', 'Procesamiento de todos los records completado');
 }
 
 // ─── Procesamiento de un record ──────────────────────────────────────────────
 
 async function processRecord(record: SQSRecord): Promise<void> {
   const message: IndexationMessage = JSON.parse(record.body);
-  const { sourceId, agentId, s3Key, format, title } = message;
+  const { sourceId, agentId, companyId, s3Key, format, title } = message;
+
+  log('INFO', '═══ INICIO PIPELINE DE INDEXACIÓN ═══', {
+    sourceId,
+    agentId,
+    companyId,
+    s3Key,
+    format,
+    title,
+  });
 
   const client = await getMongoClient();
   const db = client.db();
@@ -77,42 +100,57 @@ async function processRecord(record: SQSRecord): Promise<void> {
   const fragmentRepo = new KnowledgeFragmentRepository(db);
 
   try {
-    // 1. Actualizar progreso: "extracting"
+    // ─── PASO 1: Extracting ────────────────────────────────────────────────
+    log('INFO', '[1/5] Actualizando progreso → extracting', { sourceId });
     await sourceRepo.updateProgress(sourceId, 'extracting');
 
-    // 2. Descargar archivo de S3
+    // ─── PASO 2: Descargar de S3 ──────────────────────────────────────────
+    log('INFO', '[2/5] Descargando archivo de S3...', { s3Key, bucket: process.env.KNOWLEDGE_BUCKET });
     const fileBuffer = await downloadFromS3(s3Key);
+    log('INFO', '[2/5] Archivo descargado exitosamente', { sizeBytes: fileBuffer.length });
 
-    // 3. Extraer texto según formato
+    // ─── PASO 3: Extraer texto ────────────────────────────────────────────
+    log('INFO', '[3/5] Extrayendo texto del documento...', { format });
     const extractor = getExtractor(format);
     const extractionResult = await extractor.extract(fileBuffer);
     const extractedText = extractionResult.text;
 
-    // Validar que el texto no esté vacío
     if (!extractedText || extractedText.trim().length === 0) {
+      log('WARN', '[3/5] Texto extraído vacío — marcando como failed', { sourceId });
       await sourceRepo.updateStatus(sourceId, 'failed', {
         errorReason: 'No se pudo extraer texto del documento',
       });
       return;
     }
 
-    // 4. Actualizar progreso: "chunking"
-    await sourceRepo.updateProgress(sourceId, 'chunking');
+    log('INFO', '[3/5] Texto extraído exitosamente', {
+      textLength: extractedText.length,
+      pageCount: extractionResult.metadata.pageCount,
+      preview: extractedText.substring(0, 100) + '...',
+    });
 
-    // 5. Aplicar chunking según formato
+    // ─── PASO 4: Chunking ─────────────────────────────────────────────────
+    log('INFO', '[4/5] Aplicando chunking...', { format });
+    await sourceRepo.updateProgress(sourceId, 'chunking');
     const chunks = applyChunking(extractedText, format, sourceId);
 
     if (chunks.length === 0) {
+      log('WARN', '[4/5] Chunking produjo 0 fragmentos — marcando como failed', { sourceId });
       await sourceRepo.updateStatus(sourceId, 'failed', {
-        errorReason: 'No se pudo extraer texto del documento',
+        errorReason: 'El chunking no produjo fragmentos válidos',
       });
       return;
     }
 
-    // 6. Actualizar progreso: "embedding"
+    log('INFO', '[4/5] Chunking completado', {
+      totalChunks: chunks.length,
+      avgTokenCount: Math.round(chunks.reduce((sum, c) => sum + c.tokenCount, 0) / chunks.length),
+    });
+
+    // ─── PASO 5: Embeddings ───────────────────────────────────────────────
+    log('INFO', '[5/5] Generando embeddings...', { totalChunks: chunks.length });
     await sourceRepo.updateProgress(sourceId, 'embedding');
 
-    // 7. Generar embeddings en batches con manejo de errores parciales
     const { embeddings, failedIndices } = await generateEmbeddingsWithPartialErrors(
       chunks.map((c) => c.content),
       sourceId,
@@ -120,10 +158,16 @@ async function processRecord(record: SQSRecord): Promise<void> {
       chunks.length,
     );
 
-    // 8. Actualizar progreso: "storing"
+    log('INFO', '[5/5] Embeddings generados', {
+      successful: chunks.length - failedIndices.size,
+      failed: failedIndices.size,
+      total: chunks.length,
+    });
+
+    // ─── PASO 6: Almacenar en MongoDB ─────────────────────────────────────
+    log('INFO', '[6/6] Almacenando fragmentos en MongoDB...');
     await sourceRepo.updateProgress(sourceId, 'storing');
 
-    // 9. Construir y almacenar fragmentos exitosos en MongoDB
     const successfulFragments: Omit<KnowledgeFragment, 'id'>[] = [];
     const now = new Date();
 
@@ -149,42 +193,56 @@ async function processRecord(record: SQSRecord): Promise<void> {
     }
 
     await fragmentRepo.bulkCreate(successfulFragments);
+    log('INFO', '[6/6] Fragmentos almacenados en MongoDB', { count: successfulFragments.length });
 
-    // 10. Actualizar KnowledgeSource según resultado
+    // ─── RESULTADO FINAL ──────────────────────────────────────────────────
     if (failedIndices.size > 0) {
-      // Estado parcial: algunos fragmentos fallaron
+      const errorMsg = `${failedIndices.size} de ${chunks.length} fragmentos fallaron en embeddings`;
+      log('WARN', '═══ PIPELINE COMPLETADO (PARCIAL) ═══', {
+        sourceId,
+        status: 'partial',
+        fragmentCount: successfulFragments.length,
+        errorReason: errorMsg,
+      });
       await sourceRepo.updateStatus(sourceId, 'partial', {
         fragmentCount: successfulFragments.length,
         processedAt: now,
-        errorReason: `${failedIndices.size} de ${chunks.length} fragmentos fallaron en la generación de embeddings`,
+        errorReason: errorMsg,
       });
     } else {
-      // Éxito completo
+      log('INFO', '═══ PIPELINE COMPLETADO (ÉXITO) ═══', {
+        sourceId,
+        status: 'indexed',
+        fragmentCount: successfulFragments.length,
+      });
       await sourceRepo.updateStatus(sourceId, 'indexed', {
         fragmentCount: successfulFragments.length,
         processedAt: now,
       });
     }
   } catch (error) {
-    // Manejo de errores específicos
     if (error instanceof TextExtractionError) {
-      // Archivo corrupto o error de extracción → marcar como failed
+      log('ERROR', '═══ PIPELINE FALLIDO (extracción) ═══', {
+        sourceId,
+        error: error.message,
+      });
       await sourceRepo.updateStatus(sourceId, 'failed', {
         errorReason: error.message,
       });
       return;
     }
 
-    // Cualquier otro error → propagar para que SQS reintente
+    log('ERROR', '═══ PIPELINE FALLIDO (error inesperado) ═══', {
+      sourceId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     throw error;
   }
 }
 
 // ─── Funciones auxiliares ────────────────────────────────────────────────────
 
-/**
- * Descarga un archivo desde S3 y retorna su contenido como Buffer.
- */
 async function downloadFromS3(s3Key: string): Promise<Buffer> {
   const bucket = process.env.KNOWLEDGE_BUCKET;
   if (!bucket) throw new Error('KNOWLEDGE_BUCKET no está configurada');
@@ -202,31 +260,17 @@ async function downloadFromS3(s3Key: string): Promise<Buffer> {
     );
   }
 
-  // Convertir el stream a Buffer
   const byteArray = await response.Body.transformToByteArray();
   return Buffer.from(byteArray);
 }
 
-/**
- * Aplica chunking según el formato del documento.
- * - MD: usa chunkMarkdown (headers como separadores naturales)
- * - TXT/PDF: usa chunkPlainText (párrafos como separadores)
- */
 function applyChunking(text: string, format: SupportedFormat, sourceId: string) {
   if (format === 'md') {
     return chunkingService.chunkMarkdown(text, sourceId);
   }
-  // Para txt y pdf, usar chunking por texto plano
   return chunkingService.chunkPlainText(text, sourceId);
 }
 
-/**
- * Genera embeddings para todos los chunks, manejando errores individuales.
- * Si un fragmento falla, se registra su índice y se continúa con los demás.
- * Actualiza el progreso con "embedding N/total" durante el procesamiento.
- *
- * Valida: Requisitos 5.1, 5.2, 5.3
- */
 async function generateEmbeddingsWithPartialErrors(
   texts: string[],
   sourceId: string,
@@ -239,23 +283,31 @@ async function generateEmbeddingsWithPartialErrors(
 
   for (let i = 0; i < texts.length; i += batchSize) {
     const batchEnd = Math.min(i + batchSize, texts.length);
+    const batchNum = Math.floor(i / batchSize) + 1;
+    const totalBatches = Math.ceil(texts.length / batchSize);
 
-    // Actualizar progreso con el batch actual
+    log('DEBUG', `Procesando batch de embeddings ${batchNum}/${totalBatches}`, {
+      from: i,
+      to: batchEnd - 1,
+    });
+
     await sourceRepo.updateProgress(sourceId, 'embedding');
 
-    // Procesar cada texto del batch individualmente para capturar errores parciales
     for (let j = i; j < batchEnd; j++) {
       try {
         const embedding = await embeddingService.generateEmbedding(texts[j]);
         embeddings[j] = embedding;
-      } catch (_error) {
-        // Error en fragmento individual → registrar y continuar
+      } catch (error) {
+        log('WARN', `Embedding fallido para fragmento ${j}`, {
+          sourceId,
+          fragmentIndex: j,
+          error: error instanceof Error ? error.message : String(error),
+        });
         failedIndices.add(j);
       }
     }
   }
 
-  // Si TODOS los fragmentos fallaron, es un error del servicio → propagar
   if (failedIndices.size === texts.length && texts.length > 0) {
     throw new Error(
       `El servicio de embeddings no está disponible: todos los ${totalChunks} fragmentos fallaron`,

@@ -7,7 +7,7 @@
  * Valida: Requisitos 3.1, 3.2, 3.3, 3.4, 3.5
  */
 
-import { PDFParse } from 'pdf-parse';
+import { extractText } from 'unpdf';
 import { SupportedFormat } from '@multibotagents/types';
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
@@ -45,25 +45,21 @@ export class TextExtractionError extends Error {
 export class PdfExtractor implements TextExtractorStrategy {
   async extract(buffer: Buffer): Promise<TextExtractionResult> {
     try {
-      const pdf = new PDFParse({ data: new Uint8Array(buffer) });
-      const textResult = await pdf.getText();
+      const { text, totalPages } = await extractText(new Uint8Array(buffer));
 
-      const text = textResult.text;
+      // unpdf retorna text como string[] (una entrada por página)
+      const fullText = Array.isArray(text) ? text.join('\n') : text;
 
-      if (!text || text.trim().length === 0) {
-        await pdf.destroy();
+      if (!fullText || fullText.trim().length === 0) {
         throw new TextExtractionError(
           'No se pudo extraer texto del documento PDF. El archivo puede estar vacío o contener solo imágenes.',
         );
       }
 
-      const pageCount = textResult.total;
-      await pdf.destroy();
-
       return {
-        text,
+        text: fullText,
         metadata: {
-          pageCount,
+          pageCount: totalPages,
           format: 'pdf',
         },
       };

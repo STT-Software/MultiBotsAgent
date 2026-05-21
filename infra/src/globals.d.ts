@@ -35,6 +35,7 @@ declare namespace sst {
     class Queue {
       constructor(name: string, args?: Record<string, unknown>);
       arn: string;
+      url: string;
       subscribe(handler: string | sst.aws.Function, args?: Record<string, unknown>): void;
     }
     class Cluster {
