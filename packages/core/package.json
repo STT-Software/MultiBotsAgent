@@ -6,9 +6,8 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
-      "email-verification": [
-        "./dist/email-verification/index.d.ts"
-      ]
+      "email-verification": ["./dist/email-verification/index.d.ts"],
+      "whatsapp": ["./dist/whatsapp/index.d.ts"]
     }
   },
   "exports": {
@@ -19,6 +18,10 @@
     "./email-verification": {
       "types": "./dist/email-verification/index.d.ts",
       "default": "./dist/email-verification/index.js"
+    },
+    "./whatsapp": {
+      "types": "./dist/whatsapp/index.d.ts",
+      "default": "./dist/whatsapp/index.js"
     }
   },
   "scripts": {
