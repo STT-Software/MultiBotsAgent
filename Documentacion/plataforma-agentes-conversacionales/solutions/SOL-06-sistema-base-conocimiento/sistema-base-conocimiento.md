@@ -556,3 +556,104 @@ Recursos a crear en `infra/src/`:
 | 2 - Motor RAG | Consume `VectorSearchService` con `search(agentId, query, topK)`. Espera `SearchResult[]` con content + score + metadata | Interface ya definida en SOL-02. Alineadas |
 | 13 - Integraciones | Post-MVP. Proveerá documentos descargados que se procesan como archivos normales | Si las integraciones entregan formatos no soportados, agregar extractores |
 | 14 - Gestión de Empresas | Provee `agentId` y `companyId` válidos. La validación de pertenencia se hace contra la entidad Agent | Si la estructura de Agent cambia, adaptar validaciones |
+
+
+---
+
+## 8. Estado de Implementación (para QA)
+
+**Fecha de actualización:** 2026-05-22  
+**Estado general:** ✅ MVP Completado — Funcional en stage `crisdavid`
+
+---
+
+### Funcionalidades COMPLETADAS y verificadas en ambiente real
+
+| # | Funcionalidad | Endpoint / Componente | Verificado |
+|---|---|---|---|
+| 1 | Carga de archivos PDF | `POST /knowledge/upload` | ✅ Probado con PDF real (201KB) |
+| 2 | Carga de archivos TXT/MD | `POST /knowledge/upload` | ✅ |
+| 3 | Creación de contenido textual | `POST /knowledge/text` | ✅ Probado con FAQ Markdown |
+| 4 | Listado de fuentes por agente | `GET /knowledge/agent/:agentId` | ✅ |
+| 5 | Consulta de estado individual | `GET /knowledge/:sourceId` | ✅ Con detección de timeout |
+| 6 | Eliminación completa (fragments + S3 + source) | `DELETE /knowledge/:sourceId` | ✅ |
+| 7 | Re-procesamiento de fuentes | `POST /knowledge/:sourceId/reprocess` | ✅ |
+| 8 | Pipeline de indexación (Lambda) | Extract → Chunk → Embed → Store | ✅ Logs visibles en SST |
+| 9 | Extracción de texto PDF | Librería `unpdf` | ✅ |
+| 10 | Chunking por párrafos + MD headers | `packages/core/src/knowledge/chunking.service.ts` | ✅ Con property tests |
+| 11 | Embeddings Amazon Titan v2 (1024 dims) | `BedrockEmbeddingService` | ✅ Vectores almacenados en MongoDB |
+| 12 | Almacenamiento en MongoDB | Colecciones `knowledge_sources` + `knowledge_fragments` | ✅ |
+| 13 | Reintentos SQS (3 intentos + DLQ) | Configurado en infra | ✅ |
+| 14 | Timeout detection (>5 min → failed) | En `getSourceStatus` | ✅ |
+| 15 | Progreso por etapas (extracting/chunking/embedding/storing) | Campo `progress` en KnowledgeSource | ✅ |
+| 16 | UI de gestión en panel web | Feature `apps/web/src/features/knowledge/` | ✅ |
+| 17 | Drag & drop de archivos | `KnowledgeUploadZone` | ✅ |
+| 18 | Editor de contenido Markdown | `KnowledgeTextEditor` | ✅ |
+| 19 | Indicadores de estado animados | `KnowledgeStatusBadge` (pulsante para processing) | ✅ |
+| 20 | Diálogo de confirmación de eliminación | `KnowledgeDeleteDialog` con focus trap | ✅ |
+| 21 | Polling de estado en tiempo real | Cada 5s para fuentes en "processing" | ✅ |
+
+---
+
+### Pendientes para producción (NO bloquean MVP)
+
+| # | Pendiente | Prioridad | Notas para QA |
+|---|---|---|---|
+| 1 | **Crear índice vectorSearch en Atlas** | 🔴 Alta | Sin este índice, la búsqueda semántica del RAG no funciona. Se crea manualmente en Atlas UI → Search Indexes → tipo `vectorSearch`. Config: 1024 dims, cosine, filtro por `agentId`. |
+| 2 | **Integrar `companyId` desde JWT/auth** | 🟡 Media | Actualmente usa `'default-company'` hardcodeado. Funciona para testing pero en producción debe extraerse del token JWT del usuario autenticado. |
+| 3 | **Validar `agentId` contra BD de agentes** | 🟡 Media | El endpoint acepta cualquier `agentId` sin verificar que exista. En producción debe validar contra la colección de agentes. |
+| 4 | **Consumer de DLQ** | 🟢 Baja | Los mensajes que fallan 3 veces van a la DLQ pero no hay un consumer que marque el KnowledgeSource como `failed`. El timeout detection (5 min) cubre este caso parcialmente. |
+| 5 | **Endpoint PUT para editar contenido textual** | 🟢 Baja | Requisito 2.5 no implementado. Workaround: eliminar y crear de nuevo, o usar reprocess. |
+| 6 | **CORS en producción** | 🟡 Media | CORS está configurado con `FRONTEND_DOMAIN`. Verificar que el secret esté seteado correctamente en cada stage. |
+| 7 | **Proteger endpoints con auth guard** | 🟡 Media | Los endpoints de knowledge no tienen `@ApiBearerAuth()`. En producción deben requerir autenticación. |
+
+---
+
+### Datos de prueba disponibles
+
+| Recurso | Valor |
+|---|---|
+| agentId de prueba | `507f1f77bcf86cd799439011` |
+| Stage de desarrollo | `crisdavid` |
+| Backend (Swagger) | `http://localhost:3001/docs` |
+| Frontend | `http://localhost:3000/agentes/507f1f77bcf86cd799439011` → pestaña "Base de Conocimiento" |
+| Colección MongoDB sources | `knowledge_sources` |
+| Colección MongoDB fragments | `knowledge_fragments` |
+| Bucket S3 | `multibotagents-crisdavid-knowledgebucketbucket-*` |
+| Cola SQS | `multibotagents-crisdavid-IndexationQueue-*` |
+
+---
+
+### Cómo ejecutar las pruebas
+
+```bash
+# Tests unitarios del pipeline (core + db + functions)
+pnpm run test
+
+# Tests específicos del frontend (knowledge UI)
+pnpm --filter @multibotagents/web exec vitest --run src/features/knowledge
+
+# Type-check completo
+pnpm run type-check
+
+# Build completo
+pnpm run build
+
+# Levantar ambiente local
+sst dev --stage crisdavid
+```
+
+---
+
+### Flujo de prueba manual recomendado para QA
+
+1. Levantar `sst dev --stage crisdavid`
+2. Abrir `http://localhost:3001/docs` (Swagger)
+3. **Upload:** `POST /knowledge/upload` con un PDF real + `agentId: 507f1f77bcf86cd799439011`
+4. **Verificar estado:** `GET /knowledge/{sourceId}` — esperar que pase de `processing` a `indexed`
+5. **Verificar en MongoDB:** Colección `knowledge_fragments` debe tener registros con `embedding` de 1024 dimensiones
+6. **Crear texto:** `POST /knowledge/text` con contenido Markdown
+7. **Listar:** `GET /knowledge/agent/507f1f77bcf86cd799439011` — debe mostrar ambas fuentes
+8. **Re-procesar:** `POST /knowledge/{sourceId}/reprocess` — debe volver a `processing` y luego `indexed`
+9. **Eliminar:** `DELETE /knowledge/{sourceId}` — debe eliminar source + fragments + archivo S3
+10. **Frontend:** Navegar a `/agentes/507f1f77bcf86cd799439011` → pestaña "Base de Conocimiento" — verificar que la UI refleja los datos

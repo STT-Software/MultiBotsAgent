@@ -52,7 +52,7 @@ export function AgenteDetalleTabs({ agente, onAgenteUpdate }: AgenteDetalleTabsP
       case "canal":
         return <AgenteTabCanal />;
       case "conocimiento":
-        return <AgenteTabConocimiento />;
+        return <AgenteTabConocimiento agentId={agente.id} />;
     }
   }, [activeTab, agente, editarAgente, saving, error, success, resetStatus]);
 

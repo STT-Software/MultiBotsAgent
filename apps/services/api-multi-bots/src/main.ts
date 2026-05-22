@@ -5,6 +5,12 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // ─── CORS ────────────────────────────────────────────────────────────────
+  app.enableCors({
+    origin: process.env.FRONTEND_DOMAIN || 'http://localhost:3000',
+    credentials: true,
+  });
+
   // ─── Swagger / OpenAPI Configuration ─────────────────────────────────────
 
   const config = new DocumentBuilder()
