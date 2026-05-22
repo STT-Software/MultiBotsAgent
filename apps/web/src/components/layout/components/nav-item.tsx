@@ -8,9 +8,10 @@ interface NavItemProps {
   href: string
   icon: string
   isActive: boolean
+  badge?: number
 }
 
-export function NavItem({ label, href, icon, isActive }: NavItemProps) {
+export function NavItem({ label, href, icon, isActive, badge }: NavItemProps) {
   const Icon = icons[icon as keyof typeof icons]
 
   return (
@@ -27,7 +28,15 @@ export function NavItem({ label, href, icon, isActive }: NavItemProps) {
         <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-[#00bb7a]" />
       )}
       {Icon && <Icon className="h-5 w-5" strokeWidth={1.5} />}
-      <span>{label}</span>
+      <span className="flex-1">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span
+          className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold"
+          style={{ backgroundColor: '#00bb7a', color: '#004329' }}
+        >
+          {badge}
+        </span>
+      )}
     </Link>
   )
 }

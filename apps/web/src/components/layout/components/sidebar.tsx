@@ -5,9 +5,11 @@ import { NAV_ITEMS } from '../constants/navigation'
 import { NavItem } from './nav-item'
 import { FileText, HelpCircle, Plus } from 'lucide-react'
 import { BrandIcon } from '@/components/icons'
+import { useInboxBadge } from '@/features/inbox/hooks/use-inbox-badge'
 
 export function Sidebar() {
   const pathname = usePathname()
+  const inboxBadge = useInboxBadge()
 
   return (
     <aside className="fixed left-0 top-0 z-50 flex h-screen w-[260px] flex-col border-r border-[#3c4a41] bg-[#0e1510] px-4 py-6">
@@ -49,6 +51,7 @@ export function Sidebar() {
             href={item.href}
             icon={item.icon}
             isActive={pathname === item.href || pathname.startsWith(item.href + '/')}
+            badge={item.href === '/inbox' ? inboxBadge : undefined}
           />
         ))}
       </nav>
