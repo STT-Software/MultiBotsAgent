@@ -23,7 +23,7 @@ export const whatsAppVerifyToken = new sst.Secret("WhatsAppVerifyToken");
 // --- Shared Function Config ---
 
 const verifyWebhookHandler = {
-  handler: "apps/functions/src/handlers/whatsapp/verify-webhook.handler",
+  handler: "apps/functions/src/handlers/whatsapp/verify-webhook.handler.handler",
   runtime: "nodejs20.x" as const,
   memory: "128 MB" as const,
   timeout: "10 seconds" as const,
@@ -33,7 +33,7 @@ const verifyWebhookHandler = {
 };
 
 const swaggerUiHandler = {
-  handler: "apps/functions/src/handlers/whatsapp/swagger-ui.handler",
+  handler: "apps/functions/src/handlers/whatsapp/swagger-ui.handler.handler",
   runtime: "nodejs20.x" as const,
   memory: "128 MB" as const,
   timeout: "10 seconds" as const,
