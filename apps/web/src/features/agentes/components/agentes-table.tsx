@@ -3,9 +3,10 @@ import { AgenteRow } from "./agente-row";
 
 interface AgentesTableProps {
   agentes: Agente[];
+  onEliminar: (agente: Agente) => void;
 }
 
-export function AgentesTable({ agentes }: AgentesTableProps) {
+export function AgentesTable({ agentes, onEliminar }: AgentesTableProps) {
   return (
     <div
       className="w-full rounded-lg overflow-hidden border"
@@ -50,7 +51,7 @@ export function AgentesTable({ agentes }: AgentesTableProps) {
 
       {/* Rows */}
       {agentes.map((agente) => (
-        <AgenteRow key={agente.id} agente={agente} />
+        <AgenteRow key={agente.id} agente={agente} onEliminar={onEliminar} />
       ))}
     </div>
   );

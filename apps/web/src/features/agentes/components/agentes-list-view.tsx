@@ -1,17 +1,22 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Plus, CheckCircle } from "lucide-react";
 import Link from "next/link";
 
 import { useAgentesList } from "../hooks/use-agentes-list";
+import { useEliminarAgente } from "../hooks/use-eliminar-agente";
 import { AgentesListSkeleton } from "./agentes-list-skeleton";
 import { AgentesListError } from "./agentes-list-error";
 import { AgentesEmptyState } from "./agentes-empty-state";
 import { AgentesTable } from "./agentes-table";
 import { AgentesMetricsCards } from "./agentes-metrics-cards";
+import { EliminarAgenteDialog } from "./eliminar-agente-dialog";
 
 export function AgentesListView() {
   const { loading, error, agentes, metrics, retry } = useAgentesList();
+  const eliminar = useEliminarAgente(() => {
+    retry();
+  });
 
   return (
     <div className="flex min-h-full flex-col">
@@ -43,8 +48,29 @@ export function AgentesListView() {
         {error && <AgentesListError onRetry={retry} />}
         {!loading && !error && agentes.length === 0 && <AgentesEmptyState />}
         {!loading && !error && agentes.length > 0 && (
-          <AgentesTable agentes={agentes} />
+          <AgentesTable agentes={agentes} onEliminar={eliminar.abrir} />
         )}
+
+        {/* Toast de éxito */}
+        {eliminar.success && (
+          <div
+            className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg px-4 py-3 shadow-lg"
+            style={{ backgroundColor: "#1a3d2f", border: "1px solid #2d6e5a", color: "#49df9a" }}
+          >
+            <CheckCircle size={16} aria-hidden="true" />
+            <span className="text-sm font-medium">Agente eliminado exitosamente</span>
+          </div>
+        )}
+
+        {/* Diálogo de confirmación */}
+        <EliminarAgenteDialog
+          isOpen={eliminar.isOpen}
+          agente={eliminar.agenteSeleccionado}
+          deleting={eliminar.deleting}
+          error={eliminar.error}
+          onConfirm={eliminar.confirmar}
+          onCancel={eliminar.cerrar}
+        />
       </div>
 
       {/* Footer */}

@@ -3,7 +3,7 @@ import {
   type EmailQueueItem,
   EmailQueueStatus,
 } from "@multibotagents/types";
-import type { IEmailQueueRepository, EnqueueEmailData } from "../../interfaces";
+import type { IEmailQueueRepository, IForgotPasswordEmailRepository, EnqueueEmailData } from "../../interfaces";
 import {
   EMAIL_QUEUE_COLLECTION,
   type EmailQueueDocument,
@@ -29,7 +29,7 @@ function toEntity(doc: EmailQueueDocument): EmailQueueItem {
 
 // ─── Implementation ──────────────────────────────────────────────────────────
 
-export class EmailQueueRepository implements IEmailQueueRepository {
+export class EmailQueueRepository implements IEmailQueueRepository, IForgotPasswordEmailRepository {
   private readonly collection;
 
   constructor(db: Db) {
@@ -41,12 +41,15 @@ export class EmailQueueRepository implements IEmailQueueRepository {
   /**
    * Encola un email para envío.
    * Establece valores por defecto: status='pending', attempts=0, timestamps=now.
+   * Implementa tanto IEmailQueueRepository.enqueue como IForgotPasswordEmailRepository.enqueue.
    */
-  async enqueue(item: EnqueueEmailData): Promise<EmailQueueItem> {
+  async enqueue(item: EnqueueEmailData): Promise<EmailQueueItem>;
+  async enqueue(item: { to: string; template: string; payload: Record<string, string> }): Promise<void>;
+  async enqueue(item: EnqueueEmailData | { to: string; template: string; payload: Record<string, string> }): Promise<EmailQueueItem | void> {
     const now = new Date();
     const doc: Omit<EmailQueueDocument, "_id"> = {
       to: item.to,
-      template: item.template,
+      template: item.template as EmailQueueDocument["template"],
       payload: item.payload,
       status: EmailQueueStatus.PENDING as EmailQueueDocument["status"],
       attempts: 0,

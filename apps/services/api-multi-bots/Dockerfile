@@ -37,6 +37,7 @@ RUN pnpm run build
 # Stage 2: Production
 FROM node:24-alpine AS production
 
+RUN apk add --no-cache curl
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
 WORKDIR /app

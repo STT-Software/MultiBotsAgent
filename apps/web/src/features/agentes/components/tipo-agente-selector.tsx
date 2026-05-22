@@ -27,19 +27,19 @@ const TIPOS_AGENTE: TipoAgenteOption[] = [
   {
     value: "rag",
     label: "RAG",
-    description: "Asistente con base de conocimiento",
+    description: "Retrieval Augmented Generation para respuestas basadas en datos.",
     icon: "BookOpen",
   },
   {
     value: "cotizador",
-    label: "Cotizador",
-    description: "Genera cotizaciones automáticas",
+    label: "Workflow",
+    description: "Basado en flujos lógicos y decisiones estructuradas paso a paso.",
     icon: "Calculator",
   },
   {
     value: "agendamiento",
-    label: "Agendamiento",
-    description: "Gestiona citas y reservas",
+    label: "Conversacional",
+    description: "Chat simple optimizado para interacciones humanas naturales.",
     icon: "Calendar",
   },
 ];
@@ -62,7 +62,7 @@ export function TipoAgenteSelector({ value, onChange, error }: TipoAgenteSelecto
       <div
         role="radiogroup"
         aria-label="Tipo de agente"
-        className="flex flex-col gap-3"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
       >
         {TIPOS_AGENTE.map((option) => {
           const Icon = ICON_MAP[option.icon];
@@ -76,32 +76,49 @@ export function TipoAgenteSelector({ value, onChange, error }: TipoAgenteSelecto
               role="radio"
               aria-checked={isSelected}
               onClick={() => onChange(option.value)}
-              className="flex items-center gap-4 rounded-lg px-4 py-4 text-left transition-all duration-150"
+              className="relative flex flex-col gap-3 rounded-xl p-4 text-left transition-all duration-150"
               style={{
                 backgroundColor: isSelected ? "#1a2f23" : "#0e1510",
                 border: `1.5px solid ${isSelected ? "#00bb7a" : "#3c4a41"}`,
                 cursor: "pointer",
               }}
             >
-              {/* Icon con color propio por tipo */}
-              {Icon && colors && (
+              {/* Top row: icon left, radio right */}
+              <div className="flex items-start justify-between">
+                {Icon && colors && (
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                    style={{
+                      backgroundColor: colors.bg,
+                      border: `1px solid ${colors.border}`,
+                    }}
+                  >
+                    <Icon
+                      size={18}
+                      className="transition-colors"
+                      style={{ color: colors.icon }}
+                    />
+                  </div>
+                )}
+
+                {/* Radio indicator */}
                 <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
                   style={{
-                    backgroundColor: colors.bg,
-                    border: `1px solid ${colors.border}`,
+                    border: `2px solid ${isSelected ? "#00bb7a" : "#3c4a41"}`,
                   }}
                 >
-                  <Icon
-                    size={20}
-                    className="transition-colors"
-                    style={{ color: colors.icon }}
-                  />
+                  {isSelected && (
+                    <div
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: "#00bb7a" }}
+                    />
+                  )}
                 </div>
-              )}
+              </div>
 
-              {/* Text */}
-              <div className="flex flex-1 flex-col">
+              {/* Text content */}
+              <div className="flex flex-col gap-1">
                 <span
                   className="text-sm font-semibold"
                   style={{ color: isSelected ? "#e8f0ea" : "#bbcabe" }}
@@ -109,26 +126,11 @@ export function TipoAgenteSelector({ value, onChange, error }: TipoAgenteSelecto
                   {option.label}
                 </span>
                 <span
-                  className="text-xs"
+                  className="text-xs leading-relaxed"
                   style={{ color: "#869489" }}
                 >
                   {option.description}
                 </span>
-              </div>
-
-              {/* Radio indicator */}
-              <div
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-                style={{
-                  border: `2px solid ${isSelected ? "#00bb7a" : "#3c4a41"}`,
-                }}
-              >
-                {isSelected && (
-                  <div
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: "#00bb7a" }}
-                  />
-                )}
               </div>
             </button>
           );

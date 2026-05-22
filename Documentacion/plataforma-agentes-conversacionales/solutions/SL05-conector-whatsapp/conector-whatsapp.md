@@ -20,6 +20,9 @@ changelog:
   - date: 2026-05-15
     author: Felipe Lamos
     change: "Premortem #2 — Corregido orden de operaciones en webhook (200 despues de SQS, no antes), agregado flujo 2.7 Reconexion de Canal, timeout MongoDB 3s, health check pasivo."
+  - date: 2026-05-21
+    author: Felipe Lamos
+    change: "Arquitectura asincrona completa — Lambda no espera a Fargate. Flujo: Lambda 1 encola → Fargate procesa y emite evento → Lambda 2 envia a Meta. Eliminada necesidad de VPC en Lambdas. Low-cost."
 ---
 
 # Conector de WhatsApp
@@ -154,7 +157,7 @@ Conector event-driven implementado con AWS Lambda + API Gateway + SQS. Usa la Wh
 
 ### 2.4 Procesamiento y Envio de Respuesta
 
-- **Trigger:** La Lambda Message Processor consume un mensaje de la cola SQS.
+- **Trigger:** La Lambda Message Processor consume un mensaje de la cola SQS de entrada.
 
 - **Comportamiento:**
   1. Lee el mensaje de SQS con los datos: agentId, companyId, senderPhoneNumber, messageText, messageId, timestamp.
@@ -162,28 +165,29 @@ Conector event-driven implementado con AWS Lambda + API Gateway + SQS. Usa la Wh
   3. Invoca el motor del agente correspondiente via HTTP (NestJS endpoint interno, misma VPC):
      - Endpoint: `POST /internal/agents/{agentId}/process`
      - Body: `{ conversationId, userMessage, timestamp }`
-  4. Recibe la respuesta del motor: uno o mas mensajes de texto.
-  5. Para cada mensaje de respuesta, llama a la Cloud API de Meta:
+  4. El motor procesa la consulta (RAG, LLM, etc.) y al terminar publica un evento en la cola SQS de salida con: channelId, phoneNumberId, senderPhoneNumber, businessToken (cifrado), y los mensajes de respuesta.
+  5. La Lambda de Envio (Lambda 3) consume el evento de la cola de salida.
+  6. Para cada mensaje de respuesta, llama a la Cloud API de Meta:
      - `POST https://graph.facebook.com/v21.0/{phone_number_id}/messages`
      - Header: `Authorization: Bearer {business_token}`
      - Body: `{ messaging_product: "whatsapp", to: "{sender_wa_id}", type: "text", text: { body: "{response}" } }`
-  6. Registra el status del envio.
+  7. Registra el status del envio en MessageLog.
 
-- **Resultado:** El usuario final recibe la respuesta del agente en su WhatsApp.
+- **Resultado:** El usuario final recibe la respuesta del agente en su WhatsApp. Ninguna Lambda se queda esperando — todo es event-driven.
 
 - **Error path:**
-  - Motor del agente no disponible (NestJS caido): reintenta via SQS retry policy (3 intentos con backoff). Si persiste, va a DLQ.
-  - Token de WhatsApp invalido/expirado: marca el canal como "requires_reconnection", notifica a la empresa en el panel. El mensaje va a DLQ.
-  - Rate limit de Meta (error 130429): retry con backoff exponencial (4^X segundos).
+  - Motor del agente no disponible (NestJS caido): SQS de entrada reintenta (3 intentos con backoff). Si persiste, va a DLQ de entrada.
+  - Token de WhatsApp invalido/expirado: Lambda de Envio marca el canal como "requires_reconnection", notifica a la empresa. El evento va a DLQ de salida.
+  - Rate limit de Meta (error 130429): Lambda de Envio reintenta con backoff exponencial (4^X segundos).
   - Ventana de 24h expirada (error 131026): registra como "mensaje no entregado por ventana expirada". No reintenta. Notifica que se requiere template (responsabilidad de solucion #9).
   - Respuesta del motor excede limite de WhatsApp (4096 chars): divide en multiples mensajes.
 
 - **Decisiones de diseno:**
   - Cada mensaje se procesa individualmente (sin agrupacion por ventana temporal). La agrupacion de mensajes en rafaga es responsabilidad del Motor del Agente (SOL-02, flujo 2.3 ya lo soporta).
-  - El motor se invoca via HTTP interno (misma VPC). La Lambda Message Processor se despliega en la VPC, misma subnet que Fargate/NestJS.
+  - **Arquitectura totalmente asincrona:** Lambda 2 NO espera la respuesta de Fargate. El flujo es: Lambda 1 encola → Fargate procesa y emite evento con la respuesta → Lambda 2 consume el evento y envia a Meta. Ninguna Lambda se queda esperando. Menor costo, mayor desacoplamiento.
   - Se respeta el rate limit de Meta: maximo 80 mensajes/segundo por numero, y 1 mensaje cada 6 segundos al mismo usuario.
   - Si la respuesta tiene multiples partes (`messages[]`), se envian secuencialmente con un delay de 1-2 segundos entre cada una.
-  - **Provisioned concurrency** en la Lambda Processor para mitigar cold starts por estar en VPC. Evaluar en staging si es necesario.
+  - **Memoria conversacional:** El conector NO pasa historial al motor. Solo pasa `conversationId`. El motor internamente consume el servicio de memoria (SOL-07) que recupera el historial por ese ID. El conector es stateless respecto al contenido de la conversacion.
 
 
 ---
@@ -277,46 +281,52 @@ Esta solucion **NO** cubre:
 ### Arquitectura
 
 ```
-                                    +---------------------------+
-                                    |   Meta Cloud API          |
-                                    |   (WhatsApp Business)     |
-                                    +------+--------------------+
-                                           | Webhook POST/GET
-                                           v
-+------------------+          +-----------------------------+
-|  API Gateway     |--------->|  Lambda: Webhook Handler    |
-|  (HTTPS endpoint)|          |  - Verifica firma HMAC      |
-+------------------+          |  - Responde 200 inmediato   |
-                              |  - Identifica agente        |
-                              |  - Status updates -> MongoDB|
-                              |  - Mensajes -> SQS          |
-                              +------+----------------------+
-                                     | SQS
-                                     v
-                              +-----------------------------+
-                              |  Lambda: Message Processor  |
-                              |  - Invoca motor (HTTP)      |
-                              |  - Envia respuesta (Cloud   |
-                              |    API de Meta)             |
-                              +------+----------------------+
-                                     | HTTP interno
-                                     v
-                              +-----------------------------+
-                              |  NestJS (api-multi-bots)    |
-                              |  Motor RAG / Cotizador /    |
-                              |  Agendamiento              |
-                              +-----------------------------+
+FLUJO DE ENTRADA (mensaje del usuario):
+
+Meta Cloud API ──POST webhook──> API Gateway ──> Lambda 1: Webhook Handler
+                                                  │  • Valida HMAC
+                                                  │  • Verifica idempotencia
+                                                  │  • Identifica agente
+                                                  │  • Status updates → MongoDB
+                                                  │  • Mensajes → SQS entrada
+                                                  └──200 OK──> Meta
+
+                    SQS entrada (cola mensajes entrantes)
+                                  │
+                                  v
+                    NestJS (api-multi-bots) en Fargate
+                    Motor RAG / Cotizador / Agendamiento
+                    (consume de SQS o recibe via HTTP interno)
+                                  │
+                                  │ Emite evento con respuesta
+                                  v
+                    SQS salida (cola respuestas)
+                                  │
+                                  v
+
+FLUJO DE SALIDA (respuesta del agente):
+
+                    Lambda 2: Sender
+                                  │  • Consume evento de SQS salida
+                                  │  • Descifra token del canal
+                                  │  • POST graph.facebook.com/.../messages
+                                  v
+                    Meta Cloud API ──> WhatsApp del usuario
 ```
+
+**Principio:** Ninguna Lambda se queda esperando. Todo es event-driven. Cada componente hace una sola cosa y termina.
 
 ### Stack tecnico
 
 | Componente | Tecnologia | Notas |
 |-----------|-----------|-------|
-| Webhook Handler | AWS Lambda (TypeScript) | Handler nativo, sin framework |
-| Message Processor | AWS Lambda (TypeScript) | Consumer de SQS |
+| Lambda 1: Webhook Handler | AWS Lambda (TypeScript) | Recibe de Meta, valida, encola. Fuera de VPC |
+| Lambda 2: Sender | AWS Lambda (TypeScript) | Consume cola de salida, envia a Meta. Fuera de VPC |
 | API Gateway | AWS API Gateway v2 (HTTP API) | Endpoint publico para Meta |
-| Cola de mensajes | Amazon SQS (Standard) | Con DLQ para mensajes fallidos |
-| Almacenamiento | MongoDB Atlas | Credenciales cifradas, mapeo canal-agente |
+| Cola de entrada | Amazon SQS (Standard) | Mensajes entrantes. Con DLQ |
+| Cola de salida | Amazon SQS (Standard) | Respuestas del motor. Con DLQ |
+| Motor de agentes | NestJS en Fargate | Consume de SQS entrada, emite a SQS salida |
+| Almacenamiento | MongoDB Atlas | Credenciales cifradas, mapeo canal-agente, idempotencia |
 | Secrets | SST Secrets | App Secret, Verify Token, claves de cifrado |
 | Frontend (Embedded Signup) | Facebook Login SDK (JavaScript) | Integrado en Next.js |
 | Infraestructura | SST v3 (Ion/Pulumi) | Definido en `infra/src/` |
@@ -325,12 +335,12 @@ Esta solucion **NO** cubre:
 
 | Patron | Aplicacion |
 |--------|-----------|
-| Event-Driven | Webhook -> SQS -> Lambda. Desacoplamiento entre recepcion y procesamiento |
+| Event-Driven (full) | Webhook → SQS → Fargate → SQS → Lambda. Ningun componente espera a otro |
 | Idempotencia | Deduplicacion por `wamid` en coleccion MongoDB con TTL. Protege contra webhooks duplicados de Meta |
-| Circuit Breaker | Si el motor NestJS no responde, SQS reintenta con backoff. DLQ como fallback |
+| Circuit Breaker | Si Fargate no procesa, SQS reintenta con backoff. DLQ como fallback |
 | Cache con TTL | Phone Number ID -> agentId cacheado 60s en memoria de Lambda. Fallback a MongoDB (< 5ms con indice) |
 | Graceful Degradation | Si status updates fallan, no afecta el flujo principal de mensajes |
-| VPC-native | Lambda Processor desplegada en VPC (misma subnet que Fargate) para conectividad directa con NestJS |
+| Low-cost | Lambdas pagan solo por ejecucion real (~100ms cada una). Sin provisioned concurrency. Sin Lambdas en VPC |
 
 ### Modelo de datos conceptual
 
@@ -397,9 +407,10 @@ Esta solucion **NO** cubre:
 - `ProcessedMessage`: indice unico en `{ waMessageId }`, TTL index en `{ expiresAt }` (24h)
 
 **Topologia de red:**
-- Lambda Webhook Handler: fuera de VPC (no necesita acceso a NestJS, solo a SQS y MongoDB Atlas via internet)
-- Lambda Message Processor: dentro de VPC (misma subnet que Fargate/NestJS). Provisioned concurrency para mitigar cold starts por ENI attachment.
-- MongoDB Atlas: accesible via VPC Peering o PrivateLink (ya configurado en la infra existente).
+- Lambda 1 (Webhook Handler): fuera de VPC. Accede a SQS y MongoDB Atlas via internet.
+- Lambda 2 (Sender): fuera de VPC. Accede a SQS, MongoDB Atlas y Meta Cloud API via internet.
+- NestJS (Fargate): dentro de VPC. Consume SQS de entrada, emite a SQS de salida. Accede a MongoDB Atlas via VPC Peering/PrivateLink.
+- **Ninguna Lambda necesita estar en VPC** — eliminando cold starts por ENI attachment y reduciendo costos.
 
 ### Contratos de integracion
 
@@ -428,7 +439,7 @@ Payload de mensaje entrante (simplificado):
 }
 ```
 
-#### SQS Message (lo que publica el webhook handler)
+#### SQS Message de entrada (lo que publica el webhook handler)
 
 ```typescript
 interface IncomingMessageEvent {
@@ -440,6 +451,25 @@ interface IncomingMessageEvent {
   messageId: string;         // wamid de Meta
   messageText: string;
   timestamp: Date;
+}
+```
+
+#### SQS Message de salida (lo que emite Fargate tras procesar)
+
+```typescript
+interface OutgoingMessageEvent {
+  channelId: string;
+  phoneNumberId: string;
+  recipientPhone: string;    // wa_id del destinatario
+  conversationId: string;
+  messages: ResponseMessage[];
+  escalated: boolean;
+  escalationReason?: string;
+}
+
+interface ResponseMessage {
+  type: "text";
+  content: string;
 }
 ```
 
@@ -467,6 +497,8 @@ interface ResponseMessage {
   content: string;
 }
 ```
+
+**Nota sobre memoria conversacional:** El conector NO pasa historial ni contexto previo al motor. Solo pasa `conversationId`. El motor internamente usa el servicio de memoria (SOL-07) para recuperar el historial de esa conversacion y mantener el contexto. El conector es completamente stateless respecto al contenido conversacional — solo transporta mensajes.
 
 #### Cloud API de Meta (lo que envia el processor)
 
@@ -612,7 +644,7 @@ interface ConnectWhatsAppResponse {
 | 3 | MongoDB Atlas soporta el volumen de escrituras de mensajes entrantes sin degradacion | TTL de 90 dias en MessageLog limita el crecimiento. Evaluar tier de Atlas si crece |
 | 4 | El Business Token de Embedded Signup no expira frecuentemente | Health check periodico detecta expiracion. Notificacion proactiva a la empresa |
 | 5 | El throughput de 80 msg/s por numero es suficiente para el volumen inicial | Si no, solicitar upgrade a Meta o distribuir carga entre numeros |
-| 6 | Lambda en VPC tiene cold start aceptable (< 3s) con provisioned concurrency | Si no, evaluar API Gateway privado + VPC Link como alternativa |
+| 6 | Fargate puede consumir de SQS y emitir a SQS de salida sin problemas | Si NestJS no soporta bien el patron de consumer SQS, usar HTTP interno con Lambda intermedia |
 
 ### Riesgos
 
@@ -620,7 +652,7 @@ interface ConnectWhatsAppResponse {
 |---|--------|-------------|---------|------------|
 | 1 | Token de WhatsApp expira y el canal deja de funcionar sin que la empresa lo note | Media | Alto | Health check periodico (cada 6h) + alarma DLQ + notificacion panel + email |
 | 2 | Meta cambia la API o depreca Embedded Signup v2 (deadline Oct 2026) | Media | Alto | Implementar directamente con v4. Monitorear changelog de Meta |
-| 3 | Cold start de Lambda en VPC agrega latencia perceptible | Media | Medio | Provisioned concurrency. PoC obligatoria pre-lanzamiento para medir P95 |
+| 3 | Cold start de Lambda agrega latencia al envio de respuesta | Baja | Bajo | Lambdas fuera de VPC tienen cold start < 500ms. Aceptable para envio de mensajes |
 | 4 | Webhooks duplicados de Meta causan procesamiento duplicado | Media | Alto | Idempotencia por `wamid` en coleccion MongoDB con TTL |
 | 5 | Limite de onboarding de Embedded Signup (10 empresas/semana sin verificacion) | Alta | Alto | Completar Business Verification + App Review para subir a 200/semana |
 | 6 | MessageLog crece exponencialmente y degrada MongoDB | Media | Medio | TTL index de 90 dias. Indices compuestos optimizados. Monitoreo de tamano |

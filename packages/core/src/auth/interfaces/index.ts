@@ -36,3 +36,10 @@ export {
   UserNotFoundError,
   RateLimitExceededError,
 } from './change-password.interfaces';
+
+export type {
+  VerifyTokenDocument,
+  IResetPasswordUserRepository,
+  IResetPasswordTokenRepository,
+  ResetPasswordDeps,
+} from './password-recovery.interfaces';

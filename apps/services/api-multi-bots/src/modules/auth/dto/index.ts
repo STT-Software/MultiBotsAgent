@@ -12,3 +12,10 @@ export {
   ConflictErrorResponseDto,
   InternalErrorResponseDto,
 } from './error-response.dto';
+export { ForgotPasswordRequestDto } from './forgot-password.dto';
+export { ResetPasswordRequestDto } from './reset-password.dto';
+export {
+  ForgotPasswordSuccessResponseDto,
+  ResetPasswordSuccessResponseDto,
+  ResetPasswordBadRequestResponseDto,
+} from './password-recovery-response.dto';
