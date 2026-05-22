@@ -1,9 +1,5 @@
-import { InboxMock } from "@/features/placeholders/components/inbox-mock";
+import { InboxView } from "@/features/inbox/components/inbox-view";
 
 export default function InboxPage() {
-  return (
-    <div className="flex min-h-full items-center justify-center p-8">
-      <InboxMock />
-    </div>
-  );
+  return <InboxView />;
 }
