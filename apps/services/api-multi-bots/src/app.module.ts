@@ -4,6 +4,7 @@ import { HealthModule } from "./modules/health/health.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { EmailVerificationModule } from "./modules/email-verification/email-verification.module";
 import { CompanyProfileModule } from "./modules/company-profile/company-profile.module";
+import { ChannelsModule } from "./modules/channels/channels.module";
 import { KnowledgeModule } from "./modules/knowledge/knowledge.module";
 import { RagEngineModule } from "./modules/rag-engine/rag-engine.module";
 import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-verified.guard";
@@ -14,6 +15,7 @@ import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-ve
     AuthModule,
     EmailVerificationModule,
     CompanyProfileModule,
+    ChannelsModule,
     KnowledgeModule,
     RagEngineModule,
   ],

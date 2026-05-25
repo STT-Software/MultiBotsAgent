@@ -30,3 +30,9 @@ export const elasticEmailTemplateId = new sst.Secret("ElasticEmailTemplateId");
 export const elasticEmailPasswordResetTemplateId = new sst.Secret("ElasticEmailPasswordResetTemplateId");
 
 export const frontendDomain = new sst.Secret("FrontendDomain");
+
+// Meta & WhatsApp
+export const metaAppId = new sst.Secret("META_APP_ID");
+export const metaAppSecret = new sst.Secret("META_APP_SECRET");
+export const metaConfigId = new sst.Secret("META_CONFIG_ID");
+export const encryptionKey = new sst.Secret("ENCRYPTION_KEY");
