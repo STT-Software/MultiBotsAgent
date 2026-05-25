@@ -92,7 +92,9 @@ export function InboxConversationDetail({
 
   const existingIds = new Set(conversation.messages.map((m) => m.id));
   const uniqueExtra = extraMessages.filter((m) => !existingIds.has(m.id));
-  const allMessages = [...conversation.messages, ...uniqueExtra];
+  const allMessages = [...conversation.messages, ...uniqueExtra].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
