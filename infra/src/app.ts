@@ -35,6 +35,7 @@ import "./shared/alarms";
 // APIs
 import "./apis/services-api";
 import "./apis/functions-api";
+import "./apis/whatsapp-webhook-api";
 
 // Functions (Lambda handlers)
 import "./functions/indexation-handler";

@@ -1,0 +1,167 @@
+openapi: 3.0.3
+info:
+  title: MultiBotsAgent - WhatsApp Webhooks API
+  version: 1.0.0
+  description: |
+    API de webhooks para la integración con WhatsApp Cloud API (Meta).
+    Este documento describe el endpoint de verificación del webhook que Meta utiliza
+    para confirmar la propiedad del endpoint al configurar o suscribir un WABA.
+  contact:
+    name: MultiBotsAgent Team
+
+servers:
+  - url: https://api.example.com
+    description: Producción
+  - url: https://api-dev.example.com
+    description: Desarrollo
+
+paths:
+  /webhooks/whatsapp:
+    get:
+      operationId: verifyWhatsAppWebhook
+      summary: Verificación de Webhook de WhatsApp
+      description: |
+        Endpoint de verificación utilizado por Meta para confirmar que el webhook está
+        correctamente configurado. Meta envía una solicitud GET con un challenge token,
+        y la plataforma debe responder con el valor del challenge para completar la verificación.
+
+        Este flujo ocurre cuando se configura el webhook en la app de Meta o al suscribir un WABA.
+      tags:
+        - WhatsApp Webhooks
+      parameters:
+        - name: hub.mode
+          in: query
+          required: true
+          description: Modo de la solicitud. Meta siempre envía "subscribe" para verificación de webhooks.
+          schema:
+            type: string
+            enum:
+              - subscribe
+          example: subscribe
+        - name: hub.verify_token
+          in: query
+          required: true
+          description: Token de verificación configurado en la app de Meta. Debe coincidir con el token almacenado en la plataforma.
+          schema:
+            type: string
+          example: my_secure_verify_token_123
+        - name: hub.challenge
+          in: query
+          required: true
+          description: Valor aleatorio generado por Meta que la plataforma debe devolver como body de la respuesta para confirmar la verificación.
+          schema:
+            type: string
+          example: "1158201444"
+      responses:
+        "200":
+          description: Verificación exitosa. Se devuelve el valor del challenge en texto plano.
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Valor exacto del parámetro hub.challenge sin modificaciones.
+              example: "1158201444"
+        "400":
+          description: Parámetros requeridos faltantes en la solicitud.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje de error indicando parámetros faltantes.
+                required:
+                  - error
+              example:
+                error: "Missing required parameters"
+        "403":
+          description: Token de verificación inválido o hub.mode incorrecto.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje de error genérico de rechazo.
+                required:
+                  - error
+              example:
+                error: "Forbidden"
+        "500":
+          description: Error interno del servidor. Ocurre cuando el verify token no está configurado en el ambiente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje de error genérico del servidor.
+                required:
+                  - error
+              example:
+                error: "Internal server error"
+
+  x-webhooks-examples:
+    description: Ejemplos detallados de request/response para cada escenario.
+
+    x-successful-verification:
+      summary: Flujo exitoso de verificación
+      description: |
+        Meta envía una solicitud GET con hub.mode=subscribe, un verify_token válido
+        y un challenge aleatorio. La plataforma responde con HTTP 200 y el challenge.
+      request:
+        method: GET
+        url: /webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=my_secure_verify_token_123&hub.challenge=1158201444
+      response:
+        status: 200
+        headers:
+          Content-Type: text/plain
+        body: "1158201444"
+
+    x-missing-parameters:
+      summary: Error 400 - Parámetros faltantes
+      description: |
+        La solicitud no incluye alguno de los parámetros requeridos
+        (hub.mode, hub.verify_token o hub.challenge).
+      request:
+        method: GET
+        url: /webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=my_token
+      response:
+        status: 400
+        headers:
+          Content-Type: application/json
+        body:
+          error: "Missing required parameters"
+
+    x-invalid-token:
+      summary: Error 403 - Token inválido
+      description: |
+        El valor de hub.verify_token no coincide con el token configurado
+        en la plataforma, o el hub.mode no es "subscribe".
+      request:
+        method: GET
+        url: /webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=wrong_token&hub.challenge=1158201444
+      response:
+        status: 403
+        headers:
+          Content-Type: application/json
+        body:
+          error: "Forbidden"
+
+    x-internal-error:
+      summary: Error 500 - Error interno de configuración
+      description: |
+        El verify token no está configurado en el ambiente del servidor
+        (variable de entorno ausente o vacía).
+      request:
+        method: GET
+        url: /webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=any_token&hub.challenge=1158201444
+      response:
+        status: 500
+        headers:
+          Content-Type: application/json
+        body:
+          error: "Internal server error"
