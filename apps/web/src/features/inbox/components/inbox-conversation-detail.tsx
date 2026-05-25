@@ -90,7 +90,9 @@ export function InboxConversationDetail({
     );
   }
 
-  const allMessages = [...conversation.messages, ...extraMessages];
+  const existingIds = new Set(conversation.messages.map((m) => m.id));
+  const uniqueExtra = extraMessages.filter((m) => !existingIds.has(m.id));
+  const allMessages = [...conversation.messages, ...uniqueExtra];
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
