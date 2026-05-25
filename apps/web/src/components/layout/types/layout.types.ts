@@ -15,4 +15,5 @@ export interface NavItemConfig {
   label: string
   href: string
   icon: string
+  badge?: number
 }
