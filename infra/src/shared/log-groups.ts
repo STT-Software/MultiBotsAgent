@@ -13,11 +13,16 @@ export const apiMultiBotsLogGroupName = `/multibotagents/${$app.stage}/api-multi
 /**
  * Log Group creado explícitamente para garantizar que existe antes
  * de que los Metric Filters y el servicio intenten usarlo.
+ * Se usa `import` para adoptar el recurso si ya existe en AWS.
  */
 export const apiMultiBotsLogGroup = new aws.cloudwatch.LogGroup(
   "ApiMultiBotsLogGroup",
   {
     name: apiMultiBotsLogGroupName,
     retentionInDays: 30,
+  },
+  {
+    import: apiMultiBotsLogGroupName,
+    ignoreChanges: ["name"],
   },
 );

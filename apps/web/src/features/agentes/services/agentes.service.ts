@@ -2,7 +2,16 @@ import { Agente, AgentesResponse, AgentesMetrics, CreateAgenteDTO, UpdateAgenteD
 
 const MOCK_AGENTES: Agente[] = [
   {
-    id: "1",
+    id: "507f1f77bcf86cd799439011",
+    nombre: "Soporte Técnico",
+    codigoId: "agt_tec_381",
+    tipo: "rag",
+    estado: "activo",
+    vencimiento: "7 may 2026",
+    createdAt: "2026-05-07T16:45:00Z",
+  },
+  {
+    id: "507f1f77bcf86cd799439012",
     nombre: "Asistente Ventas",
     codigoId: "agt_vnt_092",
     tipo: "rag",
@@ -11,7 +20,7 @@ const MOCK_AGENTES: Agente[] = [
     createdAt: "2026-05-01T10:00:00Z",
   },
   {
-    id: "2",
+    id: "507f1f77bcf86cd799439013",
     nombre: "Cotizador Express",
     codigoId: "agt_ctx_114",
     tipo: "cotizador",
@@ -20,22 +29,13 @@ const MOCK_AGENTES: Agente[] = [
     createdAt: "2026-05-03T14:30:00Z",
   },
   {
-    id: "3",
+    id: "507f1f77bcf86cd799439014",
     nombre: "Agenda Citas",
     codigoId: "agt_agc_551",
     tipo: "agendamiento",
     estado: "borrador",
     vencimiento: "5 may 2026",
     createdAt: "2026-05-05T09:15:00Z",
-  },
-  {
-    id: "4",
-    nombre: "Soporte Técnico",
-    codigoId: "agt_tec_381",
-    tipo: "rag",
-    estado: "borrador",
-    vencimiento: "7 may 2026",
-    createdAt: "2026-05-07T16:45:00Z",
   },
 ];
 

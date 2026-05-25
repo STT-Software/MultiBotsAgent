@@ -20,6 +20,10 @@ import "./databases/mongodb";
 
 // Storage
 import "./storage/company-logos";
+import "./storage/knowledge-bucket";
+
+// Queues
+import "./queues/indexation-queue";
 
 // Services
 import "./services/cluster";
@@ -31,6 +35,9 @@ import "./shared/alarms";
 // APIs
 import "./apis/services-api";
 import "./apis/functions-api";
+
+// Functions (Lambda handlers)
+import "./functions/indexation-handler";
 
 // Frontend
 import "./frontend/web";

@@ -12,6 +12,8 @@
 import { cluster } from "./cluster";
 import { mongoDbUri } from "../databases/mongodb";
 import { companyLogosBucket } from "../storage/company-logos";
+import { knowledgeBucket } from "../storage/knowledge-bucket";
+import { indexationQueue } from "../queues/indexation-queue";
 import { apiMultiBotsLogGroupName } from "../shared/log-groups";
 import {
   jwtSecrets,
@@ -48,6 +50,14 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
       actions: ["s3:PutObject", "s3:DeleteObject", "s3:GetObject"],
       resources: [$interpolate`arn:aws:s3:::${companyLogosBucket.name}/*`],
     },
+    {
+      actions: ["s3:PutObject", "s3:DeleteObject", "s3:GetObject"],
+      resources: [$interpolate`arn:aws:s3:::${knowledgeBucket.name}/*`],
+    },
+    {
+      actions: ["sqs:SendMessage"],
+      resources: [indexationQueue.arn],
+    },
   ],
   environment: {
     MONGODB_URI: mongoDbUri.value,
@@ -61,6 +71,8 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     ELASTIC_EMAIL_PASSWORD_RESET_TEMPLATE_ID: elasticEmailPasswordResetTemplateId.value,
     FRONTEND_DOMAIN: frontendDomainValue,
     COMPANY_LOGOS_BUCKET: companyLogosBucket.name,
+    KNOWLEDGE_BUCKET: knowledgeBucket.name,
+    INDEXATION_QUEUE_URL: indexationQueue.url,
   },
   logging: {
     name: apiMultiBotsLogGroupName,
