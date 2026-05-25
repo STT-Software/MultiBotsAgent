@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { EscalatedConversation } from "../types/inbox.types";
-import { fetchEscalatedConversations } from "../services/inbox.service";
+import { fetchEscalatedConversations, fetchConversationsByStatus } from "../services/inbox.service";
 
 interface UseEscalatedConversationsReturn {
   conversations: EscalatedConversation[];
@@ -11,6 +11,7 @@ interface UseEscalatedConversationsReturn {
   error: string | null;
   pendingCount: number;
   retry: () => void;
+  refresh: () => void;
 }
 
 export function useEscalatedConversations(): UseEscalatedConversationsReturn {
@@ -24,16 +25,23 @@ export function useEscalatedConversations(): UseEscalatedConversationsReturn {
     setError(null);
 
     try {
-      const response = await fetchEscalatedConversations();
-      // Filtrar solo escalated y ordenar por escalatedAt ascendente (más antigua primero)
-      const escalated = response.data
+      // Fetch both escalated and resolved to allow local filtering
+      const [escalatedResponse, resolved] = await Promise.all([
+        fetchEscalatedConversations(),
+        fetchConversationsByStatus("resolved"),
+      ]);
+
+      const escalated = escalatedResponse.data
         .filter((c) => c.status === "escalated")
         .sort(
           (a, b) =>
             new Date(a.escalatedAt).getTime() - new Date(b.escalatedAt).getTime()
         );
-      setConversations(escalated);
-      setPendingCount(response.pendingCount);
+
+      // Combine all conversations for the list to filter locally
+      const all = [...escalated, ...resolved];
+      setConversations(all);
+      setPendingCount(escalatedResponse.pendingCount);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Error al cargar conversaciones escaladas";
@@ -51,5 +59,9 @@ export function useEscalatedConversations(): UseEscalatedConversationsReturn {
     load();
   }, [load]);
 
-  return { conversations, loading, error, pendingCount, retry };
+  const refresh = useCallback(() => {
+    load();
+  }, [load]);
+
+  return { conversations, loading, error, pendingCount, retry, refresh };
 }

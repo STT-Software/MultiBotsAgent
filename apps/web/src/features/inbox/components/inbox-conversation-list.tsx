@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { ConversationStatus, EscalatedConversation } from "../types/inbox.types";
+import { EscalatedConversation } from "../types/inbox.types";
 import { InboxConversationItem } from "./inbox-conversation-item";
 
 interface InboxConversationListProps {

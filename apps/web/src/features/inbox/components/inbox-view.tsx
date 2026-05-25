@@ -1,23 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { CheckCircle } from "lucide-react";
 
+import { ConversationMessage } from "../types/inbox.types";
 import { useEscalatedConversations } from "../hooks/use-escalated-conversations";
 import { useConversationDetail } from "../hooks/use-conversation-detail";
+import { useSendMessage } from "../hooks/use-send-message";
+import { useResolveConversation } from "../hooks/use-resolve-conversation";
 import { InboxConversationList } from "./inbox-conversation-list";
 import { InboxConversationDetail } from "./inbox-conversation-detail";
 import { InboxEmptyState } from "./inbox-empty-state";
 import { InboxSkeleton } from "./inbox-skeleton";
+import { InboxResolveDialog } from "./inbox-resolve-dialog";
 
 export function InboxView() {
-  const { conversations, loading, error, retry } = useEscalatedConversations();
+  const { conversations, loading, error, retry, refresh } = useEscalatedConversations();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { conversation, loading: detailLoading } = useConversationDetail(selectedId);
+  const [extraMessages, setExtraMessages] = useState<ConversationMessage[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
 
-  // Seleccionar la primera conversación por defecto cuando se cargan los datos
+  // Reset extra messages when selecting a different conversation
+  useEffect(() => {
+    setExtraMessages([]);
+  }, [selectedId]);
+
+  // Toast auto-dismiss
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const handleMessageSent = useCallback((msg: ConversationMessage) => {
+    setExtraMessages((prev) => [...prev, msg]);
+  }, []);
+
+  const handleSimulatedReply = useCallback((msg: ConversationMessage) => {
+    setExtraMessages((prev) => [...prev, msg]);
+  }, []);
+
+  const sendMessage = useSendMessage(selectedId, handleMessageSent, handleSimulatedReply);
+
+  const handleResolved = useCallback(() => {
+    setToast("Conversación resuelta. El control fue devuelto al agente.");
+    setSelectedId(null);
+    refresh();
+  }, [refresh]);
+
+  const resolve = useResolveConversation(selectedId, handleResolved);
+
+  // Seleccionar la primera conversación escalada por defecto
   useEffect(() => {
     if (conversations.length > 0 && selectedId === null) {
-      setSelectedId(conversations[0].id);
+      const firstEscalated = conversations.find((c) => c.status === "escalated");
+      if (firstEscalated) {
+        setSelectedId(firstEscalated.id);
+      }
     }
   }, [conversations, selectedId]);
 
@@ -52,8 +93,10 @@ export function InboxView() {
     return <InboxEmptyState />;
   }
 
+  const isResolved = conversation?.status === "resolved";
+
   return (
-    <div className="flex h-full">
+    <div className="flex h-full relative">
       {/* Lista */}
       <div
         className="w-[350px] shrink-0 flex flex-col"
@@ -70,7 +113,33 @@ export function InboxView() {
       <InboxConversationDetail
         conversation={conversation}
         loading={detailLoading}
+        onSendMessage={sendMessage.send}
+        sending={sendMessage.sending}
+        isTyping={sendMessage.isTyping}
+        isResolved={isResolved}
+        onResolve={resolve.abrir}
+        extraMessages={extraMessages}
       />
+
+      {/* Diálogo de resolución */}
+      <InboxResolveDialog
+        isOpen={resolve.isOpen}
+        resolving={resolve.resolving}
+        error={resolve.error}
+        onConfirm={resolve.confirmar}
+        onCancel={resolve.cerrar}
+      />
+
+      {/* Toast de éxito */}
+      {toast && (
+        <div
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg px-4 py-3 shadow-lg"
+          style={{ backgroundColor: "#1a3d2f", border: "1px solid #2d6e5a", color: "#49df9a" }}
+        >
+          <CheckCircle size={16} aria-hidden="true" />
+          <span className="text-sm font-medium">{toast}</span>
+        </div>
+      )}
     </div>
   );
 }
