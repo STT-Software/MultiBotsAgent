@@ -1,4 +1,5 @@
 import { Field } from '@/components/ui/Field';
+import { Input } from '@/components/ui/Input';
 import { PasswordStrength } from './PasswordStrength';
 import type { FormData, FormErrors, TouchedFields } from '../types';
 
@@ -35,7 +36,7 @@ export function AccountStep({
     <>
       {/* Email */}
       <Field id="email" label="Email" required error={fieldError('email')}>
-        <input
+        <Input
           id="email"
           name="email"
           type="email"
@@ -45,7 +46,7 @@ export function AccountStep({
           onChange={onChange}
           onBlur={onBlur}
           placeholder="ejemplo@empresa.com"
-          className={inputClasses(!!fieldError('email'))}
+          hasError={!!fieldError('email')}
           aria-required="true"
           aria-invalid={!!fieldError('email')}
           aria-describedby={fieldError('email') ? 'email-error' : undefined}
@@ -55,7 +56,7 @@ export function AccountStep({
       {/* Password */}
       <Field id="password" label="Contraseña" required error={fieldError('password')}>
         <div className="relative">
-          <input
+          <Input
             id="password"
             name="password"
             type={showPassword ? 'text' : 'password'}
@@ -64,7 +65,8 @@ export function AccountStep({
             onChange={onChange}
             onBlur={onBlur}
             placeholder="Crea una contraseña segura"
-            className={inputClasses(!!fieldError('password')) + ' pr-12'}
+            hasError={!!fieldError('password')}
+            className="pr-12"
             aria-required="true"
             aria-invalid={!!fieldError('password')}
             aria-describedby="password-strength password-error"
@@ -72,7 +74,7 @@ export function AccountStep({
           <button
             type="button"
             onClick={onTogglePassword}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-200"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-200 z-10"
             aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
           >
             {showPassword ? <EyeOffIcon /> : <EyeIcon />}
@@ -105,6 +107,7 @@ function EyeOffIcon() {
   );
 }
 
+// EyeIcon is defined below but was never imported/referenced properly or was used:
 function EyeIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -116,15 +119,4 @@ function EyeIcon() {
       <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
-}
-
-// ─── Style helpers ───────────────────────────────────────────────────────────
-
-function inputClasses(hasError: boolean) {
-  return [
-    'w-full rounded-lg border bg-[#0d1117]/80 backdrop-blur-sm px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 outline-none transition-all duration-200 sm:px-4 sm:py-3',
-    hasError
-      ? 'border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/30'
-      : 'border-gray-700 hover:border-gray-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/50',
-  ].join(' ');
 }

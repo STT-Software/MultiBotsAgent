@@ -14,7 +14,6 @@ import { mongoDbUri } from "../databases/mongodb";
 import { companyLogosBucket } from "../storage/company-logos";
 import { knowledgeBucket } from "../storage/knowledge-bucket";
 import { indexationQueue } from "../queues/indexation-queue";
-import { apiMultiBotsLogGroupName } from "../shared/log-groups";
 import {
   jwtSecrets,
   captchaSecret,
@@ -33,8 +32,6 @@ import {
  * - En deploy: se toma del secret FrontendDomain
  */
 const frontendDomainValue = $dev ? "http://localhost:3000" : frontendDomain.value;
-
-export { apiMultiBotsLogGroupName };
 
 export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   cluster,
@@ -75,7 +72,6 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     INDEXATION_QUEUE_URL: indexationQueue.url,
   },
   logging: {
-    name: apiMultiBotsLogGroupName,
     retention: "1 month",
   },
   serviceRegistry: {

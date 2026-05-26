@@ -7,6 +7,7 @@ import { CompanyStep } from './CompanyStep';
 import { AccountStep } from './AccountStep';
 import { VerificationStep } from './VerificationStep';
 import { RegistrationSuccess } from './RegistrationSuccess';
+import { motion, AnimatePresence } from 'motion/react';
 
 export function RegisterForm() {
   const form = useRegisterForm();
@@ -37,108 +38,138 @@ export function RegisterForm() {
     <form
       onSubmit={handleFormSubmit}
       noValidate
-      className="w-full animate-fade-in space-y-4 sm:space-y-5"
+      className="w-full space-y-4 sm:space-y-5 overflow-hidden"
       aria-label="Formulario de registro empresarial"
     >
       {/* Server error banner */}
-      {submit.serverError && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
-        >
-          <p>
-            {submit.serverError}
-            {submit.isConflict && (
-              <>
-                {' '}
-                <a
-                  href="/login"
-                  className="font-medium text-emerald-400 underline underline-offset-2 hover:text-emerald-300"
-                >
-                  Iniciar sesión
-                </a>
-              </>
-            )}
-          </p>
-        </div>
-      )}
+      <AnimatePresence>
+        {submit.serverError && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -10 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -10 }}
+            role="alert"
+            className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+          >
+            <p>
+              {submit.serverError}
+              {submit.isConflict && (
+                <>
+                  {' '}
+                  <a
+                    href="/login"
+                    className="font-medium text-emerald-400 underline underline-offset-2 hover:text-emerald-300"
+                  >
+                    Iniciar sesión
+                  </a>
+                </>
+              )}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Title */}
       <div className="mb-3 sm:mb-4">
-        <h2 className="text-[clamp(1.375rem,3vw,1.875rem)] font-bold text-white">
+        <motion.h2
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-[clamp(1.375rem,3vw,1.875rem)] font-bold text-white tracking-tight"
+        >
           Crear cuenta empresarial
-        </h2>
-        <p className="mt-1.5 text-xs text-gray-400 sm:text-sm">
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.5 }}
+          className="mt-1.5 text-xs text-gray-400 sm:text-sm"
+        >
           Únete a miles de empresas que automatizan y escalan con MultiBotAgents.
-        </p>
+        </motion.p>
       </div>
 
       {/* Step Indicator */}
       <StepIndicator currentStep={form.step} />
 
-      {/* Step content */}
-      <div key={form.step} className="animate-step-in space-y-4 sm:space-y-5">
-        {form.step === 1 && (
-          <CompanyStep
-            formData={form.formData}
-            errors={form.errors}
-            touched={form.touched}
-            serverFieldErrors={submit.serverFieldErrors}
-            onChange={(e) => {
-              form.handleChange(e);
-              submit.clearServerErrors();
-            }}
-            onBlur={form.handleBlur}
-          />
-        )}
+      {/* Step content with smooth slide animations */}
+      <div className="relative py-2">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={form.step}
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="space-y-4 sm:space-y-5"
+          >
+            {form.step === 1 && (
+              <CompanyStep
+                formData={form.formData}
+                errors={form.errors}
+                touched={form.touched}
+                serverFieldErrors={submit.serverFieldErrors}
+                onChange={(e) => {
+                  form.handleChange(e);
+                  submit.clearServerErrors();
+                }}
+                onBlur={form.handleBlur}
+              />
+            )}
 
-        {form.step === 2 && (
-          <AccountStep
-            formData={form.formData}
-            errors={form.errors}
-            touched={form.touched}
-            serverFieldErrors={submit.serverFieldErrors}
-            showPassword={form.showPassword}
-            passwordStrength={form.passwordStrength}
-            onChange={(e) => {
-              form.handleChange(e);
-              submit.clearServerErrors();
-            }}
-            onBlur={form.handleBlur}
-            onTogglePassword={form.togglePassword}
-          />
-        )}
+            {form.step === 2 && (
+              <AccountStep
+                formData={form.formData}
+                errors={form.errors}
+                touched={form.touched}
+                serverFieldErrors={submit.serverFieldErrors}
+                showPassword={form.showPassword}
+                passwordStrength={form.passwordStrength}
+                onChange={(e) => {
+                  form.handleChange(e);
+                  submit.clearServerErrors();
+                }}
+                onBlur={form.handleBlur}
+                onTogglePassword={form.togglePassword}
+              />
+            )}
 
-        {form.step === 3 && (
-          <VerificationStep
-            formData={form.formData}
-            onChange={form.handleChange}
-            onCaptchaChange={(token) => {
-              form.setCaptchaToken(token || '');
-            }}
-          />
-        )}
+            {form.step === 3 && (
+              <VerificationStep
+                formData={form.formData}
+                onChange={form.handleChange}
+                onCaptchaChange={(token) => {
+                  form.setCaptchaToken(token || '');
+                }}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Navigation buttons */}
       <div className="flex items-center gap-3 pt-1">
         {form.step > 1 && (
-          <button
+          <motion.button
             type="button"
             onClick={form.handleBack}
-            className="rounded-lg border border-gray-700 bg-transparent px-4 py-2.5 text-sm font-medium text-gray-300 transition-colors duration-200 hover:border-gray-600 hover:bg-white/5 sm:py-3"
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className="rounded-lg border border-gray-700 bg-transparent px-4 py-2.5 text-sm font-medium text-gray-300 transition-colors duration-200 hover:border-gray-600 hover:bg-white/5 sm:py-3 cursor-pointer"
           >
             Atrás
-          </button>
+          </motion.button>
         )}
-        <button
+        <motion.button
           type="submit"
+          whileHover={{ scale: 1.01, translateY: -1 }}
+          whileTap={{ scale: 0.99 }}
           disabled={
             (form.step === 1 && !form.step1Valid && form.hasTouchedStep1) ||
             (form.step === 2 && !form.step2Valid && form.hasTouchedStep2) ||
             (form.step === 3 && (!form.isFormValid || submit.submitting))
           }
-          className="flex-1 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600 disabled:hover:shadow-none sm:py-3"
+          className="flex-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 py-2.5 text-sm font-semibold text-white transition-all duration-300 hover:from-emerald-500 hover:to-teal-500 hover:shadow-lg hover:shadow-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-emerald-600 disabled:hover:to-teal-600 disabled:hover:shadow-none sm:py-3 cursor-pointer"
         >
           {submit.submitting ? (
             <span className="inline-flex items-center justify-center gap-2">
@@ -153,7 +184,7 @@ export function RegisterForm() {
           ) : (
             'Siguiente'
           )}
-        </button>
+        </motion.button>
       </div>
 
       {/* Login link */}
