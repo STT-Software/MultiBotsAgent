@@ -1,4 +1,7 @@
+"use client";
+
 import { ConversationMessage } from "../types/inbox.types";
+import { motion } from "motion/react";
 
 interface InboxMessageBubbleProps {
   message: ConversationMessage;
@@ -12,6 +15,7 @@ const SENDER_CONFIG = {
     border: "transparent",
     label: "Usuario",
     labelColor: "#869489",
+    xInitial: -10,
   },
   agent: {
     align: "items-end" as const,
@@ -20,6 +24,7 @@ const SENDER_CONFIG = {
     border: "#2d6e5a",
     label: "Agente",
     labelColor: "#49df9a",
+    xInitial: 10,
   },
   operator: {
     align: "items-end" as const,
@@ -28,6 +33,7 @@ const SENDER_CONFIG = {
     border: "#3a5068",
     label: "Operador",
     labelColor: "#7db8f0",
+    xInitial: 10,
   },
 } as const;
 
@@ -40,7 +46,12 @@ export function InboxMessageBubble({ message }: InboxMessageBubbleProps) {
   const config = SENDER_CONFIG[message.sender];
 
   return (
-    <div className={`flex flex-col ${config.align} gap-1`}>
+    <motion.div
+      initial={{ opacity: 0, y: 10, x: config.xInitial, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+      transition={{ type: "spring", stiffness: 200, damping: 20 }}
+      className={`flex flex-col ${config.align} gap-1`}
+    >
       <span className="text-[10px] font-medium" style={{ color: config.labelColor }}>
         {config.label}
       </span>
@@ -55,9 +66,9 @@ export function InboxMessageBubble({ message }: InboxMessageBubbleProps) {
           {message.content}
         </p>
       </div>
-      <span className="text-[10px]" style={{ color: "#869489" }}>
+      <span className="text-[10px] text-gray-500">
         {formatTime(message.timestamp)}
       </span>
-    </div>
+    </motion.div>
   );
 }

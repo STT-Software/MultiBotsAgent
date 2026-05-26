@@ -13,7 +13,6 @@ import "./networking/vpc";
 
 // Shared (cross-cutting concerns)
 import "./shared/secrets";
-import "./shared/log-groups";
 
 // Databases
 import "./databases/mongodb";
@@ -28,9 +27,6 @@ import "./queues/indexation-queue";
 // Services
 import "./services/cluster";
 import "./services/api-multi-bots";
-
-// Monitoring & Alarms (depends on log-groups for LogGroup resource)
-import "./shared/alarms";
 
 // APIs
 import "./apis/services-api";

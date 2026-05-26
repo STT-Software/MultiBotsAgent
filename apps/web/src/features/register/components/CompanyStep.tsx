@@ -2,6 +2,7 @@ import { COUNTRIES } from '../constants';
 import { CATEGORY_LABELS, SIZE_LABELS } from '../constants';
 import { Field } from '@/components/ui/Field';
 import { ChevronDown } from '@/components/ui/ChevronDown';
+import { Input } from '@/components/ui/Input';
 import type { FormData, FormErrors, TouchedFields } from '../types';
 
 interface CompanyStepProps {
@@ -31,16 +32,16 @@ export function CompanyStep({
     <>
       {/* Company Name */}
       <Field id="companyName" label="Nombre de empresa" required error={fieldError('companyName')}>
-        <input
+        <Input
           id="companyName"
           name="companyName"
           type="text"
-          autoComplete="organization"
+          autoComplete="company-name"
           value={formData.companyName}
           onChange={onChange}
           onBlur={onBlur}
           placeholder="Ingresa el nombre de tu empresa"
-          className={inputClasses(!!fieldError('companyName'))}
+          hasError={!!fieldError('companyName')}
           aria-required="true"
           aria-invalid={!!fieldError('companyName')}
           aria-describedby={fieldError('companyName') ? 'companyName-error' : undefined}
@@ -132,15 +133,6 @@ export function CompanyStep({
 }
 
 // ─── Style helpers ───────────────────────────────────────────────────────────
-
-function inputClasses(hasError: boolean) {
-  return [
-    'w-full rounded-lg border bg-[#0d1117]/80 backdrop-blur-sm px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 outline-none transition-all duration-200 sm:px-4 sm:py-3',
-    hasError
-      ? 'border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/30'
-      : 'border-gray-700 hover:border-gray-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/50',
-  ].join(' ');
-}
 
 function selectClasses(hasError: boolean) {
   return [

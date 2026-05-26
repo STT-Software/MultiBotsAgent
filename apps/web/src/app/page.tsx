@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation'
+import LandingContainer from '@/features/landing/LandingContainer';
 
 export default function Home() {
-  redirect('/register')
+  return <LandingContainer />;
 }
