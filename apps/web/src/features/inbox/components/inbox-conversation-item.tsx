@@ -1,5 +1,8 @@
+"use client";
+
 import { EscalatedConversation } from "../types/inbox.types";
 import { InboxEscalationBadge } from "./inbox-escalation-badge";
+import { useWaitTimer } from "../hooks/use-wait-timer";
 
 interface InboxConversationItemProps {
   conversation: EscalatedConversation;
@@ -7,25 +10,14 @@ interface InboxConversationItemProps {
   onClick: () => void;
 }
 
-function formatTimeAgo(timestamp: string): string {
-  const now = new Date();
-  const date = new Date(timestamp);
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-
-  if (diffMin < 1) return "ahora";
-  if (diffMin < 60) return `hace ${diffMin} min`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `hace ${diffHours}h`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `hace ${diffDays}d`;
-}
-
 export function InboxConversationItem({
   conversation,
   isSelected,
   onClick,
 }: InboxConversationItemProps) {
+  const { timeLabel, isUrgent } = useWaitTimer(conversation.escalatedAt);
+  const isResolved = conversation.status === "resolved";
+
   return (
     <button
       type="button"
@@ -64,8 +56,11 @@ export function InboxConversationItem({
           <span className="text-xs font-semibold truncate" style={{ color: "#dde5dc" }}>
             {conversation.userId}
           </span>
-          <span className="text-[10px] shrink-0" style={{ color: "#869489" }}>
-            {formatTimeAgo(conversation.escalatedAt)}
+          <span
+            className="text-[10px] shrink-0 font-medium"
+            style={{ color: isResolved ? "#49df9a" : isUrgent ? "#f87171" : "#869489" }}
+          >
+            {isResolved ? "Resuelta" : timeLabel}
           </span>
         </div>
 

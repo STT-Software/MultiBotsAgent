@@ -29,3 +29,14 @@ export interface EscalatedConversationsResponse {
   data: EscalatedConversation[];
   pendingCount: number;
 }
+
+export interface SendMessageDTO {
+  conversationId: string;
+  content: string;
+  type: MessageType;
+}
+
+export interface SendMessageResult {
+  message: ConversationMessage;
+  simulatedReply?: ConversationMessage;
+}

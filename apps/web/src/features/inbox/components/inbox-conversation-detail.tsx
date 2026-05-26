@@ -1,15 +1,23 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { MessageSquare, Bot, Clock } from "lucide-react";
+import { MessageSquare, Bot, Clock, CheckCircle } from "lucide-react";
 
-import { EscalatedConversation } from "../types/inbox.types";
+import { ConversationMessage, EscalatedConversation } from "../types/inbox.types";
 import { InboxMessageBubble } from "./inbox-message-bubble";
 import { InboxEscalationBadge } from "./inbox-escalation-badge";
+import { InboxMessageInput } from "./inbox-message-input";
+import { InboxTypingIndicator } from "./inbox-typing-indicator";
 
 interface InboxConversationDetailProps {
   conversation: EscalatedConversation | null;
   loading: boolean;
+  onSendMessage?: (content: string) => void;
+  sending?: boolean;
+  isTyping?: boolean;
+  isResolved?: boolean;
+  onResolve?: () => void;
+  extraMessages?: ConversationMessage[];
 }
 
 function formatDateTime(timestamp: string): string {
@@ -29,7 +37,16 @@ const AGENT_TYPE_LABELS: Record<string, string> = {
   agendamiento: "Agendamiento",
 };
 
-export function InboxConversationDetail({ conversation, loading }: InboxConversationDetailProps) {
+export function InboxConversationDetail({
+  conversation,
+  loading,
+  onSendMessage,
+  sending = false,
+  isTyping = false,
+  isResolved = false,
+  onResolve,
+  extraMessages = [],
+}: InboxConversationDetailProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll al último mensaje
@@ -37,7 +54,7 @@ export function InboxConversationDetail({ conversation, loading }: InboxConversa
     if (conversation && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [conversation]);
+  }, [conversation, extraMessages.length, isTyping]);
 
   if (loading) {
     return (
@@ -73,6 +90,12 @@ export function InboxConversationDetail({ conversation, loading }: InboxConversa
     );
   }
 
+  const existingIds = new Set(conversation.messages.map((m) => m.id));
+  const uniqueExtra = extraMessages.filter((m) => !existingIds.has(m.id));
+  const allMessages = [...conversation.messages, ...uniqueExtra].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header info */}
@@ -84,7 +107,26 @@ export function InboxConversationDetail({ conversation, loading }: InboxConversa
           <h3 className="text-sm font-semibold" style={{ color: "#dde5dc" }}>
             {conversation.userId}
           </h3>
-          <InboxEscalationBadge type={conversation.escalationType} />
+          <div className="flex items-center gap-2">
+            <InboxEscalationBadge type={conversation.escalationType} />
+            {!isResolved && onResolve && (
+              <button
+                type="button"
+                onClick={onResolve}
+                className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors"
+                style={{
+                  color: "#49df9a",
+                  border: "1px solid #2d6e5a",
+                  backgroundColor: "transparent",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#1a3d2f")}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+              >
+                <CheckCircle size={12} aria-hidden="true" />
+                Resolver
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -106,12 +148,22 @@ export function InboxConversationDetail({ conversation, loading }: InboxConversa
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         <div className="flex flex-col gap-4">
-          {conversation.messages.map((message) => (
+          {allMessages.map((message) => (
             <InboxMessageBubble key={message.id} message={message} />
           ))}
+          {isTyping && <InboxTypingIndicator />}
           <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* Input */}
+      {onSendMessage && (
+        <InboxMessageInput
+          onSend={onSendMessage}
+          sending={sending}
+          disabled={isResolved}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,9 @@
 import {
+  ConversationMessage,
+  ConversationStatus,
   EscalatedConversation,
   EscalatedConversationsResponse,
+  SendMessageDTO,
 } from "../types/inbox.types";
 
 const MOCK_CONVERSATIONS: EscalatedConversation[] = [
@@ -106,4 +109,59 @@ export async function fetchConversationById(id: string): Promise<EscalatedConver
 export async function fetchPendingCount(): Promise<number> {
   await new Promise((resolve) => setTimeout(resolve, 200));
   return MOCK_CONVERSATIONS.filter((c) => c.status === "escalated").length;
+}
+
+// Flag para activar/desactivar simulación de respuesta del usuario
+export const SIMULATE_USER_REPLIES = true;
+
+const SIMULATED_REPLIES: string[] = [
+  "Gracias por la información",
+  "Ok, entendido",
+  "Perfecto, eso era lo que necesitaba",
+  "¿Algo más que deba saber?",
+  "Muchas gracias por la ayuda",
+  "Excelente, quedo atento entonces",
+];
+
+export function getRandomSimulatedReply(): string {
+  return SIMULATED_REPLIES[Math.floor(Math.random() * SIMULATED_REPLIES.length)];
+}
+
+// TODO: Reemplazar mock por POST /api/inbox/conversations/:id/messages
+export async function sendOperatorMessage(dto: SendMessageDTO): Promise<ConversationMessage> {
+  await new Promise((resolve) => setTimeout(resolve, 400));
+
+  const conversation = MOCK_CONVERSATIONS.find((c) => c.id === dto.conversationId);
+  if (!conversation) {
+    throw new Error("Conversación no encontrada.");
+  }
+
+  const message: ConversationMessage = {
+    id: `msg-${Date.now()}`,
+    sender: "operator",
+    content: dto.content,
+    timestamp: new Date().toISOString(),
+    type: dto.type,
+  };
+
+  conversation.messages.push(message);
+  return message;
+}
+
+// TODO: Reemplazar mock por PATCH /api/inbox/conversations/:id { status: "resolved" }
+export async function resolveConversation(conversationId: string): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  const conversation = MOCK_CONVERSATIONS.find((c) => c.id === conversationId);
+  if (!conversation) {
+    throw new Error("Conversación no encontrada.");
+  }
+
+  conversation.status = "resolved";
+}
+
+// TODO: Reemplazar mock por GET /api/inbox/conversations?status={status}
+export async function fetchConversationsByStatus(status: ConversationStatus): Promise<EscalatedConversation[]> {
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  return MOCK_CONVERSATIONS.filter((c) => c.status === status);
 }
