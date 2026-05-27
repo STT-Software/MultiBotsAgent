@@ -151,4 +151,24 @@ export class EscalamientoController {
     await this.escalamientoService.getConversationById(companyId, id);
     return this.storageService.generateUploadUrl(companyId, id, dto.fileName, dto.contentType);
   }
+
+  // ─── POST /api/escalamiento/seed ─────────────────────────────────────────
+
+  @Post('seed')
+  @ApiOperation({
+    summary: 'Crear datos de prueba',
+    description: 'Crea conversaciones escaladas de ejemplo para desarrollo/testing. Solo disponible en entorno de desarrollo.',
+  })
+  @ApiResponse({ status: 201, description: 'Datos de prueba creados exitosamente.' })
+  @ApiResponse({ status: 403, description: 'No disponible en producción.' })
+  async seed(@Req() req: Request) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new (await import('@nestjs/common')).ForbiddenException(
+        'El endpoint de seed no está disponible en producción',
+      );
+    }
+    const { companyId } = (req as any).user;
+    const data = await this.escalamientoService.seed(companyId);
+    return { data };
+  }
 }
