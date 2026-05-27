@@ -31,6 +31,5 @@ export * from "./company-profile";
 
 // Knowledge Base
 export * from "./knowledge";
-
 // WhatsApp — Webhook verification y tipos del conector
 export * from "./whatsapp";

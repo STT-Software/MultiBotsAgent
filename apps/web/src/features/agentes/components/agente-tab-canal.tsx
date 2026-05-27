@@ -1,8 +1,18 @@
 "use client";
 
 import { MessageCircle } from "lucide-react";
+import { Agente } from "../types/agentes.types";
+import { EmbeddedSignupContainer } from "@/features/embedded-signup";
 
-export function AgenteTabCanal() {
+interface AgenteTabCanalProps {
+  agente: Agente;
+}
+
+export function AgenteTabCanal({ agente }: AgenteTabCanalProps) {
+  // Para la fase actual, asumimos que el channel no viene incluido en el agente completo
+  // Si en el futuro `agente.channel` existe, lo pasamos a currentChannel.
+  // const currentChannel = agente.channel;
+
   return (
     <div className="flex flex-1 items-center justify-center py-12">
       <div
@@ -53,31 +63,6 @@ export function AgenteTabCanal() {
             }}
           >
             <MessageCircle size={56} strokeWidth={1.2} style={{ color: "#00bb7a" }} aria-hidden="true" />
-            {/* Animated dots */}
-            <div className="mt-3 flex gap-1.5">
-              <span
-                className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ backgroundColor: "#00bb7a" }}
-              />
-              <span
-                className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ backgroundColor: "#00bb7a", animationDelay: "200ms" }}
-              />
-              <span
-                className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ backgroundColor: "#00bb7a", animationDelay: "400ms" }}
-              />
-            </div>
-
-            {/* Dashed orbitals */}
-            <div
-              className="absolute w-[120%] h-[120%] rounded-full rotate-[15deg]"
-              style={{ border: "1px dashed rgba(0, 187, 122, 0.3)" }}
-            />
-            <div
-              className="absolute w-[140%] h-[140%] rounded-full -rotate-[10deg]"
-              style={{ border: "1px dashed rgba(60, 74, 65, 0.5)" }}
-            />
           </div>
         </div>
 
@@ -86,7 +71,7 @@ export function AgenteTabCanal() {
           className="text-2xl font-semibold mb-3"
           style={{ color: "#dde5dc", fontFamily: "Geist, Inter, sans-serif" }}
         >
-          Canal de Comunicación
+          Canal de WhatsApp
         </h2>
 
         {/* Description */}
@@ -94,34 +79,12 @@ export function AgenteTabCanal() {
           className="text-sm leading-relaxed max-w-md mb-8"
           style={{ color: "#869489" }}
         >
-          Asociación de canal disponible cuando el conector WhatsApp esté implementado.
-          Estamos preparando la integración para conectar tu agente con los canales de mensajería.
+          Conecta este agente a un número de WhatsApp usando el proceso de Embedded Signup de Meta.
         </p>
 
-        {/* Action buttons */}
-        <div className="flex gap-3 flex-wrap justify-center">
-          <button
-            type="button"
-            className="px-6 py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
-            style={{
-              backgroundColor: "#00bb7a",
-              color: "#0a0a0a",
-              boxShadow: "0 0 15px rgba(0, 187, 122, 0.3)",
-            }}
-          >
-            Notificar Disponibilidad
-          </button>
-          <button
-            type="button"
-            className="px-6 py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
-            style={{
-              backgroundColor: "transparent",
-              color: "#00bb7a",
-              border: "1px solid #00bb7a",
-            }}
-          >
-            Ver Documentación
-          </button>
+        {/* Embedded Signup */}
+        <div className="w-full bg-[#151c17] rounded-xl p-6 border border-[#3c4a41]">
+          <EmbeddedSignupContainer agentId={agente.id} />
         </div>
       </div>
     </div>

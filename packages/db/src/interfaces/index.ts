@@ -15,4 +15,8 @@ export type {
   IForgotPasswordTokenRepository,
   IResetPasswordTokenRepository,
   IResetPasswordUserRepository,
+  CreateChannelData,
+  UpdateChannelData,
+  UpdateCredentialsData,
+  IChannelRepository,
 } from './repositories.interface';

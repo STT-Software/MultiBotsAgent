@@ -24,6 +24,9 @@ import {
   elasticEmailTemplateId,
   elasticEmailPasswordResetTemplateId,
   frontendDomain,
+  metaAppId,
+  metaAppSecret,
+  encryptionKey,
 } from "../shared/secrets";
 
 /**
@@ -70,6 +73,9 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     COMPANY_LOGOS_BUCKET: companyLogosBucket.name,
     KNOWLEDGE_BUCKET: knowledgeBucket.name,
     INDEXATION_QUEUE_URL: indexationQueue.url,
+    META_APP_ID: metaAppId.value,
+    META_APP_SECRET: metaAppSecret.value,
+    ENCRYPTION_KEY: encryptionKey.value,
   },
   logging: {
     retention: "1 month",

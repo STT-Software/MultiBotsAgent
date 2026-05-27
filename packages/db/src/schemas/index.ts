@@ -49,3 +49,10 @@ export {
   RATE_LIMITS_VALIDATION,
   type RateLimitDocument,
 } from "./rate-limit.schema";
+
+export {
+  CHANNELS_COLLECTION,
+  CHANNELS_INDEXES,
+  CHANNELS_VALIDATION,
+  type ChannelDocument,
+} from "./channel.schema";
