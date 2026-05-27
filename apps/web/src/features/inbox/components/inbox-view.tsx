@@ -114,6 +114,7 @@ export function InboxView() {
         conversation={conversation}
         loading={detailLoading}
         onSendMessage={sendMessage.send}
+        onSendWithFile={sendMessage.sendWithFile}
         sending={sendMessage.sending}
         isTyping={sendMessage.isTyping}
         isResolved={isResolved}
