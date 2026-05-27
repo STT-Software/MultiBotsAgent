@@ -35,6 +35,7 @@ const META_ERROR_MAP: Record<number, { httpStatus: number; message: string }> = 
   190: { httpStatus: 400, message: 'Token de autorización inválido o expirado' },
   100: { httpStatus: 400, message: 'Parámetros inválidos en la solicitud a Meta' },
   10: { httpStatus: 409, message: 'El número ya está registrado en otra aplicación' },
+  133005: { httpStatus: 400, message: 'El PIN de verificación en dos pasos no coincide' },
   4: { httpStatus: 502, message: 'Meta Graph API no disponible temporalmente' },
 };
 
@@ -104,6 +105,7 @@ export class MetaGraphApiProvider {
    *
    * @param phoneNumberId - ID del número de teléfono asignado por Meta
    * @param token - Business Token para autenticación
+   * @param pin - PIN de verificación en dos pasos (opcional, por defecto 000000)
    * @throws ConflictException si el número ya está registrado por otra app
    * @throws BadRequestException si los parámetros son inválidos
    * @throws BadGatewayException si Meta no está disponible
@@ -113,6 +115,7 @@ export class MetaGraphApiProvider {
   async registerPhoneNumber(
     phoneNumberId: string,
     token: string,
+    pin: string = '000000',
   ): Promise<void> {
     const url = `${this.baseUrl}/${phoneNumberId}/register`;
 
@@ -124,7 +127,7 @@ export class MetaGraphApiProvider {
       },
       body: JSON.stringify({
         messaging_product: 'whatsapp',
-        pin: '000000',
+        pin,
       }),
     });
   }

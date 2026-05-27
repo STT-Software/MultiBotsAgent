@@ -190,10 +190,13 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
   });
 
   describe('Base de conocimiento vacía (Req 3.5)', () => {
-    it('should return noInfoMessage with escalated=true and reason=low_relevance when vector search returns empty', async () => {
+    it('should return noInfoMessage with escalated=true and reason=low_relevance when vector search returns empty and LLM returns NO_INFO', async () => {
       const deps = createMockDependencies({
         vectorSearch: {
           search: async () => [],
+        },
+        llmProvider: {
+          generate: async () => ({ content: 'NO_INFO', tokensUsed: 5, finishReason: 'stop' }),
         },
       });
 
@@ -208,7 +211,7 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
       expect(result.messages[0].content).toBe('No tengo información sobre eso');
     });
 
-    it('should not invoke LLM when knowledge base is empty', async () => {
+    it('should invoke LLM even when knowledge base is empty to handle small talk', async () => {
       let llmCalled = false;
 
       const deps = createMockDependencies({
@@ -218,20 +221,23 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
         llmProvider: {
           generate: async () => {
             llmCalled = true;
-            return { content: 'should not be called', tokensUsed: 0, finishReason: 'stop' };
+            return { content: 'Hola, soy un asistente', tokensUsed: 5, finishReason: 'stop' };
           },
         },
       });
 
       const service = createService(deps);
-      await service.processQuery(DEFAULT_INPUT);
+      const result = await service.processQuery(DEFAULT_INPUT);
 
-      expect(llmCalled).toBe(false);
+      expect(llmCalled).toBe(true);
+      expect(result.escalated).toBe(false);
+      expect(result.messages[0].content).toBe('Hola, soy un asistente');
     });
   });
 
   describe('Re-ranking rechaza todos los fragmentos', () => {
-    it('should return noInfoMessage with escalated=true when re-ranking returns empty array', async () => {
+    it('should return noInfoMessage with escalated=true when re-ranking returns empty array and LLM returns NO_INFO', async () => {
+      let callCount = 0;
       const deps = createMockDependencies({
         vectorSearch: {
           search: async () => [
@@ -240,12 +246,15 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
           ],
         },
         llmProvider: {
-          // Re-ranking returns empty array (no fragments are relevant)
-          generate: async () => ({
-            content: '[]',
-            tokensUsed: 5,
-            finishReason: 'stop',
-          }),
+          generate: async () => {
+            callCount++;
+            if (callCount === 1) {
+              // Re-ranking returns empty array (no fragments are relevant)
+              return { content: '[]', tokensUsed: 5, finishReason: 'stop' };
+            }
+            // Main LLM call returns NO_INFO
+            return { content: 'NO_INFO', tokensUsed: 5, finishReason: 'stop' };
+          },
         },
       });
 

@@ -6,7 +6,7 @@ import {
   RAG_MEMORY_SERVICE,
   RAG_VECTOR_SEARCH,
 } from './constants/injection-tokens';
-import { PlaceholderAgentConfigProvider } from './providers/agent-config.provider';
+import { MongoAgentConfigProvider } from './providers/agent-config.provider';
 import { BedrockLlmProvider } from './providers/bedrock-llm.provider';
 import { MongoMemoryProvider } from './providers/mongo-memory.provider';
 import { MongoVectorSearchProvider } from './providers/mongo-vector-search.provider';
@@ -14,6 +14,7 @@ import { RagEngineService } from './rag-engine.service';
 import { PromptBuilderService } from './services/prompt-builder.service';
 import { ReRankingService } from './services/re-ranking.service';
 import { ResponseFormatterService } from './services/response-formatter.service';
+import { RagEngineController } from './rag-engine.controller';
 
 /**
  * Módulo NestJS del Motor de Agente RAG.
@@ -22,6 +23,7 @@ import { ResponseFormatterService } from './services/response-formatter.service'
  * Valida: Requisito 10.5
  */
 @Module({
+  controllers: [RagEngineController],
   providers: [
     RagEngineService,
     PromptBuilderService,
@@ -41,7 +43,7 @@ import { ResponseFormatterService } from './services/response-formatter.service'
     },
     {
       provide: RAG_AGENT_CONFIG_SERVICE,
-      useClass: PlaceholderAgentConfigProvider,
+      useClass: MongoAgentConfigProvider,
     },
   ],
   exports: [RagEngineService],

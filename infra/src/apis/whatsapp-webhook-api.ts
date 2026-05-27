@@ -11,6 +11,10 @@
  */
 
 import { functionsApi } from "./functions-api";
+import { mongoDbUri } from "../databases/mongodb";
+import { metaAppSecret, encryptionKey } from "../shared/secrets";
+import { whatsAppIncomingQueue, whatsAppOutgoingQueue } from "../queues/whatsapp-queues";
+import { servicesApiUrl } from "./services-api";
 
 // --- Secret ---
 
@@ -32,6 +36,24 @@ const verifyWebhookHandler = {
   },
 };
 
+const receiveWebhookHandler = {
+  handler: "apps/functions/src/handlers/whatsapp/receive-webhook.handler.handler",
+  runtime: "nodejs20.x" as const,
+  memory: "256 MB" as const,
+  timeout: "10 seconds" as const,
+  environment: {
+    MONGODB_URI: mongoDbUri.value,
+    META_APP_SECRET: metaAppSecret.value,
+    WHATSAPP_INCOMING_QUEUE_URL: whatsAppIncomingQueue.url,
+  },
+  permissions: [
+    {
+      actions: ["sqs:SendMessage"],
+      resources: [whatsAppIncomingQueue.arn],
+    },
+  ],
+};
+
 const swaggerUiHandler = {
   handler: "apps/functions/src/handlers/whatsapp/swagger-ui.handler.handler",
   runtime: "nodejs20.x" as const,
@@ -49,10 +71,9 @@ functionsApi.route("GET /webhooks/whatsapp", verifyWebhookHandler);
 
 /**
  * POST /webhooks/whatsapp — Recepción de mensajes y eventos de WhatsApp.
- * Placeholder para futuros webhooks de mensajes entrantes.
  * Sin autorización a nivel de gateway (validación HMAC dentro de la Lambda).
  */
-functionsApi.route("POST /webhooks/whatsapp", verifyWebhookHandler);
+functionsApi.route("POST /webhooks/whatsapp", receiveWebhookHandler);
 
 // --- Swagger UI (Documentación) ---
 
@@ -67,3 +88,51 @@ functionsApi.route("GET /webhooks/docs", swaggerUiHandler);
  * Sin autorización a nivel de gateway.
  */
 functionsApi.route("GET /webhooks/docs/spec", swaggerUiHandler);
+
+// --- SQS Lambda Consumers ---
+
+/**
+ * Lambda que consume mensajes entrantes de WhatsApp y los redirige al motor NestJS.
+ */
+export const whatsAppIncomingProcessor = new sst.aws.Function("WhatsAppIncomingProcessor", {
+  handler: "apps/functions/src/handlers/whatsapp/incoming-processor.handler.handler",
+  timeout: "30 seconds",
+  memory: "256 MB",
+  permissions: [
+    {
+      actions: ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"],
+      resources: [whatsAppIncomingQueue.arn],
+    },
+    {
+      actions: ["sqs:SendMessage"],
+      resources: [whatsAppOutgoingQueue.arn],
+    },
+  ],
+  environment: {
+    SERVICES_API_URL: servicesApiUrl,
+    WHATSAPP_OUTGOING_QUEUE_URL: whatsAppOutgoingQueue.url,
+  },
+});
+
+whatsAppIncomingQueue.subscribe(whatsAppIncomingProcessor);
+
+/**
+ * Lambda que consume mensajes salientes (respuestas) y los envía a la API de Meta.
+ */
+export const whatsAppSenderHandler = new sst.aws.Function("WhatsAppSenderHandler", {
+  handler: "apps/functions/src/handlers/whatsapp/sender.handler.handler",
+  timeout: "30 seconds",
+  memory: "256 MB",
+  permissions: [
+    {
+      actions: ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"],
+      resources: [whatsAppOutgoingQueue.arn],
+    },
+  ],
+  environment: {
+    MONGODB_URI: mongoDbUri.value,
+    ENCRYPTION_KEY: encryptionKey.value,
+  },
+});
+
+whatsAppOutgoingQueue.subscribe(whatsAppSenderHandler);

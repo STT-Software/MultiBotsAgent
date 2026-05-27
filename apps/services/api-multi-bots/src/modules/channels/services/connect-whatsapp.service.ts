@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger, ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Inject, Logger, ConflictException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import type { ConnectWhatsAppResponse } from '@multibotagents/types';
 import { encryptToken, checkPhoneNumberUniqueness } from '@multibotagents/core/whatsapp';
 import type { ChannelRepository, CreateChannelData } from '@multibotagents/db';
@@ -11,7 +11,9 @@ export interface ConnectWhatsAppParams {
   agentId: string;
   wabaId: string;
   phoneNumberId: string;
-  tokenCode: string;
+  tokenCode?: string;
+  accessToken?: string;
+  pin?: string;
   companyId: string;
 }
 
@@ -38,7 +40,7 @@ export class ConnectWhatsAppService {
   ) {}
 
   async execute(params: ConnectWhatsAppParams): Promise<ConnectWhatsAppResponse> {
-    const { agentId, wabaId, phoneNumberId, tokenCode, companyId } = params;
+    const { agentId, wabaId, phoneNumberId, tokenCode, accessToken, pin, companyId } = params;
 
     this.logger.log(
       `Connecting WhatsApp channel for agent ${agentId} (company: ${companyId}, phoneNumberId: ${phoneNumberId})`,
@@ -71,12 +73,33 @@ export class ConnectWhatsAppService {
       );
     }
 
-    // ─── Step 2: Token Exchange ────────────────────────────────────────────
-    // Let exceptions propagate (MetaGraphApiProvider throws appropriate HTTP exceptions)
-    const businessToken = await this.metaGraphApi.exchangeToken(tokenCode);
+    // ─── Step 2: Token Exchange / Manual Token ────────────────────────────
+    let businessToken: string;
+    if (tokenCode) {
+      businessToken = await this.metaGraphApi.exchangeToken(tokenCode);
+    } else if (accessToken) {
+      businessToken = accessToken;
+    } else {
+      throw new BadRequestException(
+        'Debe proporcionar un tokenCode o un accessToken.',
+      );
+    }
 
     // ─── Step 3: Registrar número en Cloud API (1 reintento, 2s delay) ─────
-    await this.retryRegisterPhoneNumber(phoneNumberId, businessToken);
+    try {
+      await this.retryRegisterPhoneNumber(phoneNumberId, businessToken, pin);
+    } catch (error) {
+      const errorMsg = (error as Error).message || '';
+      const isPinMismatch = errorMsg.includes('PIN') || errorMsg.includes('verification');
+      
+      if (uniquenessResult.action === 'update' || isPinMismatch) {
+        this.logger.warn(
+          `Phone number registration failed (PIN Mismatch or during update): ${errorMsg}. Proceeding anyway since token is valid.`
+        );
+      } else {
+        throw error;
+      }
+    }
 
     // ─── Step 4: Suscribir webhooks (3 reintentos, backoff exponencial) ─────
     let webhooksSubscribed = true;
@@ -182,16 +205,17 @@ export class ConnectWhatsAppService {
   private async retryRegisterPhoneNumber(
     phoneNumberId: string,
     token: string,
+    pin?: string,
   ): Promise<void> {
     try {
-      await this.metaGraphApi.registerPhoneNumber(phoneNumberId, token);
+      await this.metaGraphApi.registerPhoneNumber(phoneNumberId, token, pin);
     } catch (error) {
       this.logger.warn(
         `Phone number registration failed for ${phoneNumberId}, retrying in 2s...`,
       );
       await this.delay(2000);
       // Second attempt — let exception propagate if it fails
-      await this.metaGraphApi.registerPhoneNumber(phoneNumberId, token);
+      await this.metaGraphApi.registerPhoneNumber(phoneNumberId, token, pin);
     }
   }
 

@@ -7,9 +7,11 @@ import { UseEmbeddedSignupReturn } from '../types';
 export function useEmbeddedSignup(agentId: string, initialChannel?: ChannelInfo | null): UseEmbeddedSignupReturn {
   const { isLoaded, launchEmbeddedSignup, error: sdkError } = useFacebookSDK();
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [channelStatus, setChannelStatus] = useState<ChannelStatus | null>(initialChannel?.status || null);
   const [channelInfo, setChannelInfo] = useState<ChannelInfo | null>(initialChannel || null);
+  const [simulationResult, setSimulationResult] = useState<{ success: boolean; messageId: string } | null>(null);
 
   useEffect(() => {
     if (sdkError) {
@@ -59,6 +61,57 @@ export function useEmbeddedSignup(agentId: string, initialChannel?: ChannelInfo 
     }
   }, [agentId, isLoaded, launchEmbeddedSignup]);
 
+  const connectManual = useCallback(async (wabaId: string, phoneNumberId: string, accessToken: string, pin?: string) => {
+    setIsConnecting(true);
+    setError(null);
+
+    try {
+      const response = await EmbeddedSignupService.connectWhatsApp({
+        agentId,
+        wabaId,
+        phoneNumberId,
+        accessToken,
+        pin,
+        tokenCode: '',
+      });
+
+      setChannelStatus(response.status);
+      setChannelInfo({
+        channelId: response.channelId,
+        status: response.status,
+        phoneNumberId: response.phoneNumberId,
+        displayName: response.displayName,
+        connectedAt: new Date().toISOString(),
+      });
+
+      if (response.status === 'partially_connected') {
+        setError('La conexión manual se completó parcialmente.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Ocurrió un error al realizar la conexión manual.');
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [agentId]);
+
+  const simulateMessage = useCallback(async (messageText: string, senderPhoneNumber?: string) => {
+    setIsSimulating(true);
+    setError(null);
+    setSimulationResult(null);
+
+    try {
+      const result = await EmbeddedSignupService.simulateWebhook(agentId, messageText, senderPhoneNumber);
+      setSimulationResult({
+        success: result.success,
+        messageId: result.messageId,
+      });
+    } catch (err: any) {
+      setError(err.message || 'Error al simular el mensaje del webhook.');
+    } finally {
+      setIsSimulating(false);
+    }
+  }, [agentId]);
+
   const disconnect = useCallback(async () => {
     if (!channelInfo) return;
 
@@ -69,6 +122,7 @@ export function useEmbeddedSignup(agentId: string, initialChannel?: ChannelInfo 
       await EmbeddedSignupService.disconnectWhatsApp(channelInfo.channelId);
       setChannelStatus(null);
       setChannelInfo(null);
+      setSimulationResult(null);
     } catch (err: any) {
       setError(err.message || 'Error al desconectar el canal.');
     } finally {
@@ -78,10 +132,14 @@ export function useEmbeddedSignup(agentId: string, initialChannel?: ChannelInfo 
 
   return {
     connect,
+    connectManual,
+    simulateMessage,
     disconnect,
     isConnecting,
+    isSimulating,
     error,
     channelStatus,
     channelInfo,
+    simulationResult,
   };
 }

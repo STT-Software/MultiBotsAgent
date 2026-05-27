@@ -9,11 +9,15 @@ export interface UseFacebookSDKReturn {
 
 export interface UseEmbeddedSignupReturn {
   connect: () => Promise<void>;
+  connectManual: (wabaId: string, phoneNumberId: string, accessToken: string, pin?: string) => Promise<void>;
+  simulateMessage: (messageText: string, senderPhoneNumber?: string) => Promise<void>;
   disconnect: () => Promise<void>;
   isConnecting: boolean;
+  isSimulating: boolean;
   error: string | null;
   channelStatus: ChannelStatus | null;
   channelInfo: ChannelInfo | null;
+  simulationResult: { success: boolean; messageId: string } | null;
 }
 
 export interface ConnectWhatsAppButtonProps {

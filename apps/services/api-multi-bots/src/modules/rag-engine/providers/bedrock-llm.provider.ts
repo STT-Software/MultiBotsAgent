@@ -30,7 +30,7 @@ export class BedrockLlmProvider implements LlmProvider {
   constructor() {
     const modelId =
       process.env.BEDROCK_MODEL_ID ||
-      'anthropic.claude-3-haiku-20240307-v1:0';
+      'us.amazon.nova-lite-v1:0';
     const region = process.env.AWS_REGION || 'us-east-1';
     this.timeoutMs = Number(process.env.BEDROCK_TIMEOUT_MS) || 30000;
 

@@ -20,6 +20,8 @@ import type {
   Channel,
   ChannelStatus,
   EncryptedToken,
+  ProcessedMessage,
+  MessageLog,
 } from '@multibotagents/types';
 import type { Repository } from './repository.interface';
 
@@ -223,3 +225,22 @@ export interface IChannelRepository extends Repository<Channel> {
   /** Actualiza credenciales de un canal existente (reconexión). */
   updateCredentials(id: string, data: UpdateCredentialsData): Promise<Channel>;
 }
+
+// ─── ProcessedMessage (Idempotencia) ─────────────────────────────────────────
+
+export interface IProcessedMessageRepository {
+  create(message: ProcessedMessage): Promise<ProcessedMessage>;
+  findByWaMessageId(waMessageId: string): Promise<ProcessedMessage | null>;
+}
+
+// ─── MessageLog ──────────────────────────────────────────────────────────────
+
+export interface IMessageLogRepository extends Repository<MessageLog> {
+  findByWaMessageId(waMessageId: string): Promise<MessageLog | null>;
+  updateStatus(
+    waMessageId: string,
+    status: MessageLog["status"],
+    details?: { errorCode?: number; errorMessage?: string }
+  ): Promise<void>;
+}
+

@@ -63,6 +63,8 @@ export interface ConnectWhatsAppRequest {
   wabaId: string;
   phoneNumberId: string;
   tokenCode: string;
+  accessToken?: string;
+  pin?: string;
 }
 
 /**
