@@ -1,6 +1,12 @@
-import { Inbox } from "lucide-react";
+"use client";
 
-export function InboxEmptyState() {
+import { Inbox, Zap } from "lucide-react";
+
+interface InboxEmptyStateProps {
+  onSimulate?: () => void;
+}
+
+export function InboxEmptyState({ onSimulate }: InboxEmptyStateProps) {
   return (
     <div className="flex flex-1 items-center justify-center">
       <div className="flex flex-col items-center gap-4 text-center">
@@ -18,6 +24,23 @@ export function InboxEmptyState() {
             Cuando un agente escale una conversación, aparecerá aquí para que puedas atenderla.
           </p>
         </div>
+        {onSimulate && (
+          <button
+            type="button"
+            onClick={onSimulate}
+            className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors mt-2"
+            style={{
+              backgroundColor: "#1a2f23",
+              color: "#00bb7a",
+              border: "1px solid #2d6e5a",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#1a3d2f")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#1a2f23")}
+          >
+            <Zap size={14} aria-hidden="true" />
+            Simular chats
+          </button>
+        )}
       </div>
     </div>
   );
