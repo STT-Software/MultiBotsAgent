@@ -7,7 +7,7 @@ import {
   SendMessageDTO,
 } from "../types/inbox.types";
 
-const API_BASE = "/api/escalamiento";
+const API_BASE = "/escalamiento";
 
 // ─── Fetch Conversations ─────────────────────────────────────────────────────
 

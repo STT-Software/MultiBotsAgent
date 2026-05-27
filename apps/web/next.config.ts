@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
         source: "/company-profile/:slug*",
         destination: `${apiUrl}/company-profile/:slug*`,
       },
+      {
+        source: "/escalamiento/:path*",
+        destination: `${apiUrl}/escalamiento/:path*`,
+      },
     ];
   },
 };
