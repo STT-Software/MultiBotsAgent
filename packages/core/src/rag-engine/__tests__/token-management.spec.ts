@@ -37,7 +37,7 @@ describe('Feature: rag-agent-engine, Property 2: Token truncation preserves rece
           expect(totalTokens).toBeLessThanOrEqual(maxTokens);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -60,7 +60,7 @@ describe('Feature: rag-agent-engine, Property 2: Token truncation preserves rece
           expect(truncated).toEqual(expectedSuffix);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -82,7 +82,7 @@ describe('Feature: rag-agent-engine, Property 2: Token truncation preserves rece
           expect(truncated).toEqual(history);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 });

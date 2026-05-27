@@ -478,7 +478,7 @@ describe("Feature: password-change, Property 9: Generación correcta de hash bcr
       ),
       { numRuns: 5 }, // Reduced due to bcrypt cost factor 12
     );
-  });
+  }, 30_000);
 
   it("el hash generado NO coincide con la contraseña anterior", async () => {
     await fc.assert(
@@ -531,5 +531,5 @@ describe("Feature: password-change, Property 9: Generación correcta de hash bcr
       ),
       { numRuns: 5 },
     );
-  });
+  }, 30_000);
 });

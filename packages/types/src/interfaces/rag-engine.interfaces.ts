@@ -5,7 +5,7 @@
  * Valida: Requisitos 10.2, 10.3, 10.4, 10.6
  */
 
-import { MessageRole } from "../enums/rag-engine.enums";
+import { ConversationStatus, MessageRole } from "../enums/rag-engine.enums";
 
 // ─── LLM Provider ────────────────────────────────────────────────────────────
 
@@ -37,6 +37,7 @@ export interface LlmResponse {
   content: string;
   tokensUsed: number;
   finishReason: "stop" | "length" | "error";
+  uncertaintyIndicator?: boolean;
 }
 
 // ─── Vector Search Service ───────────────────────────────────────────────────
@@ -79,6 +80,8 @@ export interface MemoryService {
     message: PersistMessage,
   ): Promise<void>;
   isNewSession(conversationId: string): Promise<boolean>;
+  getConversationStatus(conversationId: string): Promise<ConversationStatus>;
+  updateConversationStatus(conversationId: string, status: ConversationStatus): Promise<void>;
 }
 
 /**
@@ -132,6 +135,66 @@ export interface AgentConfig {
   failedAttemptsBeforeEscalation: number;
   noInfoMessage: string;
   errorMessage: string;
+
+  /**
+   * Texto de oferta de escalamiento mostrado al usuario cuando se detecta
+   * necesidad de transferir a un agente humano.
+   *
+   * Valida: Requisitos 12.1, 12.7
+   */
+  escalationOfferMessage: string;
+
+  /**
+   * Mensaje de transición enviado al usuario cuando se confirma el escalamiento
+   * a un agente humano.
+   *
+   * Valida: Requisito 12.4
+   */
+  escalationTransitionMessage: string;
+
+  /**
+   * Mensaje enviado al usuario cuando el timeout de escalamiento se cumple
+   * sin que un humano atienda, y el agente retoma la conversación.
+   *
+   * Valida: Requisito 12.7
+   */
+  escalationReturnMessage: string;
+
+  /**
+   * Texto de acknowledgment enviado al usuario cuando el procesamiento
+   * supera el umbral de tiempo configurado. Máximo 500 caracteres.
+   * Si no se configura, se usa el mensaje por defecto del sistema.
+   *
+   * Valida: Requisitos 10.1, 10.2
+   */
+  acknowledgmentMessage?: string;
+
+  /**
+   * Umbral en segundos antes de enviar el mensaje de acknowledgment.
+   * Rango permitido: 2-15 segundos. Default: 5.
+   *
+   * Valida: Requisito 10.1
+   */
+  acknowledgmentThreshold: number;
+
+  /**
+   * Ventana de tiempo en segundos para agrupar mensajes consecutivos
+   * del mismo usuario (burst deduplication).
+   * Rango permitido: 1-10 segundos. Default: 3.
+   *
+   * Valida: Requisito 11.1
+   */
+  burstWindow: number;
+
+  /**
+   * Tiempo en minutos que se espera a que un humano atienda el escalamiento
+   * antes de que el agente retome la conversación automáticamente.
+   * Rango permitido: 5-60 minutos. Default: 15.
+   *
+   * Valida: Requisito 12.7
+   */
+  escalationTimeout: number;
+
   language: string;
 }
 

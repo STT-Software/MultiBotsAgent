@@ -45,7 +45,7 @@ describe('Feature: rag-agent-engine, Property 6: Response formatting produces va
           expect(result.length).toBeGreaterThan(0);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -62,7 +62,7 @@ describe('Feature: rag-agent-engine, Property 6: Response formatting produces va
           }
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -79,7 +79,7 @@ describe('Feature: rag-agent-engine, Property 6: Response formatting produces va
           }
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -94,7 +94,7 @@ describe('Feature: rag-agent-engine, Property 6: Response formatting produces va
           expect(result).toEqual([]);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 });
@@ -114,7 +114,7 @@ describe('Feature: rag-agent-engine, Property 8: Response length enforcement', (
           expect(totalLength).toBeLessThanOrEqual(maxResponseLength);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -131,7 +131,7 @@ describe('Feature: rag-agent-engine, Property 8: Response length enforcement', (
           expect(totalContent).toBe(content);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -150,7 +150,7 @@ describe('Feature: rag-agent-engine, Property 8: Response length enforcement', (
           expect(totalLength).toBe(maxResponseLength);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 });

@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { MongoClient, type Collection, type Document } from 'mongodb';
 
-import type { HistoryMessage, MemoryService, PersistMessage } from '@multibotagents/types';
+import type { ConversationStatus, HistoryMessage, MemoryService, PersistMessage } from '@multibotagents/types';
 
 /**
  * Implementación de MemoryService usando MongoDB.
@@ -189,6 +189,76 @@ export class MongoMemoryProvider implements MemoryService, OnModuleDestroy {
         stack: err.stack,
       });
       throw new Error(`Failed to check session status: ${err.message}`);
+    }
+  }
+
+  /**
+   * Obtiene el status actual de una conversación.
+   * Graceful degradation: si falla, el consumidor debe asumir "active".
+   *
+   * @param conversationId - ID de la conversación
+   * @returns Status de la conversación ('active' | 'escalated' | 'paused')
+   *
+   * Valida: Requisitos 12.4, 13.1, 13.2
+   */
+  async getConversationStatus(conversationId: string): Promise<ConversationStatus> {
+    this.logger.debug('Getting conversation status', { conversationId });
+
+    try {
+      const collection = this.client.db(this.dbName).collection('conversations');
+
+      const conversation = await collection.findOne(
+        { _id: conversationId as unknown as Document['_id'] },
+        { projection: { status: 1 } },
+      );
+
+      const status = (conversation?.status as ConversationStatus) ?? 'active';
+
+      this.logger.debug('Conversation status retrieved', { conversationId, status });
+
+      return status;
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error('Failed to get conversation status, assuming active (graceful degradation)', {
+        conversationId,
+        error: err.message,
+        stack: err.stack,
+      });
+      // Graceful degradation: si falla, asumir "active"
+      return 'active';
+    }
+  }
+
+  /**
+   * Actualiza el status de una conversación.
+   *
+   * @param conversationId - ID de la conversación
+   * @param status - Nuevo status ('active' | 'escalated' | 'paused')
+   *
+   * Valida: Requisitos 12.4, 13.1, 13.2
+   */
+  async updateConversationStatus(conversationId: string, status: ConversationStatus): Promise<void> {
+    this.logger.debug('Updating conversation status', { conversationId, status });
+
+    try {
+      const collection = this.client.db(this.dbName).collection('conversations');
+
+      await collection.updateOne(
+        { _id: conversationId as unknown as Document['_id'] },
+        { $set: { status, updatedAt: new Date() } },
+        { upsert: true },
+      );
+
+      this.logger.debug('Conversation status updated', { conversationId, status });
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error('Failed to update conversation status', {
+        conversationId,
+        status,
+        error: err.message,
+        stack: err.stack,
+      });
+      throw new Error(`Failed to update conversation status: ${err.message}`);
     }
   }
 

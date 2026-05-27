@@ -12,7 +12,11 @@ import {
   RAG_MEMORY_SERVICE,
   RAG_VECTOR_SEARCH,
 } from './constants/injection-tokens';
+import { RAG_DEFAULTS } from './constants/timeouts';
 import { AgentNotFoundException, InvalidInputException } from './exceptions/rag-engine.exceptions';
+import { AcknowledgmentService } from './services/acknowledgment.service';
+import { BurstDeduplicationService } from './services/burst-deduplication.service';
+import { EscalationDetectionService } from './services/escalation-detection.service';
 import { PromptBuilderService } from './services/prompt-builder.service';
 import { ReRankingService } from './services/re-ranking.service';
 import { ResponseFormatterService } from './services/response-formatter.service';
@@ -49,11 +53,76 @@ export class RagEngineService {
     private readonly promptBuilder: PromptBuilderService,
     private readonly reRankingService: ReRankingService,
     private readonly responseFormatter: ResponseFormatterService,
+    private readonly burstDeduplication: BurstDeduplicationService,
+    private readonly acknowledgmentService: AcknowledgmentService,
+    private readonly escalationDetection: EscalationDetectionService,
   ) {}
 
   /**
+   * Punto de entrada para mensajes individuales.
+   * Pasa por deduplicación de ráfaga antes de procesar.
+   * Si el mensaje es buffered (dentro de la ventana), retorna null.
+   * Si la ventana cierra, invoca processQuery con el input concatenado.
+   *
+   * Valida: Requisitos 11.1, 11.2, 11.3, 11.4, 11.5
+   */
+  async receiveMessage(input: RagProcessInput): Promise<RagProcessOutput | null> {
+    this.logger.log('Receiving message', {
+      agentId: input.agentId,
+      conversationId: input.conversationId,
+    });
+
+    // Obtener burstWindow de la configuración del agente (graceful degradation)
+    let burstWindow: number = RAG_DEFAULTS.BURST_WINDOW;
+    try {
+      const config = await this.agentConfigProvider.getConfig(input.agentId);
+      burstWindow = config.burstWindow ?? RAG_DEFAULTS.BURST_WINDOW;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warn('Could not retrieve agent config for burst window, using default', {
+        agentId: input.agentId,
+        error: errorMessage,
+        defaultBurstWindow: RAG_DEFAULTS.BURST_WINDOW,
+      });
+    }
+
+    // Pasar mensaje por BurstDeduplicationService
+    const result = await this.burstDeduplication.bufferMessage(
+      input.conversationId,
+      input.userMessage,
+      burstWindow,
+    );
+
+    // Si retorna null: mensaje buffered, esperar más mensajes
+    if (result === null) {
+      this.logger.debug('Message buffered, waiting for more messages', {
+        conversationId: input.conversationId,
+      });
+      return null;
+    }
+
+    // Si retorna string: invocar processQuery con input concatenado
+    this.logger.debug('Burst window closed, processing concatenated input', {
+      conversationId: input.conversationId,
+      concatenatedLength: result.length,
+    });
+
+    const concatenatedInput: RagProcessInput = {
+      ...input,
+      userMessage: result,
+    };
+
+    return this.processQuery(concatenatedInput);
+  }
+
+  /**
    * Procesa una consulta RAG completa.
-   * Orquesta: validación → config → historial → búsqueda → filtrado → re-ranking → prompt → LLM → persistencia → respuesta
+   * Orquesta: validación → config → acknowledgment race → historial → búsqueda → filtrado → re-ranking → prompt → LLM → persistencia → respuesta
+   *
+   * Integra AcknowledgmentService: si el procesamiento no completa antes del threshold,
+   * se emite un acknowledgment parcial al usuario (máximo 1 por ciclo).
+   *
+   * Valida: Requisitos 10.1, 10.2, 10.3, 10.4, 10.5, 10.6
    */
   async processQuery(input: RagProcessInput): Promise<RagProcessOutput> {
     this.logger.log('Processing query', {
@@ -61,13 +130,81 @@ export class RagEngineService {
       conversationId: input.conversationId,
     });
 
-    // 1. Validate input
+    // 1. Validate input (antes del race — falla rápido)
     this.validateInput(input);
 
-    // 2. Get agent config
+    // 2. Get agent config (antes del race — necesario para threshold)
     const config = await this.getAgentConfig(input.agentId);
     this.logger.debug('Agent config retrieved', { agentId: config.agentId });
 
+    // 3. Check conversation status (graceful degradation: assume 'active' on failure)
+    let conversationStatus: string = 'active';
+    try {
+      conversationStatus = await this.memoryService.getConversationStatus(input.conversationId);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warn('Failed to get conversation status, assuming active', {
+        conversationId: input.conversationId,
+        error: errorMessage,
+      });
+    }
+    if (conversationStatus === 'escalated') {
+      this.logger.log('Conversation is escalated, persisting message and returning human-attended response', {
+        conversationId: input.conversationId,
+      });
+      // Persist user message for context when conversation resumes
+      try {
+        await this.memoryService.saveMessage(input.conversationId, {
+          role: MessageRole.USER,
+          content: input.userMessage,
+          timestamp: input.timestamp,
+        });
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.logger.warn('Failed to persist message for escalated conversation', {
+          conversationId: input.conversationId,
+          error: errorMessage,
+        });
+      }
+      // Return "being attended by human" message
+      return {
+        conversationId: input.conversationId,
+        messages: [{ type: ResponseType.TEXT, content: config.escalationTransitionMessage || 'Estás siendo atendido por un agente humano.' }],
+        escalated: true,
+        escalationReason: undefined,
+      };
+    }
+
+    // 4. Envolver procesamiento principal con acknowledgment race
+    const processingLogic = async (): Promise<RagProcessOutput> => {
+      return this.executeProcessingPipeline(input, config);
+    };
+
+    const result = await this.acknowledgmentService.raceWithProcessing(
+      processingLogic(),
+      {
+        threshold: config.acknowledgmentThreshold ?? RAG_DEFAULTS.ACKNOWLEDGMENT_THRESHOLD,
+        message: config.acknowledgmentMessage ?? 'Dame un momento, estoy buscando esa información...',
+      },
+      (ackMessage) => {
+        this.logger.log('Acknowledgment sent', {
+          conversationId: input.conversationId,
+          message: ackMessage,
+        });
+      },
+    );
+
+    return result;
+  }
+
+  /**
+   * Pipeline de procesamiento principal del flujo RAG.
+   * Ejecuta: historial → búsqueda → filtrado → re-ranking → prompt → LLM → persistencia → respuesta
+   */
+  private async executeProcessingPipeline(
+    input: RagProcessInput,
+    config: AgentConfig,
+  ): Promise<RagProcessOutput> {
     // 3. Retrieve history (graceful degradation)
     const history = await this.retrieveHistory(input.conversationId, config.memoryWindow);
 
@@ -91,7 +228,7 @@ export class RagEngineService {
         conversationId: input.conversationId,
         stage: 'vector_search',
       });
-      return this.buildNoInfoResponse(input, config);
+      return this.handleNoInfoWithEscalation(input, config);
     }
 
     // 7. Filter by threshold
@@ -112,7 +249,7 @@ export class RagEngineService {
         userMessage: input.userMessage,
         stage: 'threshold_filtering',
       });
-      return this.buildNoInfoResponse(input, config);
+      return this.handleNoInfoWithEscalation(input, config);
     }
 
     // 9. Re-ranking (graceful degradation)
@@ -127,7 +264,7 @@ export class RagEngineService {
         userMessage: input.userMessage,
         stage: 're_ranking',
       });
-      return this.buildNoInfoResponse(input, config);
+      return this.handleNoInfoWithEscalation(input, config);
     }
 
     // 11. Build prompt
@@ -163,6 +300,26 @@ export class RagEngineService {
         tokensUsed: llmResponse.tokensUsed,
         finishReason: llmResponse.finishReason,
       });
+
+      // 13.1 Evaluate escalation after successful LLM response
+      const escalationCheck = await this.escalationDetection.evaluateResponse(
+        input.conversationId,
+        llmResponse,
+        input.userMessage,
+        config,
+      );
+      if (escalationCheck && escalationCheck.escalated) {
+        this.logger.log('Escalation triggered after LLM response evaluation', {
+          conversationId: input.conversationId,
+          reason: escalationCheck.reason,
+        });
+        return {
+          conversationId: input.conversationId,
+          messages: [{ type: ResponseType.TEXT, content: escalationCheck.transitionMessage }],
+          escalated: true,
+          escalationReason: escalationCheck.reason,
+        };
+      }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('LLM invocation failed', {
@@ -345,6 +502,44 @@ export class RagEngineService {
       return [welcomeMsg, ...responseMessages];
     }
     return responseMessages;
+  }
+
+  /**
+   * Builds a no-info response with escalation for low relevance.
+   * Records the no-info attempt via EscalationDetectionService.
+   * If escalation threshold is reached, returns the transition message.
+   * Otherwise, returns the standard noInfoMessage.
+   *
+   * Valida: Requisitos 12.1, 13.1
+   */
+  private async handleNoInfoWithEscalation(input: RagProcessInput, config: AgentConfig): Promise<RagProcessOutput> {
+    try {
+      const escalationResult = await this.escalationDetection.recordNoInfoAttempt(
+        input.conversationId,
+        config,
+      );
+
+      if (escalationResult && escalationResult.escalated) {
+        this.logger.log('Escalation triggered by failed attempts threshold', {
+          conversationId: input.conversationId,
+          reason: escalationResult.reason,
+        });
+        return {
+          conversationId: input.conversationId,
+          messages: [{ type: ResponseType.TEXT, content: escalationResult.transitionMessage }],
+          escalated: true,
+          escalationReason: escalationResult.reason,
+        };
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warn('EscalationDetection failed during no-info handling, continuing with no-info response', {
+        conversationId: input.conversationId,
+        error: errorMessage,
+      });
+    }
+
+    return this.buildNoInfoResponse(input, config);
   }
 
   /**

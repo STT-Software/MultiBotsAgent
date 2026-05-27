@@ -6,8 +6,12 @@ import {
   RAG_VECTOR_SEARCH,
   RAG_MEMORY_SERVICE,
   RAG_AGENT_CONFIG_SERVICE,
+  RAG_ESCALATION_EMITTER,
 } from '../constants/injection-tokens';
 import { RagEngineService } from '../rag-engine.service';
+import { AcknowledgmentService } from '../services/acknowledgment.service';
+import { BurstDeduplicationService } from '../services/burst-deduplication.service';
+import { EscalationDetectionService } from '../services/escalation-detection.service';
 import { PromptBuilderService } from '../services/prompt-builder.service';
 import { ReRankingService } from '../services/re-ranking.service';
 import { ResponseFormatterService } from '../services/response-formatter.service';
@@ -47,6 +51,13 @@ const AGENT_CONFIG: AgentConfig = {
   failedAttemptsBeforeEscalation: 3,
   noInfoMessage: 'No tengo información sobre eso',
   errorMessage: 'Hubo un problema procesando tu consulta',
+  escalationOfferMessage: '¿Deseas que te comunique con un agente?',
+  escalationTransitionMessage: 'Te voy a comunicar con alguien del equipo...',
+  escalationReturnMessage: 'No pude comunicarte con alguien. ¿Puedo ayudarte?',
+  acknowledgmentMessage: undefined,
+  acknowledgmentThreshold: 5,
+  burstWindow: 3,
+  escalationTimeout: 15,
   language: 'es',
 };
 
@@ -66,6 +77,8 @@ describe('RagEngineModule Integration', () => {
     getHistory: ReturnType<typeof vi.fn>;
     saveMessage: ReturnType<typeof vi.fn>;
     isNewSession: ReturnType<typeof vi.fn>;
+    getConversationStatus: ReturnType<typeof vi.fn>;
+    updateConversationStatus: ReturnType<typeof vi.fn>;
   };
   let mockAgentConfigProvider: { getConfig: ReturnType<typeof vi.fn> };
 
@@ -107,6 +120,8 @@ describe('RagEngineModule Integration', () => {
       getHistory: vi.fn().mockResolvedValue([]),
       saveMessage: vi.fn().mockResolvedValue(undefined),
       isNewSession: vi.fn().mockResolvedValue(false),
+      getConversationStatus: vi.fn().mockResolvedValue('active'),
+      updateConversationStatus: vi.fn().mockResolvedValue(undefined),
     };
 
     mockAgentConfigProvider = {
@@ -114,14 +129,13 @@ describe('RagEngineModule Integration', () => {
     };
 
     // Build the testing module with explicit providers to validate DI wiring.
-    // NestJS Test.createTestingModule resolves injection tokens and verifies
-    // that all dependencies are satisfied correctly.
+    // We use useFactory for class-based services because vitest (esbuild) does not
+    // emit decorator metadata needed for NestJS class-based injection resolution.
+    // This still validates that the DI graph resolves correctly with all tokens.
+    const mockEscalationEmitter = { emit: vi.fn().mockResolvedValue(true) };
+
     module = await Test.createTestingModule({
       providers: [
-        RagEngineService,
-        PromptBuilderService,
-        ReRankingService,
-        ResponseFormatterService,
         {
           provide: RAG_LLM_PROVIDER,
           useValue: mockLlmProvider,
@@ -137,6 +151,76 @@ describe('RagEngineModule Integration', () => {
         {
           provide: RAG_AGENT_CONFIG_SERVICE,
           useValue: mockAgentConfigProvider,
+        },
+        {
+          provide: RAG_ESCALATION_EMITTER,
+          useValue: mockEscalationEmitter,
+        },
+        {
+          provide: PromptBuilderService,
+          useFactory: () => new PromptBuilderService(),
+        },
+        {
+          provide: ReRankingService,
+          useFactory: (llm: typeof mockLlmProvider) => new ReRankingService(llm),
+          inject: [RAG_LLM_PROVIDER],
+        },
+        {
+          provide: ResponseFormatterService,
+          useFactory: () => new ResponseFormatterService(),
+        },
+        {
+          provide: BurstDeduplicationService,
+          useFactory: () => new BurstDeduplicationService(),
+        },
+        {
+          provide: AcknowledgmentService,
+          useFactory: () => new AcknowledgmentService(),
+        },
+        {
+          provide: EscalationDetectionService,
+          useFactory: (memory: typeof mockMemoryService, emitter: typeof mockEscalationEmitter) =>
+            new EscalationDetectionService(memory, emitter),
+          inject: [RAG_MEMORY_SERVICE, RAG_ESCALATION_EMITTER],
+        },
+        {
+          provide: RagEngineService,
+          useFactory: (
+            llm: typeof mockLlmProvider,
+            vectorSearch: typeof mockVectorSearch,
+            memory: typeof mockMemoryService,
+            configProvider: typeof mockAgentConfigProvider,
+            promptBuilder: PromptBuilderService,
+            reRanking: ReRankingService,
+            responseFormatter: ResponseFormatterService,
+            burstDedup: BurstDeduplicationService,
+            ack: AcknowledgmentService,
+            escalation: EscalationDetectionService,
+          ) =>
+            new RagEngineService(
+              llm,
+              vectorSearch,
+              memory,
+              configProvider,
+              promptBuilder,
+              reRanking,
+              responseFormatter,
+              burstDedup,
+              ack,
+              escalation,
+            ),
+          inject: [
+            RAG_LLM_PROVIDER,
+            RAG_VECTOR_SEARCH,
+            RAG_MEMORY_SERVICE,
+            RAG_AGENT_CONFIG_SERVICE,
+            PromptBuilderService,
+            ReRankingService,
+            ResponseFormatterService,
+            BurstDeduplicationService,
+            AcknowledgmentService,
+            EscalationDetectionService,
+          ],
         },
       ],
     }).compile();

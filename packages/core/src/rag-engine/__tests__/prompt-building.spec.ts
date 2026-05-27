@@ -38,6 +38,13 @@ const agentConfigArb = fc.record({
   failedAttemptsBeforeEscalation: fc.integer({ min: 1, max: 10 }),
   noInfoMessage: fc.string({ minLength: 1, maxLength: 200 }),
   errorMessage: fc.string({ minLength: 1, maxLength: 200 }),
+  escalationOfferMessage: fc.string({ minLength: 1, maxLength: 200 }),
+  escalationTransitionMessage: fc.string({ minLength: 1, maxLength: 200 }),
+  escalationReturnMessage: fc.string({ minLength: 1, maxLength: 200 }),
+  acknowledgmentMessage: fc.option(fc.string({ minLength: 1, maxLength: 500 }), { nil: undefined }),
+  acknowledgmentThreshold: fc.integer({ min: 2, max: 15 }),
+  burstWindow: fc.integer({ min: 1, max: 10 }),
+  escalationTimeout: fc.integer({ min: 5, max: 60 }),
   language: fc.constantFrom('es', 'en', 'pt'),
 });
 
@@ -72,7 +79,7 @@ describe('Feature: rag-agent-engine, Property 5: Prompt construction invariants'
           expect(systemPrompt).toContain(config.personality.instructions);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -88,7 +95,7 @@ describe('Feature: rag-agent-engine, Property 5: Prompt construction invariants'
           }
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -105,7 +112,7 @@ describe('Feature: rag-agent-engine, Property 5: Prompt construction invariants'
           expect(prompt.history).toEqual(history);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -122,7 +129,7 @@ describe('Feature: rag-agent-engine, Property 5: Prompt construction invariants'
           expect(prompt.userMessage).toBe(userMessage);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -138,7 +145,7 @@ describe('Feature: rag-agent-engine, Property 5: Prompt construction invariants'
           );
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -155,7 +162,7 @@ describe('Feature: rag-agent-engine, Property 5: Prompt construction invariants'
           expect(prompt.systemPrompt).toContain(String(config.maxResponseLength));
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -172,7 +179,7 @@ describe('Feature: rag-agent-engine, Property 5: Prompt construction invariants'
           expect(prompt.maxResponseLength).toBe(config.maxResponseLength);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 });

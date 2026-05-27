@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { RagEngineService } from '../rag-engine.service';
+import { AcknowledgmentService } from '../services/acknowledgment.service';
+import { BurstDeduplicationService } from '../services/burst-deduplication.service';
+import { EscalationDetectionService } from '../services/escalation-detection.service';
 import { PromptBuilderService } from '../services/prompt-builder.service';
 import { ReRankingService } from '../services/re-ranking.service';
 import { ResponseFormatterService } from '../services/response-formatter.service';
@@ -10,6 +13,7 @@ import {
 import type {
   AgentConfig,
   AgentConfigProvider,
+  EscalationEmitter,
   LlmProvider,
   LlmPrompt,
   LlmResponse,
@@ -44,6 +48,13 @@ const DEFAULT_CONFIG: AgentConfig = {
   failedAttemptsBeforeEscalation: 3,
   noInfoMessage: 'No tengo información sobre eso',
   errorMessage: 'Hubo un problema procesando tu consulta',
+  escalationOfferMessage: '¿Deseas que te comunique con un agente?',
+  escalationTransitionMessage: 'Te voy a comunicar con alguien del equipo...',
+  escalationReturnMessage: 'No pude comunicarte con alguien. ¿Puedo ayudarte?',
+  acknowledgmentMessage: undefined,
+  acknowledgmentThreshold: 5,
+  burstWindow: 3,
+  escalationTimeout: 15,
   language: 'es',
 };
 
@@ -87,6 +98,8 @@ function createMockDependencies(overrides?: Partial<MockDeps>): MockDeps {
     getHistory: async () => [],
     saveMessage: async () => {},
     isNewSession: async () => false,
+    getConversationStatus: async () => 'active',
+    updateConversationStatus: async () => {},
   };
 
   const mockAgentConfigProvider: AgentConfigProvider = {
@@ -105,6 +118,15 @@ function createService(deps: MockDeps): RagEngineService {
   const promptBuilder = new PromptBuilderService();
   const reRankingService = new ReRankingService(deps.llmProvider);
   const responseFormatter = new ResponseFormatterService();
+  const burstDeduplication = new BurstDeduplicationService();
+  const acknowledgmentService = new AcknowledgmentService();
+  const mockEscalationEmitter: EscalationEmitter = {
+    emit: async () => true,
+  };
+  const escalationDetection = new EscalationDetectionService(
+    deps.memoryService,
+    mockEscalationEmitter,
+  );
 
   return new RagEngineService(
     deps.llmProvider,
@@ -114,6 +136,9 @@ function createService(deps: MockDeps): RagEngineService {
     promptBuilder,
     reRankingService,
     responseFormatter,
+    burstDeduplication,
+    acknowledgmentService,
+    escalationDetection,
   );
 }
 
@@ -174,6 +199,8 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
             savedMessages.push({ conversationId, role: message.role, content: message.content });
           },
           isNewSession: async () => false,
+          getConversationStatus: async () => 'active',
+          updateConversationStatus: async () => {},
         },
       });
 
@@ -272,6 +299,8 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
           getHistory: async () => [],
           saveMessage: async () => {},
           isNewSession: async () => true,
+          getConversationStatus: async () => 'active',
+          updateConversationStatus: async () => {},
         },
         agentConfigProvider: {
           getConfig: async () => configWithWelcome,
@@ -312,6 +341,8 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
           getHistory: async () => [],
           saveMessage: async () => {},
           isNewSession: async () => true,
+          getConversationStatus: async () => 'active',
+          updateConversationStatus: async () => {},
         },
         agentConfigProvider: {
           getConfig: async () => configWithoutWelcome,
@@ -348,6 +379,8 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
           getHistory: async () => [],
           saveMessage: async () => {},
           isNewSession: async () => false,
+          getConversationStatus: async () => 'active',
+          updateConversationStatus: async () => {},
         },
         agentConfigProvider: {
           getConfig: async () => configWithWelcome,
@@ -384,6 +417,8 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
           },
           saveMessage: async () => {},
           isNewSession: async () => false,
+          getConversationStatus: async () => 'active',
+          updateConversationStatus: async () => {},
         },
         llmProvider: {
           generate: async () => {
@@ -415,6 +450,8 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
           },
           saveMessage: async () => {},
           isNewSession: async () => false,
+          getConversationStatus: async () => 'active',
+          updateConversationStatus: async () => {},
         },
         llmProvider: {
           generate: async () => {
@@ -444,6 +481,8 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
             throw new Error('Write concern timeout');
           },
           isNewSession: async () => false,
+          getConversationStatus: async () => 'active',
+          updateConversationStatus: async () => {},
         },
         llmProvider: {
           generate: async () => {
@@ -475,6 +514,8 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
             throw new Error('DiskFull');
           },
           isNewSession: async () => false,
+          getConversationStatus: async () => 'active',
+          updateConversationStatus: async () => {},
         },
         llmProvider: {
           generate: async () => {

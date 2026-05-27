@@ -40,3 +40,9 @@ export const ResponseType = {
 } as const;
 
 export type ResponseType = (typeof ResponseType)[keyof typeof ResponseType];
+
+/**
+ * Estados posibles de una conversación en el flujo de escalamiento.
+ * Valida: Requisitos 12.4, 13.1, 13.2
+ */
+export type ConversationStatus = 'active' | 'escalated' | 'paused';

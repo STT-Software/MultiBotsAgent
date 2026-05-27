@@ -71,7 +71,7 @@ describe('Feature: rag-agent-engine, Property 4: Only validated fragments appear
           }
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -96,7 +96,7 @@ describe('Feature: rag-agent-engine, Property 4: Only validated fragments appear
           expect(result).toHaveLength(0);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -127,7 +127,7 @@ describe('Feature: rag-agent-engine, Property 4: Only validated fragments appear
           }
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 });

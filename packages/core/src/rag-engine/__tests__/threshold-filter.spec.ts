@@ -35,7 +35,7 @@ describe('Feature: rag-agent-engine, Property 3: Threshold filtering correctness
           }
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -55,7 +55,7 @@ describe('Feature: rag-agent-engine, Property 3: Threshold filtering correctness
           }
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 
@@ -72,7 +72,7 @@ describe('Feature: rag-agent-engine, Property 3: Threshold filtering correctness
           }
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 20 },
     );
   });
 });

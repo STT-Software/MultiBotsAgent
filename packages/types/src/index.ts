@@ -15,6 +15,7 @@ export * from "./dtos/example.dto";
 export * from "./interfaces/example.interface";
 export * from "./interfaces/rag-engine.interfaces";
 export * from "./interfaces/rag-engine-io.interfaces";
+export * from "./interfaces/rag-engine-escalation.interfaces";
 
 // Enums
 export * from "./enums/example.enum";
