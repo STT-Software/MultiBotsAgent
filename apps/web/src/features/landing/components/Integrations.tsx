@@ -17,7 +17,7 @@ export default function Integrations() {
   ];
 
   return (
-    <section id="integrations" className="py-24 bg-transparent border-t border-gray-900/60 relative overflow-hidden">
+    <section id="integrations" className="py-24 bg-transparent relative overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-20">

@@ -73,7 +73,7 @@ function FeatureCard({ icon, title, description, badge, className = '' }: Featur
 
 export default function FeaturesGrid() {
   return (
-    <section id="features" className="py-24 bg-transparent border-t border-gray-900/60 relative">
+    <section id="features" className="py-24 bg-transparent relative">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -z-10 h-[500px] w-[500px] rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
