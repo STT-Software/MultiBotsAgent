@@ -9,7 +9,14 @@ export interface ConversationMessage {
   content: string;
   timestamp: string;
   type: MessageType;
+  status?: MessageStatus;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileMimeType?: string;
 }
+
+export type MessageStatus = "sending" | "sent" | "pending" | "failed";
 
 export interface EscalatedConversation {
   id: string;
@@ -34,6 +41,10 @@ export interface SendMessageDTO {
   conversationId: string;
   content: string;
   type: MessageType;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileMimeType?: string;
 }
 
 export interface SendMessageResult {
