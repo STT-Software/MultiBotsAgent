@@ -50,3 +50,6 @@ export * from "./rag-engine";
 
 // Knowledge
 export * from "./knowledge";
+
+// WhatsApp
+export * from "./whatsapp";

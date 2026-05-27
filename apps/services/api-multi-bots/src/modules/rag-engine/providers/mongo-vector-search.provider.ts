@@ -33,7 +33,7 @@ export class MongoVectorSearchProvider implements VectorSearchService, OnModuleD
     this.collectionName =
       process.env.MONGODB_VECTOR_COLLECTION || 'knowledge_fragments';
     this.indexName =
-      process.env.MONGODB_VECTOR_INDEX || 'vector_index';
+      process.env.MONGODB_VECTOR_INDEX || 'knowledge_vector_index';
     this.embeddingFieldPath =
       process.env.MONGODB_VECTOR_FIELD || 'embedding';
 

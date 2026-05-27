@@ -14,6 +14,7 @@ import { mongoDbUri } from "../databases/mongodb";
 import { companyLogosBucket } from "../storage/company-logos";
 import { knowledgeBucket } from "../storage/knowledge-bucket";
 import { indexationQueue } from "../queues/indexation-queue";
+import { whatsAppOutgoingQueue, whatsAppIncomingQueue } from "../queues/whatsapp-queues";
 import {
   jwtSecrets,
   captchaSecret,
@@ -24,6 +25,9 @@ import {
   elasticEmailTemplateId,
   elasticEmailPasswordResetTemplateId,
   frontendDomain,
+  metaAppId,
+  metaAppSecret,
+  encryptionKey,
 } from "../shared/secrets";
 
 /**
@@ -55,6 +59,18 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
       actions: ["sqs:SendMessage"],
       resources: [indexationQueue.arn],
     },
+    {
+      actions: ["sqs:SendMessage"],
+      resources: [whatsAppOutgoingQueue.arn],
+    },
+    {
+      actions: ["sqs:SendMessage"],
+      resources: [whatsAppIncomingQueue.arn],
+    },
+    {
+      actions: ["bedrock:InvokeModel"],
+      resources: ["*"],
+    },
   ],
   environment: {
     MONGODB_URI: mongoDbUri.value,
@@ -70,6 +86,13 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     COMPANY_LOGOS_BUCKET: companyLogosBucket.name,
     KNOWLEDGE_BUCKET: knowledgeBucket.name,
     INDEXATION_QUEUE_URL: indexationQueue.url,
+    WHATSAPP_OUTGOING_QUEUE_URL: whatsAppOutgoingQueue.url,
+    WHATSAPP_INCOMING_QUEUE_URL: whatsAppIncomingQueue.url,
+    META_APP_ID: metaAppId.value,
+    META_APP_SECRET: metaAppSecret.value,
+    ENCRYPTION_KEY: encryptionKey.value,
+    MONGODB_VECTOR_INDEX: "knowledge_vector_index",
+    BEDROCK_MODEL_ID: "us.amazon.nova-lite-v1:0",
   },
   logging: {
     retention: "1 month",

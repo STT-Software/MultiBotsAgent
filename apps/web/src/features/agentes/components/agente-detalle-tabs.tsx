@@ -50,7 +50,7 @@ export function AgenteDetalleTabs({ agente, onAgenteUpdate }: AgenteDetalleTabsP
       case "personalidad":
         return <AgenteTabPersonalidad />;
       case "canal":
-        return <AgenteTabCanal />;
+        return <AgenteTabCanal agente={agente} />;
       case "conocimiento":
         return <AgenteTabConocimiento agentId={agente.id} />;
     }

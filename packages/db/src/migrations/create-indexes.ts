@@ -28,6 +28,8 @@ import {
   COMPANIES_INDEXES,
   RATE_LIMITS_COLLECTION,
   RATE_LIMITS_INDEXES,
+  CHANNELS_COLLECTION,
+  CHANNELS_INDEXES,
 } from "../schemas";
 
 interface IndexDefinition {
@@ -36,6 +38,7 @@ interface IndexDefinition {
   readonly unique?: boolean;
   readonly collation?: { locale: string; strength: number };
   readonly expireAfterSeconds?: number;
+  readonly partialFilterExpression?: Record<string, unknown>;
 }
 
 async function createIndexes(): Promise<void> {
@@ -65,6 +68,7 @@ async function createIndexes(): Promise<void> {
       { name: EMAIL_QUEUE_COLLECTION, indexes: EMAIL_QUEUE_INDEXES as unknown as IndexDefinition[] },
       { name: COMPANIES_COLLECTION, indexes: COMPANIES_INDEXES as unknown as IndexDefinition[] },
       { name: RATE_LIMITS_COLLECTION, indexes: RATE_LIMITS_INDEXES as unknown as IndexDefinition[] },
+      { name: CHANNELS_COLLECTION, indexes: CHANNELS_INDEXES as unknown as IndexDefinition[] },
     ];
 
     for (const { name, indexes } of collections) {
@@ -84,6 +88,10 @@ async function createIndexes(): Promise<void> {
 
         if (indexDef.expireAfterSeconds !== undefined) {
           options.expireAfterSeconds = indexDef.expireAfterSeconds;
+        }
+
+        if (indexDef.partialFilterExpression) {
+          options.partialFilterExpression = indexDef.partialFilterExpression;
         }
 
         try {

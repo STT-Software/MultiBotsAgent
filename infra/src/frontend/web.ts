@@ -9,12 +9,14 @@
  */
 
 import { servicesApiUrl } from "../apis/services-api";
-import { recaptchaSiteKey } from "../shared/secrets";
+import { recaptchaSiteKey, metaAppId, metaConfigId } from "../shared/secrets";
 
 export const web = new sst.aws.Nextjs("Web", {
   path: "apps/web",
   environment: {
     NEXT_PUBLIC_API_URL: servicesApiUrl,
     NEXT_PUBLIC_RECAPTCHA_SITE_KEY: recaptchaSiteKey.value,
+    NEXT_PUBLIC_META_APP_ID: metaAppId.value,
+    NEXT_PUBLIC_META_CONFIG_ID: metaConfigId.value,
   },
 });

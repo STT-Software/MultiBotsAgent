@@ -46,9 +46,9 @@ export class RagEngineService {
     @Inject(RAG_VECTOR_SEARCH) private readonly vectorSearch: VectorSearchService,
     @Inject(RAG_MEMORY_SERVICE) private readonly memoryService: MemoryService,
     @Inject(RAG_AGENT_CONFIG_SERVICE) private readonly agentConfigProvider: AgentConfigProvider,
-    private readonly promptBuilder: PromptBuilderService,
-    private readonly reRankingService: ReRankingService,
-    private readonly responseFormatter: ResponseFormatterService,
+    @Inject(PromptBuilderService) private readonly promptBuilder: PromptBuilderService,
+    @Inject(ReRankingService) private readonly reRankingService: ReRankingService,
+    @Inject(ResponseFormatterService) private readonly responseFormatter: ResponseFormatterService,
   ) {}
 
   /**
@@ -86,12 +86,11 @@ export class RagEngineService {
 
     // 6. Handle empty knowledge base (Req 3.5)
     if (searchResults.length === 0) {
-      this.logger.warn('Knowledge base is empty for agent', {
+      this.logger.warn('Knowledge base is empty for agent, proceeding with empty context', {
         agentId: input.agentId,
         conversationId: input.conversationId,
         stage: 'vector_search',
       });
-      return this.buildNoInfoResponse(input, config);
     }
 
     // 7. Filter by threshold
@@ -103,8 +102,8 @@ export class RagEngineService {
     });
 
     // 8. Handle no fragments above threshold (Req 3.4)
-    if (filteredFragments.length === 0) {
-      this.logger.warn('No fragments above relevance threshold', {
+    if (filteredFragments.length === 0 && searchResults.length > 0) {
+      this.logger.warn('No fragments above relevance threshold, proceeding with empty context', {
         agentId: input.agentId,
         conversationId: input.conversationId,
         threshold: config.relevanceThreshold,
@@ -112,22 +111,20 @@ export class RagEngineService {
         userMessage: input.userMessage,
         stage: 'threshold_filtering',
       });
-      return this.buildNoInfoResponse(input, config);
     }
 
     // 9. Re-ranking (graceful degradation)
     const validatedFragments = await this.performReRanking(filteredFragments, input.userMessage);
 
     // 10. Handle re-ranking rejection
-    if (validatedFragments.length === 0) {
-      this.logger.warn('Re-ranking rejected all fragments', {
+    if (validatedFragments.length === 0 && filteredFragments.length > 0) {
+      this.logger.warn('Re-ranking rejected all fragments, proceeding with empty context', {
         agentId: input.agentId,
         conversationId: input.conversationId,
         originalCount: filteredFragments.length,
         userMessage: input.userMessage,
         stage: 're_ranking',
       });
-      return this.buildNoInfoResponse(input, config);
     }
 
     // 11. Build prompt
@@ -159,6 +156,18 @@ export class RagEngineService {
       }
 
       llmContent = llmResponse.content;
+
+      // 13.5 Handle NO_INFO response from LLM
+      const cleanContent = llmContent.trim().toUpperCase();
+      if (cleanContent === 'NO_INFO' || cleanContent.includes('NO_INFO')) {
+        this.logger.warn('LLM determined no information was available, returning noInfoMessage', {
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+          stage: 'llm_invocation',
+        });
+        return this.buildNoInfoResponse(input, config);
+      }
+
       this.logger.debug('LLM response received', {
         tokensUsed: llmResponse.tokensUsed,
         finishReason: llmResponse.finishReason,

@@ -17,6 +17,11 @@ import type {
   ServiceCategory,
   CompanySize,
   ReferralSource,
+  Channel,
+  ChannelStatus,
+  EncryptedToken,
+  ProcessedMessage,
+  MessageLog,
 } from '@multibotagents/types';
 import type { Repository } from './repository.interface';
 
@@ -173,7 +178,72 @@ export interface IResetPasswordUserRepository {
   updatePasswordHash(userId: string, newHash: string): Promise<boolean>;
 }
 
-
 // ─── Escalated Conversation ──────────────────────────────────────────────────
 
 export type { IEscalatedConversationRepository } from '../adapters/mongodb/escalated-conversation.repository';
+
+// ─── Channel ─────────────────────────────────────────────────────────────────
+
+/** Datos necesarios para crear un canal de WhatsApp. */
+export interface CreateChannelData {
+  companyId: string;
+  agentId: string;
+  provider: "whatsapp";
+  status: ChannelStatus;
+  phoneNumberId: string;
+  wabaId: string;
+  encryptedToken: EncryptedToken;
+  displayName: string;
+  webhookOverrideUrl?: string;
+  connectedAt: Date;
+}
+
+/** Datos para actualizar un canal (campos parciales). */
+export interface UpdateChannelData {
+  status: ChannelStatus;
+  displayName: string;
+  webhookOverrideUrl: string;
+  lastHealthCheck: Date;
+}
+
+/** Datos para actualizar credenciales de un canal (reconexión). */
+export interface UpdateCredentialsData {
+  encryptedToken: EncryptedToken;
+  status: "connected";
+  connectedAt: Date;
+}
+
+export interface IChannelRepository extends Repository<Channel> {
+  /** Busca un canal por phoneNumberId (cualquier estado). */
+  findByPhoneNumberId(phoneNumberId: string): Promise<Channel | null>;
+
+  /** Busca un canal activo (connected o partially_connected) por phoneNumberId. */
+  findActiveByPhoneNumberId(phoneNumberId: string): Promise<Channel | null>;
+
+  /** Busca un canal por agentId. */
+  findByAgentId(agentId: string): Promise<Channel | null>;
+
+  /** Actualiza campos parciales de un canal. */
+  update(id: string, data: Partial<UpdateChannelData>): Promise<Channel>;
+
+  /** Actualiza credenciales de un canal existente (reconexión). */
+  updateCredentials(id: string, data: UpdateCredentialsData): Promise<Channel>;
+}
+
+// ─── ProcessedMessage (Idempotencia) ─────────────────────────────────────────
+
+export interface IProcessedMessageRepository {
+  create(message: ProcessedMessage): Promise<ProcessedMessage>;
+  findByWaMessageId(waMessageId: string): Promise<ProcessedMessage | null>;
+}
+
+// ─── MessageLog ──────────────────────────────────────────────────────────────
+
+export interface IMessageLogRepository extends Repository<MessageLog> {
+  findByWaMessageId(waMessageId: string): Promise<MessageLog | null>;
+  updateStatus(
+    waMessageId: string,
+    status: MessageLog["status"],
+    details?: { errorCode?: number; errorMessage?: string }
+  ): Promise<void>;
+}

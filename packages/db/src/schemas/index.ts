@@ -57,3 +57,25 @@ export {
   RATE_LIMITS_VALIDATION,
   type RateLimitDocument,
 } from "./rate-limit.schema";
+
+export {
+  CHANNELS_COLLECTION,
+  CHANNELS_INDEXES,
+  CHANNELS_VALIDATION,
+  type ChannelDocument,
+} from "./channel.schema";
+
+export {
+  PROCESSED_MESSAGES_COLLECTION,
+  PROCESSED_MESSAGES_INDEXES,
+  PROCESSED_MESSAGES_VALIDATION,
+  type ProcessedMessageDocument,
+} from "./processed-message.schema";
+
+export {
+  MESSAGE_LOGS_COLLECTION,
+  MESSAGE_LOGS_INDEXES,
+  MESSAGE_LOGS_VALIDATION,
+  type MessageLogDocument,
+} from "./message-log.schema";
+
