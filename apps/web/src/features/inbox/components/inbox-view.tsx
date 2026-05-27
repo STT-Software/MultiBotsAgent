@@ -8,7 +8,7 @@ import { useEscalatedConversations } from "../hooks/use-escalated-conversations"
 import { useConversationDetail } from "../hooks/use-conversation-detail";
 import { useSendMessage } from "../hooks/use-send-message";
 import { useResolveConversation } from "../hooks/use-resolve-conversation";
-import { activateMockMode } from "../services/inbox.service";
+import { activateMockMode, seedConversations } from "../services/inbox.service";
 import { InboxConversationList } from "./inbox-conversation-list";
 import { InboxConversationDetail } from "./inbox-conversation-detail";
 import { InboxEmptyState } from "./inbox-empty-state";
@@ -87,7 +87,9 @@ export function InboxView() {
               Reintentar
             </button>
             <button
-              onClick={() => { activateMockMode(); refresh(); }}
+              onClick={async () => {
+                try { await seedConversations(); refresh(); } catch { activateMockMode(); refresh(); }
+              }}
               className="rounded-lg px-4 py-2 text-sm font-medium"
               style={{
                 backgroundColor: "#1a2f23",
@@ -104,7 +106,9 @@ export function InboxView() {
   }
 
   if (conversations.length === 0) {
-    return <InboxEmptyState onSimulate={() => { activateMockMode(); refresh(); }} />;
+    return <InboxEmptyState onSimulate={async () => {
+      try { await seedConversations(); refresh(); } catch { activateMockMode(); refresh(); }
+    }} />;
   }
 
   const isResolved = conversation?.status === "resolved";
