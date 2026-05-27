@@ -19,6 +19,8 @@ export { KnowledgeSourceRepository } from "./knowledge-source.repository";
 export type { IKnowledgeSourceRepository } from "./knowledge-source.repository";
 export { KnowledgeFragmentRepository } from "./knowledge-fragment.repository";
 export type { IKnowledgeFragmentRepository } from "./knowledge-fragment.repository";
+export { EscalatedConversationRepository } from "./escalated-conversation.repository";
+export type { IEscalatedConversationRepository, EscalatedConversation, EscalatedConversationMessage } from "./escalated-conversation.repository";
 export { ProcessedMessageRepository } from "./processed-message.repository";
 export { MessageLogRepository } from "./message-log.repository";
 

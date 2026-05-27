@@ -1,10 +1,13 @@
 "use client";
 
 import { ConversationMessage } from "../types/inbox.types";
+import { InboxMessageStatus } from "./inbox-message-status";
 import { motion } from "motion/react";
+import { FileText, Download } from "lucide-react";
 
 interface InboxMessageBubbleProps {
   message: ConversationMessage;
+  onRetry?: () => void;
 }
 
 const SENDER_CONFIG = {
@@ -42,8 +45,10 @@ function formatTime(timestamp: string): string {
   return date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function InboxMessageBubble({ message }: InboxMessageBubbleProps) {
+export function InboxMessageBubble({ message, onRetry }: InboxMessageBubbleProps) {
   const config = SENDER_CONFIG[message.sender];
+  const isImage = message.type === "image" && message.fileUrl;
+  const isFile = message.type === "file" && message.fileUrl;
 
   return (
     <motion.div
@@ -62,13 +67,56 @@ export function InboxMessageBubble({ message }: InboxMessageBubbleProps) {
           border: config.border !== "transparent" ? `1px solid ${config.border}` : "none",
         }}
       >
-        <p className="text-sm leading-relaxed" style={{ color: config.text }}>
-          {message.content}
-        </p>
+        {/* Image attachment */}
+        {isImage && (
+          <a href={message.fileUrl} target="_blank" rel="noopener noreferrer" className="block mb-2">
+            <img
+              src={message.fileUrl}
+              alt={message.fileName || "Imagen"}
+              className="max-w-full max-h-48 rounded object-cover cursor-pointer"
+            />
+          </a>
+        )}
+
+        {/* File attachment */}
+        {isFile && (
+          <a
+            href={message.fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 mb-2 rounded px-2.5 py-2 transition-colors"
+            style={{ backgroundColor: "rgba(0,0,0,0.2)" }}
+          >
+            <FileText size={16} style={{ color: "#869489" }} aria-hidden="true" />
+            <span className="flex-1 text-xs truncate" style={{ color: "#dde5dc" }}>
+              {message.fileName || message.content}
+            </span>
+            <Download size={14} style={{ color: "#869489" }} aria-hidden="true" />
+          </a>
+        )}
+
+        {/* Text content (skip if it's just the filename for file messages) */}
+        {(!isImage && !isFile) && (
+          <p className="text-sm leading-relaxed" style={{ color: config.text }}>
+            {message.content}
+          </p>
+        )}
+        {(isImage || isFile) && message.content && message.content !== message.fileName && (
+          <p className="text-sm leading-relaxed" style={{ color: config.text }}>
+            {message.content}
+          </p>
+        )}
       </div>
-      <span className="text-[10px] text-gray-500">
-        {formatTime(message.timestamp)}
-      </span>
+
+      {/* Time + Status */}
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-gray-500">
+          {formatTime(message.timestamp)}
+        </span>
+        {message.sender === "operator" && message.status && (
+          <InboxMessageStatus status={message.status} onRetry={onRetry} />
+        )}
+      </div>
     </motion.div>
   );
 }

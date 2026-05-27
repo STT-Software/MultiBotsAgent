@@ -7,6 +7,7 @@ import { CompanyProfileModule } from "./modules/company-profile/company-profile.
 import { ChannelsModule } from "./modules/channels/channels.module";
 import { KnowledgeModule } from "./modules/knowledge/knowledge.module";
 import { RagEngineModule } from "./modules/rag-engine/rag-engine.module";
+import { EscalamientoModule } from "./modules/escalamiento/escalamiento.module";
 import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-verified.guard";
 
 @Module({
@@ -18,6 +19,7 @@ import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-ve
     ChannelsModule,
     KnowledgeModule,
     RagEngineModule,
+    EscalamientoModule,
   ],
   providers: [
     {

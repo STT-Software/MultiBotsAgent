@@ -1,0 +1,42 @@
+import { Module } from '@nestjs/common';
+import { MongoClient } from 'mongodb';
+import { CompanyRepository, EscalatedConversationRepository, S3StorageService } from '@multibotagents/db';
+import { EscalamientoController } from './escalamiento.controller';
+import { EscalamientoService } from './escalamiento.service';
+import { EscalamientoStorageService } from './escalamiento-storage.service';
+
+@Module({
+  controllers: [EscalamientoController],
+  providers: [
+    {
+      provide: 'MONGO_CLIENT',
+      useFactory: () => {
+        const uri = process.env.MONGODB_URI;
+        if (!uri) throw new Error('MONGODB_URI is required');
+        return new MongoClient(uri);
+      },
+    },
+    {
+      provide: 'COMPANY_REPO',
+      useFactory: (client: MongoClient) => new CompanyRepository(client.db()),
+      inject: ['MONGO_CLIENT'],
+    },
+    {
+      provide: 'ESCALATED_CONVERSATION_REPO',
+      useFactory: (client: MongoClient) => new EscalatedConversationRepository(client.db()),
+      inject: ['MONGO_CLIENT'],
+    },
+    {
+      provide: 'ESCALAMIENTO_STORAGE',
+      useFactory: () => {
+        const bucket = process.env.ESCALAMIENTO_FILES_BUCKET || process.env.COMPANY_LOGOS_BUCKET;
+        const region = process.env.ESCALAMIENTO_FILES_REGION || process.env.COMPANY_LOGOS_REGION || 'us-east-1';
+        if (!bucket) throw new Error('ESCALAMIENTO_FILES_BUCKET or COMPANY_LOGOS_BUCKET is required');
+        return new S3StorageService({ bucket, region });
+      },
+    },
+    EscalamientoService,
+    EscalamientoStorageService,
+  ],
+})
+export class EscalamientoModule {}

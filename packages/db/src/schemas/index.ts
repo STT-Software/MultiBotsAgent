@@ -44,6 +44,14 @@ export {
 } from "./email-queue.schema";
 
 export {
+  ESCALATED_CONVERSATIONS_COLLECTION,
+  ESCALATED_CONVERSATIONS_INDEXES,
+  ESCALATED_CONVERSATIONS_VALIDATION,
+  type EscalatedConversationDocument,
+  type EscalatedConversationMessageDocument,
+} from "./escalated-conversation.schema";
+
+export {
   RATE_LIMITS_COLLECTION,
   RATE_LIMITS_INDEXES,
   RATE_LIMITS_VALIDATION,

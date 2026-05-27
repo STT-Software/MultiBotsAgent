@@ -13,6 +13,7 @@ interface InboxConversationDetailProps {
   conversation: EscalatedConversation | null;
   loading: boolean;
   onSendMessage?: (content: string) => void;
+  onSendWithFile?: (file: File) => void;
   sending?: boolean;
   isTyping?: boolean;
   isResolved?: boolean;
@@ -41,6 +42,7 @@ export function InboxConversationDetail({
   conversation,
   loading,
   onSendMessage,
+  onSendWithFile,
   sending = false,
   isTyping = false,
   isResolved = false,
@@ -160,6 +162,7 @@ export function InboxConversationDetail({
       {onSendMessage && (
         <InboxMessageInput
           onSend={onSendMessage}
+          onSendWithFile={onSendWithFile}
           sending={sending}
           disabled={isResolved}
         />

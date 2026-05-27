@@ -178,6 +178,10 @@ export interface IResetPasswordUserRepository {
   updatePasswordHash(userId: string, newHash: string): Promise<boolean>;
 }
 
+// ─── Escalated Conversation ──────────────────────────────────────────────────
+
+export type { IEscalatedConversationRepository } from '../adapters/mongodb/escalated-conversation.repository';
+
 // ─── Channel ─────────────────────────────────────────────────────────────────
 
 /** Datos necesarios para crear un canal de WhatsApp. */
@@ -243,4 +247,3 @@ export interface IMessageLogRepository extends Repository<MessageLog> {
     details?: { errorCode?: number; errorMessage?: string }
   ): Promise<void>;
 }
-

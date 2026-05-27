@@ -3,10 +3,17 @@
 import { useCallback, useRef, useState } from "react";
 
 import { ConversationMessage } from "../types/inbox.types";
-import { sendOperatorMessage, SIMULATE_USER_REPLIES, getRandomSimulatedReply } from "../services/inbox.service";
+import {
+  sendOperatorMessage,
+  getUploadUrl,
+  uploadFileToS3,
+  SIMULATE_USER_REPLIES,
+  getRandomSimulatedReply,
+} from "../services/inbox.service";
 
 interface UseSendMessageReturn {
   send: (content: string) => Promise<void>;
+  sendWithFile: (file: File) => Promise<void>;
   sending: boolean;
   error: string | null;
   isTyping: boolean;
@@ -23,6 +30,27 @@ export function useSendMessage(
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const replyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const triggerSimulatedReply = useCallback(() => {
+    if (!SIMULATE_USER_REPLIES) return;
+
+    const typingDelay = 2000 + Math.random() * 2000;
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(true);
+      const replyDelay = 1000 + Math.random() * 1000;
+      replyTimeoutRef.current = setTimeout(() => {
+        setIsTyping(false);
+        const simulatedMsg: ConversationMessage = {
+          id: `sim-${Date.now()}`,
+          sender: "user",
+          content: getRandomSimulatedReply(),
+          timestamp: new Date().toISOString(),
+          type: "text",
+        };
+        onSimulatedReply?.(simulatedMsg);
+      }, replyDelay);
+    }, typingDelay);
+  }, [onSimulatedReply]);
+
   const send = useCallback(
     async (content: string) => {
       if (!conversationId) return;
@@ -37,36 +65,57 @@ export function useSendMessage(
           type: "text",
         });
         onMessageSent?.(message);
-
-        // Simulación de respuesta del usuario
-        if (SIMULATE_USER_REPLIES) {
-          const typingDelay = 2000 + Math.random() * 2000; // 2-4 segundos
-          typingTimeoutRef.current = setTimeout(() => {
-            setIsTyping(true);
-            const replyDelay = 1000 + Math.random() * 1000; // 1-2 segundos
-            replyTimeoutRef.current = setTimeout(() => {
-              setIsTyping(false);
-              const simulatedMsg: ConversationMessage = {
-                id: `sim-${Date.now()}`,
-                sender: "user",
-                content: getRandomSimulatedReply(),
-                timestamp: new Date().toISOString(),
-                type: "text",
-              };
-              onSimulatedReply?.(simulatedMsg);
-            }, replyDelay);
-          }, typingDelay);
-        }
+        triggerSimulatedReply();
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Error al enviar el mensaje";
-        setError(message);
+        const msg = err instanceof Error ? err.message : "Error al enviar el mensaje";
+        setError(msg);
       } finally {
         setSending(false);
       }
     },
-    [conversationId, onMessageSent, onSimulatedReply]
+    [conversationId, onMessageSent, triggerSimulatedReply]
   );
 
-  return { send, sending, error, isTyping };
+  const sendWithFile = useCallback(
+    async (file: File) => {
+      if (!conversationId) return;
+
+      setSending(true);
+      setError(null);
+
+      try {
+        // 1. Get presigned URL
+        const { uploadUrl, publicUrl } = await getUploadUrl(
+          conversationId,
+          file.name,
+          file.type,
+        );
+
+        // 2. Upload file to S3
+        await uploadFileToS3(uploadUrl, file);
+
+        // 3. Send message with file reference
+        const type = file.type.startsWith("image/") ? "image" : "file";
+        const message = await sendOperatorMessage({
+          conversationId,
+          content: file.name,
+          type,
+          fileUrl: publicUrl,
+          fileName: file.name,
+          fileSize: file.size,
+          fileMimeType: file.type,
+        });
+        onMessageSent?.(message);
+        triggerSimulatedReply();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Error al enviar el archivo";
+        setError(msg);
+      } finally {
+        setSending(false);
+      }
+    },
+    [conversationId, onMessageSent, triggerSimulatedReply]
+  );
+
+  return { send, sendWithFile, sending, error, isTyping };
 }
