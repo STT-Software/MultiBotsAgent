@@ -1,8 +1,11 @@
 import {
   Controller,
   Get,
+  Post,
+  Patch,
   Param,
   Query,
+  Body,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -12,6 +15,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiQuery,
+  ApiBody,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -19,7 +23,9 @@ import { EscalamientoService } from './escalamiento.service';
 import {
   ConversationResponseDto,
   ConversationsListResponseDto,
+  ConversationMessageResponseDto,
   PendingCountResponseDto,
+  SendMessageDto,
 } from './dto';
 
 @ApiTags('Escalamiento')
@@ -77,5 +83,44 @@ export class EscalamientoController {
     const { companyId } = (req as any).user;
     const count = await this.escalamientoService.getPendingCount(companyId);
     return { count };
+  }
+
+  // ─── POST /api/escalamiento/conversations/:id/messages ───────────────────
+
+  @Post('conversations/:id/messages')
+  @ApiOperation({
+    summary: 'Enviar mensaje del operador',
+    description: 'Envía un mensaje (texto, imagen o archivo) a una conversación escalada.',
+  })
+  @ApiBody({ type: SendMessageDto })
+  @ApiResponse({ status: 201, type: ConversationMessageResponseDto })
+  @ApiResponse({ status: 400, description: 'Conversación resuelta o datos inválidos.' })
+  @ApiResponse({ status: 404, description: 'Conversación no encontrada.' })
+  async sendMessage(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: SendMessageDto,
+  ) {
+    const { companyId } = (req as any).user;
+    return this.escalamientoService.sendMessage(companyId, id, dto);
+  }
+
+  // ─── PATCH /api/escalamiento/conversations/:id/resolve ───────────────────
+
+  @Patch('conversations/:id/resolve')
+  @ApiOperation({
+    summary: 'Resolver conversación',
+    description: 'Marca la conversación como resuelta. El control vuelve al agente.',
+  })
+  @ApiResponse({ status: 200, description: 'Conversación resuelta exitosamente.' })
+  @ApiResponse({ status: 400, description: 'La conversación ya está resuelta.' })
+  @ApiResponse({ status: 404, description: 'Conversación no encontrada.' })
+  async resolveConversation(
+    @Req() req: Request,
+    @Param('id') id: string,
+  ) {
+    const { companyId } = (req as any).user;
+    await this.escalamientoService.resolveConversation(companyId, id);
+    return { success: true };
   }
 }

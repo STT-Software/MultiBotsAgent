@@ -4,3 +4,5 @@ export {
   ConversationsListResponseDto,
   PendingCountResponseDto,
 } from './conversation-response.dto';
+
+export { SendMessageDto } from './send-message.dto';
