@@ -2,6 +2,15 @@ import { Agente, AgentesResponse, AgentesMetrics, CreateAgenteDTO, UpdateAgenteD
 
 const MOCK_AGENTES: Agente[] = [
   {
+    id: "6a17081684826f9c174d2118",
+    nombre: "WhatsApp E2E RAG Agent",
+    codigoId: "agt_rag_e2e",
+    tipo: "rag",
+    estado: "activo",
+    vencimiento: "27 jun 2026",
+    createdAt: "2026-05-27T15:04:54Z",
+  },
+  {
     id: "507f1f77bcf86cd799439011",
     nombre: "Soporte Técnico",
     codigoId: "agt_tec_381",

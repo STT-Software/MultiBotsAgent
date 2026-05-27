@@ -11,3 +11,4 @@ export {
   type ExistingChannel,
   type UniquenessCheckResult,
 } from "./channel-validation";
+export { validateMetaSignature } from "./signature-validation";

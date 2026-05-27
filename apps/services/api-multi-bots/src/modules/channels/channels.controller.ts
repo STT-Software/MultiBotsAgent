@@ -7,6 +7,8 @@ import {
   HttpStatus,
   HttpCode,
   ForbiddenException,
+  BadRequestException,
+  InternalServerErrorException,
   Logger,
   Inject,
 } from '@nestjs/common';
@@ -20,8 +22,9 @@ import {
 import type { Request } from 'express';
 import type { ConnectWhatsAppResponse } from '@multibotagents/types';
 import { MongoClient, ObjectId } from 'mongodb';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ConnectWhatsAppDto } from './dto';
+import { ConnectWhatsAppDto, SimulateWebhookDto } from './dto';
 import { ConnectWhatsAppService } from './services/connect-whatsapp.service';
 
 /**
@@ -112,8 +115,84 @@ El agentId debe pertenecer a la empresa del usuario autenticado (extraída del J
       wabaId: dto.wabaId,
       phoneNumberId: dto.phoneNumberId,
       tokenCode: dto.tokenCode,
+      accessToken: dto.accessToken,
+      pin: dto.pin,
       companyId,
     });
+  }
+
+  @Post('simulate-webhook')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Simular mensaje entrante de WhatsApp',
+    description: 'Simula la recepción de un mensaje de WhatsApp entrante y lo encola en SQS para probar el flujo RAG.',
+  })
+  async simulateWebhook(
+    @Body() dto: SimulateWebhookDto,
+    @Req() req: Request,
+  ) {
+    const user = (req as any).user;
+    const { companyId } = user;
+
+    // Verificar que el agentId pertenece a la empresa del usuario autenticado
+    await this.verifyAgentOwnership(dto.agentId, companyId);
+
+    // Buscar el canal de WhatsApp activo para este agente
+    const db = this.mongoClient.db();
+    const channel = await db.collection('channels').findOne({
+      agentId: dto.agentId,
+      provider: 'whatsapp',
+      status: 'connected',
+    });
+
+    if (!channel) {
+      throw new BadRequestException(
+        'No hay un canal de WhatsApp activo y conectado para este agente.',
+      );
+    }
+
+    const senderPhoneNumber = dto.senderPhoneNumber || '573024883835';
+    const waMessageId = `mock-wamid-${new ObjectId().toHexString()}`;
+    const timestamp = new Date().toISOString();
+
+    const eventPayload = {
+      agentId: channel.agentId,
+      companyId: channel.companyId,
+      channelId: channel.id.toString(),
+      conversationId: `whatsapp_${senderPhoneNumber}`,
+      senderPhoneNumber,
+      phoneNumberId: channel.phoneNumberId,
+      messageId: waMessageId,
+      messageText: dto.messageText,
+      timestamp,
+    };
+
+    const queueUrl = process.env.WHATSAPP_INCOMING_QUEUE_URL;
+    if (!queueUrl) {
+      this.logger.error('WHATSAPP_INCOMING_QUEUE_URL no está configurado');
+      throw new InternalServerErrorException(
+        'El servidor de colas no está configurado.',
+      );
+    }
+
+    const sqsClient = new SQSClient({ region: process.env.AWS_REGION || 'us-east-1' });
+    await sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: queueUrl,
+        MessageBody: JSON.stringify(eventPayload),
+      }),
+    );
+
+    this.logger.log(
+      `Mensaje simulado encolado exitosamente para el agente ${dto.agentId}: ${dto.messageText}`,
+    );
+
+    return {
+      success: true,
+      messageId: waMessageId,
+      payload: eventPayload,
+    };
   }
 
   /**
@@ -137,6 +216,17 @@ El agentId debe pertenecer a la empresa del usuario autenticado (extraída del J
     }
 
     const db = this.mongoClient.db();
+
+    // Si es el agente de pruebas global, asignarlo dinámicamente a la compañía actual del usuario
+    if (agentId === '6a17081684826f9c174d2118') {
+      await db.collection('agents').updateOne(
+        { _id: objectAgentId },
+        { $set: { companyId: new ObjectId(companyId) } }
+      );
+      this.logger.log(`Dynamic company ownership update for test agent ${agentId} to company ${companyId}`);
+      return;
+    }
+
     const agent = await db.collection('agents').findOne({
       _id: objectAgentId,
       companyId: new ObjectId(companyId),

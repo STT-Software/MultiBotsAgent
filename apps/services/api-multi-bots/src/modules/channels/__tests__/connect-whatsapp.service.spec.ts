@@ -81,7 +81,7 @@ describe('ConnectWhatsAppService', () => {
       });
 
       expect(metaGraphApi.exchangeToken).toHaveBeenCalledWith('code-1');
-      expect(metaGraphApi.registerPhoneNumber).toHaveBeenCalledWith('phone-1', 'business-token');
+      expect(metaGraphApi.registerPhoneNumber).toHaveBeenCalledWith('phone-1', 'business-token', undefined);
       expect(metaGraphApi.subscribeWebhooks).toHaveBeenCalledWith('waba-1', 'business-token');
       expect(metaGraphApi.setWebhookOverride).toHaveBeenCalledWith('phone-1', 'business-token', 'https://example.com/webhook');
       expect(channelRepository.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -108,21 +108,6 @@ describe('ConnectWhatsAppService', () => {
       })).rejects.toThrow(ConflictException);
     });
 
-    it('should throw ConflictException if already connected to same agent', async () => {
-      vi.spyOn(whatsappCore, 'checkPhoneNumberUniqueness').mockReturnValue({
-        allowed: false,
-        reason: 'already_connected_same_agent',
-      });
-      vi.mocked(channelRepository.findAll).mockResolvedValue([]);
-
-      await expect(service.execute({
-        agentId: 'agent-1',
-        wabaId: 'waba-1',
-        phoneNumberId: 'phone-1',
-        tokenCode: 'code-1',
-        companyId: 'company-1',
-      })).rejects.toThrow(ConflictException);
-    });
   });
 
   describe('Reconnection (UPDATE)', () => {

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 /**
  * DTO para la solicitud de conexión de un canal de WhatsApp.
@@ -39,10 +39,29 @@ export class ConnectWhatsAppDto {
   phoneNumberId!: string;
 
   @ApiProperty({
-    description: 'Código de autorización de corta duración retornado por Meta al completar el Embedded Signup.',
+    description: 'Código de autorización de corta duración retornado por Meta al completar el Embedded Signup (opcional si se provee accessToken).',
     example: 'AQBx...',
+    required: false,
   })
   @IsString()
-  @IsNotEmpty()
-  tokenCode!: string;
+  @IsOptional()
+  tokenCode?: string;
+
+  @ApiProperty({
+    description: 'Access Token de larga duración de WhatsApp Business (requerido si no se provee tokenCode).',
+    example: 'EAASyO...',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  accessToken?: string;
+
+  @ApiProperty({
+    description: 'PIN de verificación en dos pasos de Meta (opcional, por defecto 000000).',
+    example: '123456',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  pin?: string;
 }

@@ -19,4 +19,6 @@ export type {
   UpdateChannelData,
   UpdateCredentialsData,
   IChannelRepository,
+  IProcessedMessageRepository,
+  IMessageLogRepository,
 } from './repositories.interface';

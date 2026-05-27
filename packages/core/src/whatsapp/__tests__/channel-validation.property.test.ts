@@ -93,8 +93,8 @@ describe("checkPhoneNumberUniqueness — Property Tests", () => {
    * Rule 2: Retorna "already_connected_same_agent" si existe un canal con
    * status "connected" asociado al mismo agentId.
    */
-  describe("Property 2.2: Canal connected del mismo agente bloquea la conexión", () => {
-    it("retorna already_connected_same_agent cuando existe canal connected del mismo agente (sin canales de otro agente activos)", () => {
+  describe("Property 2.2: Canal connected del mismo agente permite reconectar y actualizar", () => {
+    it("retorna allowed con action update cuando existe canal connected del mismo agente (sin canales de otro agente activos)", () => {
       fc.assert(
         fc.property(
           phoneNumberIdArb,
@@ -132,8 +132,9 @@ describe("checkPhoneNumberUniqueness — Property Tests", () => {
             );
 
             expect(result).toEqual({
-              allowed: false,
-              reason: "already_connected_same_agent",
+              allowed: true,
+              action: "update",
+              existingChannelId: channelId,
             });
           },
         ),
@@ -224,12 +225,8 @@ describe("checkPhoneNumberUniqueness — Property Tests", () => {
               ) {
                 return false;
               }
-              // Remove connected from same agent (Rule 2)
-              if (ch.agentId === agentId && ch.status === "connected") {
-                return false;
-              }
-              // Remove requires_reconnection from same agent (Rule 3)
-              if (ch.agentId === agentId && ch.status === "requires_reconnection") {
+              // Remove same agent channels that are not disconnected (as they trigger update)
+              if (ch.agentId === agentId && ch.status !== "disconnected") {
                 return false;
               }
               return true;

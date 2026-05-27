@@ -56,14 +56,15 @@ export function checkPhoneNumberUniqueness(
     return { allowed: false, reason: "already_connected_other_agent" };
   }
 
-  // Rule 2: Check if connected to the SAME agent
+  // Rule 2: Check if connected or partially_connected to the SAME agent -> allow update
   const connectedToSameAgent = existingChannels.find(
     (channel) =>
-      channel.agentId === agentId && channel.status === "connected",
+      channel.agentId === agentId &&
+      (channel.status === "connected" || channel.status === "partially_connected"),
   );
 
   if (connectedToSameAgent) {
-    return { allowed: false, reason: "already_connected_same_agent" };
+    return { allowed: true, action: "update", existingChannelId: connectedToSameAgent.id };
   }
 
   // Rule 3: Check if requires_reconnection for the SAME agent

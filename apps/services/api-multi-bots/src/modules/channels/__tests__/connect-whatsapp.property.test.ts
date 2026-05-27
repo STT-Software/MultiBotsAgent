@@ -34,7 +34,6 @@ describe("ConnectWhatsAppDto — Property Tests", () => {
     "agentId",
     "wabaId",
     "phoneNumberId",
-    "tokenCode",
   ] as const;
 
   /**
@@ -77,7 +76,7 @@ describe("ConnectWhatsAppDto — Property Tests", () => {
           // Pick which field(s) to invalidate
           fc.subarray(requiredFields as unknown as string[], {
             minLength: 1,
-            maxLength: 4,
+            maxLength: 3,
           }),
           validFieldArb,
           validFieldArb,
@@ -125,7 +124,7 @@ describe("ConnectWhatsAppDto — Property Tests", () => {
           // Pick which field(s) to remove
           fc.subarray(requiredFields as unknown as string[], {
             minLength: 1,
-            maxLength: 4,
+            maxLength: 3,
           }),
           validFieldArb,
           validFieldArb,

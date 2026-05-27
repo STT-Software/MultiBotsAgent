@@ -38,7 +38,7 @@ describe("checkPhoneNumberUniqueness", () => {
   });
 
   describe("Rule 2: connected to the SAME agent", () => {
-    it("returns already_connected_same_agent when channel is connected to the same agent", () => {
+    it("returns allowed with update action when channel is connected to the same agent", () => {
       const existingChannels: ExistingChannel[] = [
         { id: "ch-1", agentId, status: "connected" },
       ];
@@ -46,8 +46,9 @@ describe("checkPhoneNumberUniqueness", () => {
       const result = checkPhoneNumberUniqueness(phoneNumberId, agentId, existingChannels);
 
       expect(result).toEqual({
-        allowed: false,
-        reason: "already_connected_same_agent",
+        allowed: true,
+        action: "update",
+        existingChannelId: "ch-1",
       });
     });
   });
@@ -125,20 +126,17 @@ describe("checkPhoneNumberUniqueness", () => {
   });
 
   describe("Edge cases", () => {
-    it("handles partially_connected for same agent as connected (Rule 1 does not apply, but partially_connected same agent is not Rule 2)", () => {
-      // partially_connected for the same agent is not explicitly covered by Rule 2 (only "connected")
-      // It should fall through to Rule 3 or Rule 4
+    it("handles partially_connected for same agent by allowing update instead of creating a new channel", () => {
       const existingChannels: ExistingChannel[] = [
         { id: "ch-1", agentId, status: "partially_connected" },
       ];
 
-      // partially_connected same agent: Rule 1 doesn't match (same agent), Rule 2 doesn't match (not "connected")
-      // Rule 3 doesn't match (not "requires_reconnection"), so Rule 4 applies → create
       const result = checkPhoneNumberUniqueness(phoneNumberId, agentId, existingChannels);
 
       expect(result).toEqual({
         allowed: true,
-        action: "create",
+        action: "update",
+        existingChannelId: "ch-1",
       });
     });
   });

@@ -23,6 +23,7 @@ import "./storage/knowledge-bucket";
 
 // Queues
 import "./queues/indexation-queue";
+import "./queues/whatsapp-queues";
 
 // Services
 import "./services/cluster";
