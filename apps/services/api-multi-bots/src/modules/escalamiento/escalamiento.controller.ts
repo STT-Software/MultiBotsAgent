@@ -20,12 +20,15 @@ import {
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EscalamientoService } from './escalamiento.service';
+import { EscalamientoStorageService } from './escalamiento-storage.service';
 import {
   ConversationResponseDto,
   ConversationsListResponseDto,
   ConversationMessageResponseDto,
   PendingCountResponseDto,
   SendMessageDto,
+  UploadUrlRequestDto,
+  UploadUrlResponseDto,
 } from './dto';
 
 @ApiTags('Escalamiento')
@@ -33,7 +36,10 @@ import {
 @UseGuards(JwtAuthGuard)
 @Controller('escalamiento')
 export class EscalamientoController {
-  constructor(private readonly escalamientoService: EscalamientoService) {}
+  constructor(
+    private readonly escalamientoService: EscalamientoService,
+    private readonly storageService: EscalamientoStorageService,
+  ) {}
 
   // ─── GET /api/escalamiento/conversations ─────────────────────────────────
 
@@ -122,5 +128,27 @@ export class EscalamientoController {
     const { companyId } = (req as any).user;
     await this.escalamientoService.resolveConversation(companyId, id);
     return { success: true };
+  }
+
+  // ─── POST /api/escalamiento/conversations/:id/upload-url ─────────────────
+
+  @Post('conversations/:id/upload-url')
+  @ApiOperation({
+    summary: 'Obtener presigned URL para subir archivo',
+    description: 'Genera una presigned URL de S3 para subir un archivo directamente desde el frontend.',
+  })
+  @ApiBody({ type: UploadUrlRequestDto })
+  @ApiResponse({ status: 201, type: UploadUrlResponseDto })
+  @ApiResponse({ status: 400, description: 'Tipo de archivo no permitido.' })
+  @ApiResponse({ status: 404, description: 'Conversación no encontrada.' })
+  async getUploadUrl(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: UploadUrlRequestDto,
+  ) {
+    const { companyId } = (req as any).user;
+    // Verificar que la conversación existe
+    await this.escalamientoService.getConversationById(companyId, id);
+    return this.storageService.generateUploadUrl(companyId, id, dto.fileName, dto.contentType);
   }
 }
