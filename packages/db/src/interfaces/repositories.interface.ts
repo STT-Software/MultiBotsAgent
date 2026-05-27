@@ -172,3 +172,8 @@ export interface IResetPasswordUserRepository {
   findById(userId: string): Promise<{ id: string; passwordHash: string } | null>;
   updatePasswordHash(userId: string, newHash: string): Promise<boolean>;
 }
+
+
+// ─── Escalated Conversation ──────────────────────────────────────────────────
+
+export type { IEscalatedConversationRepository } from '../adapters/mongodb/escalated-conversation.repository';
