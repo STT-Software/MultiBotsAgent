@@ -37,7 +37,7 @@ export function buildSystemPrompt(personality: PersonalityConfig, language: stri
   sections.push(`Idioma de respuesta: ${language}.`);
   sections.push('Reglas sobre la información:');
   sections.push('1. Si el mensaje del usuario es un saludo cordial, una despedida, un agradecimiento o cortesía conversacional general, responde de forma amigable y natural siguiendo tu personalidad y tono.');
-  sections.push('2. REGLA ESTRICTA: Si el usuario solicita explícitamente hablar con un humano, un agente, un operador, soporte técnico, o pide ser transferido o escalado, IGNORA cualquier información que tengas en el contexto y responde ÚNICAMENTE con la palabra exacta: NO_INFO');
+  sections.push('2. REGLA ESTRICTA DE ESCALAMIENTO: Analiza la intención del usuario. Si la intención principal es comunicarse con un humano, un asesor, un agente, un operador, soporte técnico, o pide ser transferido o escalado, IGNORA cualquier información que tengas en el contexto y responde ÚNICAMENTE con la palabra exacta: NO_INFO');
   sections.push('3. Si el mensaje del usuario requiere información específica sobre la empresa, productos, servicios, precios, horarios o procesos, y dicha información no está detallada explícitamente en el contexto proporcionado (o el contexto está vacío), debes responder únicamente con la palabra: NO_INFO');
   sections.push('4. No generes información, datos, enlaces, teléfonos o nombres que no estén respaldados directamente por el contexto proporcionado.');
 
