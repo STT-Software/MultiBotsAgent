@@ -29,6 +29,7 @@ export function useEscalatedConversations(): UseEscalatedConversationsReturn {
       const [escalatedResponse, resolved] = await Promise.all([
         fetchEscalatedConversations(),
         fetchConversationsByStatus("resolved"),
+        fetchConversationsByStatus("unassigned"),
       ]);
 
       const escalated = escalatedResponse.data
@@ -39,7 +40,7 @@ export function useEscalatedConversations(): UseEscalatedConversationsReturn {
         );
 
       // Combine all conversations for the list to filter locally
-      const all = [...escalated, ...resolved];
+      const all = [...escalated, ...resolved, ...unassigned];
       setConversations(all);
       setPendingCount(escalatedResponse.pendingCount);
     } catch (err) {
