@@ -125,9 +125,9 @@ export class EscalamientoController {
     @Req() req: Request,
     @Param('id') id: string,
   ) {
-    const { companyId } = (req as any).user;
-    await this.escalamientoService.resolveConversation(companyId, id);
-    return { success: true };
+    const { companyId, userId } = (req as any).user;
+    const result = await this.escalamientoService.resolveConversation(companyId, id, userId);
+    return result;
   }
 
   // ─── POST /api/escalamiento/conversations/:id/upload-url ─────────────────

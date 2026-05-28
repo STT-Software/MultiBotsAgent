@@ -28,7 +28,7 @@ export interface EscalatedConversation {
   agentId: string;
   agentName: string;
   agentType: "rag" | "cotizador" | "agendamiento";
-  status: "escalated" | "resolved" | "unassigned";
+  status: "escalated" | "resolved" | "unassigned" | "active";
   escalationType: "explicit" | "agent_detected";
   escalatedAt: string;
   resolvedAt?: string;

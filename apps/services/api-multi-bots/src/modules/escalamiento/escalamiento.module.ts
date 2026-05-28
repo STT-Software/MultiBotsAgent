@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongoClient } from 'mongodb';
 import { SQSClient } from '@aws-sdk/client-sqs';
-import { CompanyRepository, EscalatedConversationRepository, S3StorageService, ChannelRepository } from '@multibotagents/db';
+import { CompanyRepository, EscalatedConversationRepository, EscalationEventRepository, S3StorageService, ChannelRepository } from '@multibotagents/db';
 import { EscalamientoController } from './escalamiento.controller';
 import { EscalamientoService } from './escalamiento.service';
 import { EscalamientoStorageService } from './escalamiento-storage.service';
@@ -47,6 +47,11 @@ import { EscalamientoStorageService } from './escalamiento-storage.service';
         if (!bucket) throw new Error('ESCALAMIENTO_FILES_BUCKET or COMPANY_LOGOS_BUCKET is required');
         return new S3StorageService({ bucket, region });
       },
+    },
+    {
+      provide: 'ESCALATION_EVENT_REPO',
+      useFactory: (client: MongoClient) => new EscalationEventRepository(client.db()),
+      inject: ['MONGO_CLIENT'],
     },
     EscalamientoService,
     EscalamientoStorageService,
