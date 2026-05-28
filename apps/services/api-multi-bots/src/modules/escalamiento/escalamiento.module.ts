@@ -6,6 +6,7 @@ import { EscalamientoController } from './escalamiento.controller';
 import { EscalamientoService } from './escalamiento.service';
 import { EscalamientoStorageService } from './escalamiento-storage.service';
 import { EscalamientoCronService } from './escalamiento-cron.service';
+import { EscalamientoEventsService } from './escalamiento-events.service';
 
 @Module({
   controllers: [EscalamientoController],
@@ -62,6 +63,7 @@ import { EscalamientoCronService } from './escalamiento-cron.service';
     EscalamientoService,
     EscalamientoStorageService,
     EscalamientoCronService,
+    EscalamientoEventsService,
   ],
 })
 export class EscalamientoModule {}
