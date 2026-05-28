@@ -26,6 +26,7 @@ export interface CompanyDocument {
   logo?: string;
   referralSource?: ReferralSource;
   status: CompanyStatus;
+  escalationTimeoutMinutes?: number;
   deletionReqDate?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -108,6 +109,12 @@ export const COMPANIES_VALIDATION = {
       deletionReqDate: {
         bsonType: "date",
         description: "Fecha de solicitud de eliminación — opcional",
+      },
+      escalationTimeoutMinutes: {
+        bsonType: "int",
+        minimum: 5,
+        maximum: 1440,
+        description: "Timeout de auto-devolución de escalamiento en minutos — opcional (default 60)",
       },
       createdAt: {
         bsonType: "date",

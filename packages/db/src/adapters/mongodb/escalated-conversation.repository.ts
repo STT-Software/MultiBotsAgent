@@ -50,6 +50,10 @@ export interface IEscalatedConversationRepository {
   updateStatus(companyId: string, id: string, status: string, resolvedAt?: Date): Promise<void>;
   countByStatus(companyId: string, status: string): Promise<number>;
   findSeeded(companyId: string): Promise<EscalatedConversation[]>;
+  findTimedOut(companyId: string, timeoutMinutes: number): Promise<EscalatedConversation[]>;
+  updateToActive(companyId: string, id: string): Promise<void>;
+  updateToUnassigned(companyId: string, id: string): Promise<void>;
+  updateLastActivity(companyId: string, id: string): Promise<void>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -192,5 +196,52 @@ export class EscalatedConversationRepository implements IEscalatedConversationRe
       .toArray();
 
     return docs.map(toEntity);
+  }
+
+  async findTimedOut(companyId: string, timeoutMinutes: number): Promise<EscalatedConversation[]> {
+    const cutoff = new Date(Date.now() - timeoutMinutes * 60 * 1000);
+    const docs = await this.collection
+      .find({
+        companyId: new ObjectId(companyId),
+        status: "escalated" as EscalatedConversationDocument["status"],
+        lastActivityAt: { $lt: cutoff },
+      })
+      .toArray();
+
+    return docs.map(toEntity);
+  }
+
+  async updateToActive(companyId: string, id: string): Promise<void> {
+    await this.collection.updateOne(
+      { _id: new ObjectId(id), companyId: new ObjectId(companyId) },
+      {
+        $set: {
+          status: "active" as EscalatedConversationDocument["status"],
+          hadEscalation: true,
+          resolvedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  async updateToUnassigned(companyId: string, id: string): Promise<void> {
+    await this.collection.updateOne(
+      { _id: new ObjectId(id), companyId: new ObjectId(companyId) },
+      {
+        $set: {
+          status: "unassigned" as EscalatedConversationDocument["status"],
+          hadEscalation: true,
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  async updateLastActivity(companyId: string, id: string): Promise<void> {
+    await this.collection.updateOne(
+      { _id: new ObjectId(id), companyId: new ObjectId(companyId) },
+      { $set: { lastActivityAt: new Date(), updatedAt: new Date() } },
+    );
   }
 }
