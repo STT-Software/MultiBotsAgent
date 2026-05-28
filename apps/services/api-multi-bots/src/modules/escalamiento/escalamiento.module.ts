@@ -5,6 +5,7 @@ import { CompanyRepository, EscalatedConversationRepository, EscalationEventRepo
 import { EscalamientoController } from './escalamiento.controller';
 import { EscalamientoService } from './escalamiento.service';
 import { EscalamientoStorageService } from './escalamiento-storage.service';
+import { EscalamientoCronService } from './escalamiento-cron.service';
 
 @Module({
   controllers: [EscalamientoController],
@@ -53,8 +54,14 @@ import { EscalamientoStorageService } from './escalamiento-storage.service';
       useFactory: (client: MongoClient) => new EscalationEventRepository(client.db()),
       inject: ['MONGO_CLIENT'],
     },
+    {
+      provide: 'MONGO_DB',
+      useFactory: (client: MongoClient) => client.db(),
+      inject: ['MONGO_CLIENT'],
+    },
     EscalamientoService,
     EscalamientoStorageService,
+    EscalamientoCronService,
   ],
 })
 export class EscalamientoModule {}
