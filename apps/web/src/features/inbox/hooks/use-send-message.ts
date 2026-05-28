@@ -7,7 +7,7 @@ import {
   sendOperatorMessage,
   getUploadUrl,
   uploadFileToS3,
-  SIMULATE_USER_REPLIES,
+  isMockMode,
   getRandomSimulatedReply,
 } from "../services/inbox.service";
 
@@ -31,7 +31,7 @@ export function useSendMessage(
   const replyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const triggerSimulatedReply = useCallback(() => {
-    if (!SIMULATE_USER_REPLIES) return;
+    if (!isMockMode()) return;
 
     const typingDelay = 2000 + Math.random() * 2000;
     typingTimeoutRef.current = setTimeout(() => {

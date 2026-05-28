@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { X, FileText, Image as ImageIcon } from "lucide-react";
+import { X, FileText } from "lucide-react";
 
 interface InboxFilePreviewProps {
   file: File;

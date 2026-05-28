@@ -3,7 +3,18 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logLevels: any[] = ['log', 'error', 'warn'];
+  if (
+    process.env.LOG_LEVEL === 'debug' ||
+    process.env.STAGE === 'dev' ||
+    process.env.NODE_ENV !== 'production'
+  ) {
+    logLevels.push('debug', 'verbose');
+  }
+
+  const app = await NestFactory.create(AppModule, {
+    logger: logLevels,
+  });
 
   // ─── CORS ────────────────────────────────────────────────────────────────
   app.enableCors({

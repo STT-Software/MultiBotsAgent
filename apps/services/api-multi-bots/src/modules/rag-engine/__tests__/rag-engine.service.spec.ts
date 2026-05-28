@@ -83,6 +83,7 @@ interface MockDeps {
   vectorSearch: VectorSearchService;
   memoryService: MemoryService;
   agentConfigProvider: AgentConfigProvider;
+  escalatedRepo: any;
 }
 
 function createMockDependencies(overrides?: Partial<MockDeps>): MockDeps {
@@ -109,7 +110,7 @@ function createMockDependencies(overrides?: Partial<MockDeps>): MockDeps {
   const mockAgentConfigProvider: AgentConfigProvider = {
     getConfig: async () => ({
       agentId: 'test-agent',
-      companyId: 'test-company',
+      companyId: '507f1f77bcf86cd799439011',
       personality: { name: 'Test', tone: 'friendly', restrictions: [], instructions: 'Be helpful' },
       relevanceThreshold: 0.7,
       topK: 5,
@@ -123,11 +124,18 @@ function createMockDependencies(overrides?: Partial<MockDeps>): MockDeps {
     }),
   };
 
+  const mockEscalatedRepo = {
+    findByUserIdAndStatus: async () => null,
+    create: async () => {},
+    addMessage: async () => {},
+  };
+
   return {
     llmProvider: overrides?.llmProvider ?? mockLlmProvider,
     vectorSearch: overrides?.vectorSearch ?? mockVectorSearch,
     memoryService: overrides?.memoryService ?? mockMemoryService,
     agentConfigProvider: overrides?.agentConfigProvider ?? mockAgentConfigProvider,
+    escalatedRepo: overrides?.escalatedRepo ?? mockEscalatedRepo,
   };
 }
 
@@ -145,6 +153,7 @@ function createService(deps: MockDeps): RagEngineService {
     promptBuilder,
     reRankingService,
     responseFormatter,
+    deps.escalatedRepo,
   );
 }
 

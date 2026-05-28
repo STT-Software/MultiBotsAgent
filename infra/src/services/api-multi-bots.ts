@@ -92,7 +92,7 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     META_APP_SECRET: metaAppSecret.value,
     ENCRYPTION_KEY: encryptionKey.value,
     MONGODB_VECTOR_INDEX: "knowledge_vector_index",
-    BEDROCK_MODEL_ID: "us.amazon.nova-lite-v1:0",
+    BEDROCK_MODEL_ID: "minimax.minimax-m2.5",
   },
   logging: {
     retention: "1 month",
@@ -112,3 +112,4 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     directory: "apps/services/api-multi-bots",
   },
 });
+

@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { MongoClient } from 'mongodb';
+import { EscalatedConversationRepository } from '@multibotagents/db';
 
 import {
   RAG_AGENT_CONFIG_SERVICE,
@@ -44,6 +46,19 @@ import { RagEngineController } from './rag-engine.controller';
     {
       provide: RAG_AGENT_CONFIG_SERVICE,
       useClass: MongoAgentConfigProvider,
+    },
+    {
+      provide: 'MONGO_CLIENT',
+      useFactory: () => {
+        const uri = process.env.MONGODB_URI;
+        if (!uri) throw new Error('MONGODB_URI is required');
+        return new MongoClient(uri);
+      },
+    },
+    {
+      provide: 'ESCALATED_CONVERSATION_REPO',
+      useFactory: (client: MongoClient) => new EscalatedConversationRepository(client.db()),
+      inject: ['MONGO_CLIENT'],
     },
   ],
   exports: [RagEngineService],

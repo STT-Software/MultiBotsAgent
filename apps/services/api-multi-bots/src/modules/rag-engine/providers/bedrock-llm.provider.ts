@@ -30,7 +30,7 @@ export class BedrockLlmProvider implements LlmProvider {
   constructor() {
     const modelId =
       process.env.BEDROCK_MODEL_ID ||
-      'us.amazon.nova-lite-v1:0';
+      'minimax.minimax-m2.5';
     const region = process.env.AWS_REGION || 'us-east-1';
     this.timeoutMs = Number(process.env.BEDROCK_TIMEOUT_MS) || 30000;
 
@@ -49,6 +49,7 @@ export class BedrockLlmProvider implements LlmProvider {
     const messages = this.buildMessages(prompt);
 
     try {
+      this.logger.log(`Invoking Bedrock LLM with ${messages.length} messages. User message: "${prompt.userMessage}"`);
       this.logger.debug('Invoking Bedrock LLM', {
         messageCount: messages.length,
         maxResponseLength: prompt.maxResponseLength,
@@ -77,6 +78,7 @@ export class BedrockLlmProvider implements LlmProvider {
       const tokensUsed = this.extractTokenUsage(response);
       const finishReason = this.extractFinishReason(response);
 
+      this.logger.log(`Bedrock LLM response received. Tokens: ${tokensUsed}. Content: "${content}"`);
       this.logger.debug('Bedrock LLM response received', {
         contentLength: content.length,
         tokensUsed,

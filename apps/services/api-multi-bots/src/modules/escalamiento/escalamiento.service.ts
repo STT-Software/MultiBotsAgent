@@ -1,11 +1,14 @@
 import { Injectable, Inject, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { ObjectId } from 'mongodb';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import type {
   IEscalatedConversationRepository,
+  IChannelRepository,
   EscalatedConversation,
   EscalatedConversationMessage,
 } from '@multibotagents/db';
 import type { SendMessageDto } from './dto';
+import type { OutgoingMessageEvent } from '@multibotagents/types';
 
 @Injectable()
 export class EscalamientoService {
@@ -14,6 +17,10 @@ export class EscalamientoService {
   constructor(
     @Inject('ESCALATED_CONVERSATION_REPO')
     private readonly repo: IEscalatedConversationRepository,
+    @Inject('CHANNEL_REPO')
+    private readonly channelRepo: IChannelRepository,
+    @Inject('SQS_CLIENT')
+    private readonly sqsClient: SQSClient,
   ) {
     this.logger.log('EscalamientoService initialized');
   }
@@ -67,6 +74,53 @@ export class EscalamientoService {
       fileSize: dto.fileSize,
       fileMimeType: dto.fileMimeType,
     });
+
+    // Si es una conversación semilla/mock, no enviamos mensaje real a WhatsApp
+    if (conversation.isSeeded || !ObjectId.isValid(conversation.agentId)) {
+      this.logger.log(`Conversación semilla detectada (${conversationId}), omitiendo envío real a WhatsApp.`);
+      return message;
+    }
+
+    const outgoingQueueUrl = process.env.WHATSAPP_OUTGOING_QUEUE_URL;
+    if (!outgoingQueueUrl) {
+      this.logger.warn('WHATSAPP_OUTGOING_QUEUE_URL no está configurada, omitiendo envío de mensaje a Meta');
+      return message;
+    }
+
+    try {
+      const channel = await this.channelRepo.findByAgentId(conversation.agentId);
+      if (!channel) {
+        this.logger.warn(`No se encontró un canal activo configurado para el agente ${conversation.agentId}`);
+        return message;
+      }
+
+      const recipientPhone = conversation.userId.replace('whatsapp_', '');
+
+      const outgoingEvent: OutgoingMessageEvent = {
+        channelId: channel.id,
+        phoneNumberId: channel.phoneNumberId,
+        recipientPhone,
+        conversationId: conversation.userId,
+        messages: [
+          {
+            type: dto.type === 'file' ? 'document' : (dto.type as any),
+            content: dto.content,
+          },
+        ],
+        escalated: true,
+      };
+
+      await this.sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: outgoingQueueUrl,
+          MessageBody: JSON.stringify(outgoingEvent),
+        })
+      );
+
+      this.logger.log(`Mensaje de operador enviado a SQS para ${recipientPhone}`);
+    } catch (err) {
+      this.logger.error(`Error enviando mensaje de operador a SQS: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     return message;
   }

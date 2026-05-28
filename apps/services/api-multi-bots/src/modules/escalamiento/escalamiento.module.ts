@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongoClient } from 'mongodb';
-import { CompanyRepository, EscalatedConversationRepository, S3StorageService } from '@multibotagents/db';
+import { SQSClient } from '@aws-sdk/client-sqs';
+import { CompanyRepository, EscalatedConversationRepository, S3StorageService, ChannelRepository } from '@multibotagents/db';
 import { EscalamientoController } from './escalamiento.controller';
 import { EscalamientoService } from './escalamiento.service';
 import { EscalamientoStorageService } from './escalamiento-storage.service';
@@ -25,6 +26,18 @@ import { EscalamientoStorageService } from './escalamiento-storage.service';
       provide: 'ESCALATED_CONVERSATION_REPO',
       useFactory: (client: MongoClient) => new EscalatedConversationRepository(client.db()),
       inject: ['MONGO_CLIENT'],
+    },
+    {
+      provide: 'CHANNEL_REPO',
+      useFactory: (client: MongoClient) => new ChannelRepository(client.db()),
+      inject: ['MONGO_CLIENT'],
+    },
+    {
+      provide: 'SQS_CLIENT',
+      useFactory: () => {
+        const region = process.env.AWS_REGION || 'us-east-1';
+        return new SQSClient({ region });
+      },
     },
     {
       provide: 'ESCALAMIENTO_STORAGE',

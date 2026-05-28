@@ -44,6 +44,7 @@ export interface EscalatedConversation {
 export interface IEscalatedConversationRepository {
   findByCompanyAndStatus(companyId: string, status: string): Promise<EscalatedConversation[]>;
   findById(companyId: string, id: string): Promise<EscalatedConversation | null>;
+  findByUserIdAndStatus(companyId: string, userId: string, status: string): Promise<EscalatedConversation | null>;
   create(data: Omit<EscalatedConversationDocument, "_id">): Promise<EscalatedConversation>;
   addMessage(companyId: string, conversationId: string, message: Omit<EscalatedConversationMessageDocument, "_id">): Promise<EscalatedConversationMessage>;
   updateStatus(companyId: string, id: string, status: string, resolvedAt?: Date): Promise<void>;
@@ -114,6 +115,15 @@ export class EscalatedConversationRepository implements IEscalatedConversationRe
     const doc = await this.collection.findOne({
       _id: new ObjectId(id),
       companyId: new ObjectId(companyId),
+    });
+    return doc ? toEntity(doc) : null;
+  }
+
+  async findByUserIdAndStatus(companyId: string, userId: string, status: string): Promise<EscalatedConversation | null> {
+    const doc = await this.collection.findOne({
+      companyId: new ObjectId(companyId),
+      userId,
+      status: status as EscalatedConversationDocument["status"],
     });
     return doc ? toEntity(doc) : null;
   }

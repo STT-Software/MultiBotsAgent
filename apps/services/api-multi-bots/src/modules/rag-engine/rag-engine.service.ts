@@ -1,5 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ObjectId } from 'mongodb';
 import { filterByThreshold } from '@multibotagents/core';
+import { EscalatedConversationRepository } from '@multibotagents/db';
 import {
   EscalationReason,
   MessageRole,
@@ -49,6 +51,7 @@ export class RagEngineService {
     @Inject(PromptBuilderService) private readonly promptBuilder: PromptBuilderService,
     @Inject(ReRankingService) private readonly reRankingService: ReRankingService,
     @Inject(ResponseFormatterService) private readonly responseFormatter: ResponseFormatterService,
+    @Inject('ESCALATED_CONVERSATION_REPO') private readonly escalatedRepo: EscalatedConversationRepository,
   ) {}
 
   /**
@@ -68,6 +71,50 @@ export class RagEngineService {
     const config = await this.getAgentConfig(input.agentId);
     this.logger.debug('Agent config retrieved', { agentId: config.agentId });
 
+    // 2.5 Check if conversation is already escalated
+    const activeEscalation = await this.escalatedRepo.findByUserIdAndStatus(
+      config.companyId,
+      input.conversationId,
+      'escalated',
+    );
+
+    if (activeEscalation) {
+      this.logger.log('Conversation is already escalated, saving user message to escalation log and bypassing RAG', {
+        agentId: input.agentId,
+        conversationId: input.conversationId,
+        escalationId: activeEscalation.id,
+      });
+
+      // Save user message to the escalated conversation log
+      await this.escalatedRepo.addMessage(config.companyId, activeEscalation.id, {
+        sender: 'user',
+        content: input.userMessage,
+        timestamp: input.timestamp,
+        type: 'text',
+      });
+
+      // Also persist to history memory
+      try {
+        await this.memoryService.saveMessage(input.conversationId, {
+          role: MessageRole.USER,
+          content: input.userMessage,
+          timestamp: input.timestamp,
+        });
+      } catch (err: unknown) {
+        this.logger.warn('Failed to save message to history memory, continuing', {
+          conversationId: input.conversationId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+
+      // Return empty messages to prevent automated replies
+      return {
+        conversationId: input.conversationId,
+        messages: [],
+        escalated: true,
+      };
+    }
+
     // 3. Retrieve history (graceful degradation)
     const history = await this.retrieveHistory(input.conversationId, config.memoryWindow);
 
@@ -75,14 +122,10 @@ export class RagEngineService {
     const isNewSession = await this.checkIsNewSession(input.conversationId);
 
     // 5. Vector search
-    this.logger.debug('Executing vector search', {
-      agentId: input.agentId,
-      topK: config.topK,
-    });
+    this.logger.log(`Executing vector search for query: "${input.userMessage}" (topK: ${config.topK})`);
     const searchResults = await this.vectorSearch.search(input.agentId, input.userMessage, config.topK);
-    this.logger.debug('Vector search completed', {
-      resultsCount: searchResults.length,
-    });
+    this.logger.log(`Vector search completed. Found ${searchResults.length} candidate fragments: ` + 
+      JSON.stringify(searchResults.map(r => ({ id: r.fragmentId, score: r.score, snippet: r.content.substring(0, 60) + '...' }))));
 
     // 6. Handle empty knowledge base (Req 3.5)
     if (searchResults.length === 0) {
@@ -95,11 +138,7 @@ export class RagEngineService {
 
     // 7. Filter by threshold
     const filteredFragments = filterByThreshold(searchResults, config.relevanceThreshold);
-    this.logger.debug('Threshold filtering completed', {
-      totalResults: searchResults.length,
-      filteredCount: filteredFragments.length,
-      threshold: config.relevanceThreshold,
-    });
+    this.logger.log(`Threshold filtering: ${filteredFragments.length}/${searchResults.length} fragments passed threshold of ${config.relevanceThreshold}`);
 
     // 8. Handle no fragments above threshold (Req 3.4)
     if (filteredFragments.length === 0 && searchResults.length > 0) {
@@ -115,6 +154,7 @@ export class RagEngineService {
 
     // 9. Re-ranking (graceful degradation)
     const validatedFragments = await this.performReRanking(filteredFragments, input.userMessage);
+    this.logger.log(`Re-ranking completed. ${validatedFragments.length}/${filteredFragments.length} fragments validated for context.`);
 
     // 10. Handle re-ranking rejection
     if (validatedFragments.length === 0 && filteredFragments.length > 0) {
@@ -139,6 +179,18 @@ export class RagEngineService {
       userMessage: input.userMessage,
     });
 
+    // 11.5 Quick check for explicit human escalation (safety net for LLM disobedience)
+    const lowerMessage = input.userMessage.toLowerCase();
+    const escalationKeywords = ['asesor', 'humano', 'operador', 'representante', 'hablar con alguien'];
+    if (escalationKeywords.some(kw => lowerMessage.includes(kw))) {
+      this.logger.warn('Explicit human escalation keyword detected, bypassing LLM', {
+        agentId: input.agentId,
+        conversationId: input.conversationId,
+        userMessage: input.userMessage,
+      });
+      return this.buildNoInfoResponse(input, config, history, 'explicit');
+    }
+
     // 12. Invoke LLM
     let llmContent: string;
     try {
@@ -152,7 +204,7 @@ export class RagEngineService {
           conversationId: input.conversationId,
           stage: 'llm_invocation',
         });
-        return this.buildErrorResponse(input, config);
+        return this.buildErrorResponse(input, config, history);
       }
 
       llmContent = llmResponse.content;
@@ -165,7 +217,7 @@ export class RagEngineService {
           conversationId: input.conversationId,
           stage: 'llm_invocation',
         });
-        return this.buildNoInfoResponse(input, config);
+        return this.buildNoInfoResponse(input, config, history, 'agent_detected');
       }
 
       this.logger.debug('LLM response received', {
@@ -180,7 +232,7 @@ export class RagEngineService {
         error: errorMessage,
         stage: 'llm_invocation',
       });
-      return this.buildErrorResponse(input, config);
+      return this.buildErrorResponse(input, config, history);
     }
 
     // 14. Format response
@@ -359,10 +411,80 @@ export class RagEngineService {
   /**
    * Builds a no-info response with escalation for low relevance.
    */
-  private buildNoInfoResponse(input: RagProcessInput, config: AgentConfig): RagProcessOutput {
+  private async buildNoInfoResponse(
+    input: RagProcessInput,
+    config: AgentConfig,
+    history: HistoryMessage[],
+    escalationType: 'explicit' | 'agent_detected' = 'agent_detected',
+  ): Promise<RagProcessOutput> {
+    const escalatedAt = new Date();
+    const responseContent = escalationType === 'explicit'
+      ? 'Te voy a comunicar con un asesor que podrá ayudarte mejor. Un momento por favor.'
+      : config.noInfoMessage;
+
+    try {
+      const messages: any[] = history.map((h) => ({
+        _id: new ObjectId(),
+        sender: h.role === MessageRole.USER ? 'user' : 'agent',
+        content: h.content,
+        timestamp: h.timestamp,
+        type: 'text',
+      }));
+
+      messages.push({
+        _id: new ObjectId(),
+        sender: 'user',
+        content: input.userMessage,
+        timestamp: input.timestamp,
+        type: 'text',
+      });
+
+      messages.push({
+        _id: new ObjectId(),
+        sender: 'agent',
+        content: responseContent,
+        timestamp: escalatedAt,
+        type: 'text',
+      });
+
+      await this.escalatedRepo.create({
+        companyId: new ObjectId(config.companyId),
+        userId: input.conversationId,
+        agentId: config.agentId,
+        agentName: config.personality?.name || 'Agente RAG',
+        agentType: 'rag',
+        status: 'escalated',
+        escalationType,
+        escalatedAt,
+        reason: escalationType === 'explicit'
+          ? 'El usuario solicitó hablar con un humano directamente.'
+          : 'El agente no tiene información sobre el producto solicitado.',
+        messages,
+        createdAt: escalatedAt,
+        updatedAt: escalatedAt,
+      });
+
+      // Guardar también en la memoria general
+      await this.memoryService.saveMessage(input.conversationId, {
+        role: MessageRole.USER,
+        content: input.userMessage,
+        timestamp: input.timestamp,
+      });
+      await this.memoryService.saveMessage(input.conversationId, {
+        role: MessageRole.ASSISTANT,
+        content: responseContent,
+        timestamp: escalatedAt,
+      });
+    } catch (err: unknown) {
+      this.logger.error('Failed to create escalated conversation document on low relevance', {
+        conversationId: input.conversationId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     return {
       conversationId: input.conversationId,
-      messages: [{ type: ResponseType.TEXT, content: config.noInfoMessage }],
+      messages: [{ type: ResponseType.TEXT, content: responseContent }],
       escalated: true,
       escalationReason: EscalationReason.LOW_RELEVANCE,
     };
@@ -371,10 +493,75 @@ export class RagEngineService {
   /**
    * Builds an error response with escalation for LLM unavailability.
    */
-  private buildErrorResponse(input: RagProcessInput, config: AgentConfig): RagProcessOutput {
+  private async buildErrorResponse(
+    input: RagProcessInput,
+    config: AgentConfig,
+    history: HistoryMessage[],
+  ): Promise<RagProcessOutput> {
+    const escalatedAt = new Date();
+    const responseContent = config.errorMessage;
+
+    try {
+      const messages: any[] = history.map((h) => ({
+        _id: new ObjectId(),
+        sender: h.role === MessageRole.USER ? 'user' : 'agent',
+        content: h.content,
+        timestamp: h.timestamp,
+        type: 'text',
+      }));
+
+      messages.push({
+        _id: new ObjectId(),
+        sender: 'user',
+        content: input.userMessage,
+        timestamp: input.timestamp,
+        type: 'text',
+      });
+
+      messages.push({
+        _id: new ObjectId(),
+        sender: 'agent',
+        content: responseContent,
+        timestamp: escalatedAt,
+        type: 'text',
+      });
+
+      await this.escalatedRepo.create({
+        companyId: new ObjectId(config.companyId),
+        userId: input.conversationId,
+        agentId: config.agentId,
+        agentName: config.personality?.name || 'Agente RAG',
+        agentType: 'rag',
+        status: 'escalated',
+        escalationType: 'agent_detected',
+        escalatedAt,
+        reason: 'Error al invocar o procesar el modelo de lenguaje.',
+        messages,
+        createdAt: escalatedAt,
+        updatedAt: escalatedAt,
+      });
+
+      // Guardar también en la memoria general
+      await this.memoryService.saveMessage(input.conversationId, {
+        role: MessageRole.USER,
+        content: input.userMessage,
+        timestamp: input.timestamp,
+      });
+      await this.memoryService.saveMessage(input.conversationId, {
+        role: MessageRole.ASSISTANT,
+        content: responseContent,
+        timestamp: escalatedAt,
+      });
+    } catch (err: unknown) {
+      this.logger.error('Failed to create escalated conversation document on error', {
+        conversationId: input.conversationId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     return {
       conversationId: input.conversationId,
-      messages: [{ type: ResponseType.TEXT, content: config.errorMessage }],
+      messages: [{ type: ResponseType.TEXT, content: responseContent }],
       escalated: true,
       escalationReason: EscalationReason.LLM_UNAVAILABLE,
     };
