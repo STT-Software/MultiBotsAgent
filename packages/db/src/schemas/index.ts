@@ -52,6 +52,13 @@ export {
 } from "./escalated-conversation.schema";
 
 export {
+  ESCALATION_EVENTS_COLLECTION,
+  ESCALATION_EVENTS_INDEXES,
+  ESCALATION_EVENTS_VALIDATION,
+  type EscalationEventDocument,
+} from "./escalation-event.schema";
+
+export {
   RATE_LIMITS_COLLECTION,
   RATE_LIMITS_INDEXES,
   RATE_LIMITS_VALIDATION,
