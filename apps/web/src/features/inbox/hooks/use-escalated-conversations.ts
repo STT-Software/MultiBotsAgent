@@ -26,7 +26,7 @@ export function useEscalatedConversations(): UseEscalatedConversationsReturn {
 
     try {
       // Fetch both escalated and resolved to allow local filtering
-      const [escalatedResponse, resolved] = await Promise.all([
+      const [escalatedResponse, resolved, unassigned] = await Promise.all([
         fetchEscalatedConversations(),
         fetchConversationsByStatus("resolved"),
         fetchConversationsByStatus("unassigned"),
