@@ -95,11 +95,20 @@ export class RagEngineService {
 
       // Also persist to history memory
       try {
-        await this.memoryService.saveMessage(input.conversationId, {
-          role: MessageRole.USER,
-          content: input.userMessage,
-          timestamp: input.timestamp,
-        });
+        if (typeof this.memoryService.addMessage === 'function') {
+          await this.memoryService.addMessage(input.conversationId, {
+            type: 'human',
+            content: input.userMessage,
+            timestamp: input.timestamp,
+            isEscalated: true,
+          });
+        } else {
+          await this.memoryService.saveMessage(input.conversationId, {
+            role: MessageRole.USER,
+            content: input.userMessage,
+            timestamp: input.timestamp,
+          });
+        }
       } catch (err: unknown) {
         this.logger.warn('Failed to save message to history memory, continuing', {
           conversationId: input.conversationId,
@@ -181,7 +190,7 @@ export class RagEngineService {
 
     // 11.5 Quick check for explicit human escalation (safety net for LLM disobedience)
     const lowerMessage = input.userMessage.toLowerCase();
-    const escalationKeywords = ['asesor', 'humano', 'operador', 'representante', 'hablar con alguien'];
+    const escalationKeywords = ['asesor', 'humano', 'operador', 'representante', 'hablar con alguien', 'soporte'];
     if (escalationKeywords.some(kw => lowerMessage.includes(kw))) {
       this.logger.warn('Explicit human escalation keyword detected, bypassing LLM', {
         agentId: input.agentId,
@@ -209,8 +218,17 @@ export class RagEngineService {
 
       llmContent = llmResponse.content;
 
-      // 13.5 Handle NO_INFO response from LLM
+      // 13.5 Handle TRANSFER or NO_INFO response from LLM
       const cleanContent = llmContent.trim().toUpperCase();
+      if (cleanContent === 'TRANSFER' || cleanContent.includes('TRANSFER')) {
+        this.logger.warn('LLM determined user wants human transfer, initiating escalation', {
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+          stage: 'llm_invocation',
+        });
+        return this.buildNoInfoResponse(input, config, history, 'explicit');
+      }
+
       if (cleanContent === 'NO_INFO' || cleanContent.includes('NO_INFO')) {
         this.logger.warn('LLM determined no information was available, returning noInfoMessage', {
           agentId: input.agentId,

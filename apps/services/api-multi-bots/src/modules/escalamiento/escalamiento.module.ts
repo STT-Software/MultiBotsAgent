@@ -7,8 +7,10 @@ import { EscalamientoService } from './escalamiento.service';
 import { EscalamientoStorageService } from './escalamiento-storage.service';
 import { EscalamientoCronService } from './escalamiento-cron.service';
 import { EscalamientoEventsService } from './escalamiento-events.service';
+import { RagEngineModule } from '../rag-engine/rag-engine.module';
 
 @Module({
+  imports: [RagEngineModule],
   controllers: [EscalamientoController],
   providers: [
     {

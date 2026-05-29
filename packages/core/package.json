@@ -7,7 +7,8 @@
   "typesVersions": {
     "*": {
       "email-verification": ["./dist/email-verification/index.d.ts"],
-      "whatsapp": ["./dist/whatsapp/index.d.ts"]
+      "whatsapp": ["./dist/whatsapp/index.d.ts"],
+      "memory": ["./dist/memory/index.d.ts"]
     }
   },
   "exports": {
@@ -22,6 +23,10 @@
     "./whatsapp": {
       "types": "./dist/whatsapp/index.d.ts",
       "default": "./dist/whatsapp/index.js"
+    },
+    "./memory": {
+      "types": "./dist/memory/index.d.ts",
+      "default": "./dist/memory/index.js"
     }
   },
   "scripts": {
@@ -33,6 +38,7 @@
   },
   "dependencies": {
     "@multibotagents/types": "workspace:*",
+    "@langchain/core": "^1.1.47",
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",
     "unpdf": "^1.6.2"

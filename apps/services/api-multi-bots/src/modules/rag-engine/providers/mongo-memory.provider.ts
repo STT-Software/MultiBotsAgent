@@ -1,28 +1,24 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { MongoClient, type Collection, type Document } from 'mongodb';
-
-import type { HistoryMessage, MemoryService, PersistMessage } from '@multibotagents/types';
+import { MongoClient } from 'mongodb';
+import { MongoDBChatMemoryRepository } from '@multibotagents/db';
+import { MemoryService } from '@multibotagents/core';
+import { MessageRole } from '@multibotagents/types';
+import type { HistoryMessage, MemoryService as IRagMemoryService, PersistMessage, ChatMessage } from '@multibotagents/types';
 
 /**
  * Implementación de MemoryService usando MongoDB.
- * Gestiona el historial conversacional con persistencia en una colección de mensajes.
- *
- * Funcionalidades:
- * - getHistory: Recupera los últimos N mensajes de una conversación (ventana de memoria)
- * - saveMessage: Persiste un nuevo mensaje en el historial
- * - isNewSession: Determina si una conversación es nueva (sin mensajes o sesión expirada)
- *
- * La sesión se considera expirada si no hay actividad en las últimas 24 horas (configurable).
+ * Gestiona el historial conversacional con persistencia delegando a `@multibotagents/core`.
  *
  * Valida: Requisitos 2.1, 8.1, 8.2, 9.1, 10.4
  */
 @Injectable()
-export class MongoMemoryProvider implements MemoryService, OnModuleDestroy {
+export class MongoMemoryProvider implements IRagMemoryService, OnModuleDestroy {
   private readonly logger = new Logger(MongoMemoryProvider.name);
   private readonly client: MongoClient;
   private readonly dbName: string;
-  private readonly collectionName: string;
   private readonly sessionTimeoutMs: number;
+  private readonly coreMemoryService: MemoryService;
+  private readonly repository: MongoDBChatMemoryRepository;
 
   constructor() {
     const connectionString =
@@ -35,16 +31,23 @@ export class MongoMemoryProvider implements MemoryService, OnModuleDestroy {
       process.env.MONGODB_DB ||
       'multibotagents';
 
-    this.collectionName =
-      process.env.MONGODB_MEMORY_COLLECTION || 'messages';
-
     this.sessionTimeoutMs =
       Number(process.env.SESSION_TIMEOUT_MS) || 86400000; // 24 hours default
 
     this.client = new MongoClient(connectionString);
+    const db = this.client.db(this.dbName);
+    this.repository = new MongoDBChatMemoryRepository(db);
+    this.coreMemoryService = new MemoryService({
+      chatMemoryRepository: this.repository,
+      logger: {
+        info: (msg, meta) => this.logger.debug(`${msg} ${meta ? JSON.stringify(meta) : ''}`),
+        error: (msg, meta) => this.logger.error(`${msg} ${meta ? JSON.stringify(meta) : ''}`),
+        warn: (msg, meta) => this.logger.warn(`${msg} ${meta ? JSON.stringify(meta) : ''}`),
+      },
+    });
 
     this.logger.log(
-      `MongoMemoryProvider initialized: db=${this.dbName}, collection=${this.collectionName}, sessionTimeout=${this.sessionTimeoutMs}ms`,
+      `MongoMemoryProvider initialized: db=${this.dbName}, sessionTimeout=${this.sessionTimeoutMs}ms`,
     );
   }
 
@@ -61,9 +64,6 @@ export class MongoMemoryProvider implements MemoryService, OnModuleDestroy {
   /**
    * Recupera el historial de mensajes de una conversación respetando la ventana de memoria.
    *
-   * Consulta los últimos `windowSize` mensajes ordenados por timestamp descendente,
-   * luego los invierte para retornarlos en orden cronológico.
-   *
    * @param conversationId - ID de la conversación
    * @param windowSize - Número máximo de mensajes a recuperar
    * @returns Array de HistoryMessage en orden cronológico (más antiguo primero)
@@ -72,16 +72,16 @@ export class MongoMemoryProvider implements MemoryService, OnModuleDestroy {
     this.logger.debug('Retrieving conversation history', { conversationId, windowSize });
 
     try {
-      const collection = this.getCollection();
+      // getHistory de core recupera el historial incluyendo mensajes del operador y escalados (true)
+      const chatMessages = await this.coreMemoryService.getHistory(conversationId, windowSize, true);
 
-      const documents = await collection
-        .find({ conversationId })
-        .sort({ timestamp: -1 })
-        .limit(windowSize)
-        .toArray();
-
-      // Reverse to return in chronological order (oldest first)
-      const messages = documents.reverse().map((doc) => this.mapToHistoryMessage(doc));
+      const messages: HistoryMessage[] = chatMessages.map((msg) => ({
+        role: msg.type === 'human'
+          ? MessageRole.USER
+          : MessageRole.ASSISTANT,
+        content: msg.content,
+        timestamp: msg.timestamp,
+      }));
 
       this.logger.debug('History retrieved successfully', {
         conversationId,
@@ -115,17 +115,16 @@ export class MongoMemoryProvider implements MemoryService, OnModuleDestroy {
     });
 
     try {
-      const collection = this.getCollection();
-
-      const document = {
-        conversationId,
-        role: message.role,
+      const chatMessage = {
+        type: message.role === MessageRole.USER
+          ? 'human' as const
+          : 'ai' as const,
         content: message.content,
         timestamp: message.timestamp,
-        metadata: message.metadata ?? {},
+        source: message.role === MessageRole.ASSISTANT ? 'agent' as const : undefined,
       };
 
-      await collection.insertOne(document);
+      await this.coreMemoryService.addMessage(conversationId, chatMessage);
 
       this.logger.debug('Message saved successfully', {
         conversationId,
@@ -146,10 +145,6 @@ export class MongoMemoryProvider implements MemoryService, OnModuleDestroy {
   /**
    * Determina si una conversación es nueva (sin historial activo o sesión expirada).
    *
-   * Una sesión se considera nueva si:
-   * - No existen mensajes para el conversationId, O
-   * - El último mensaje fue enviado hace más de `sessionTimeoutMs` milisegundos
-   *
    * @param conversationId - ID de la conversación
    * @returns true si la sesión es nueva, false si hay actividad reciente
    */
@@ -157,22 +152,14 @@ export class MongoMemoryProvider implements MemoryService, OnModuleDestroy {
     this.logger.debug('Checking if session is new', { conversationId });
 
     try {
-      const collection = this.getCollection();
+      const session = await this.repository.findBySessionId(conversationId);
+      if (!session || !session.messages || session.messages.length === 0) {
+        return true;
+      }
 
+      const lastMessage = session.messages[session.messages.length - 1];
       const cutoffDate = new Date(Date.now() - this.sessionTimeoutMs);
-
-      // Find the most recent message within the session timeout window
-      const recentMessage = await collection.findOne(
-        {
-          conversationId,
-          timestamp: { $gte: cutoffDate },
-        },
-        {
-          sort: { timestamp: -1 },
-        },
-      );
-
-      const isNew = recentMessage === null;
+      const isNew = lastMessage.timestamp.getTime() < cutoffDate.getTime();
 
       this.logger.debug('Session check completed', {
         conversationId,
@@ -193,20 +180,43 @@ export class MongoMemoryProvider implements MemoryService, OnModuleDestroy {
   }
 
   /**
-   * Obtiene la referencia a la colección de mensajes en MongoDB.
+   * Agrega un mensaje directamente usando la estructura completa ChatMessage.
+   *
+   * @param conversationId - ID de la conversación
+   * @param message - Mensaje estructurado completo
    */
-  private getCollection(): Collection<Document> {
-    return this.client.db(this.dbName).collection(this.collectionName);
+  async addMessage(conversationId: string, message: ChatMessage): Promise<void> {
+    this.logger.debug('Adding chat message directly', { conversationId, type: message.type });
+    try {
+      await this.coreMemoryService.addMessage(conversationId, message);
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error('Failed to add message directly', {
+        conversationId,
+        error: err.message,
+        stack: err.stack,
+      });
+      throw new Error(`Failed to add message directly: ${err.message}`);
+    }
   }
 
   /**
-   * Mapea un documento de MongoDB a HistoryMessage.
+   * Refresca el TTL de la conversación actualizando updatedAt.
+   *
+   * @param conversationId - ID de la conversación
    */
-  private mapToHistoryMessage(doc: Document): HistoryMessage {
-    return {
-      role: doc.role,
-      content: doc.content ?? '',
-      timestamp: doc.timestamp instanceof Date ? doc.timestamp : new Date(doc.timestamp),
-    };
+  async refreshTTL(conversationId: string): Promise<void> {
+    this.logger.debug('Refreshing session TTL', { conversationId });
+    try {
+      await this.coreMemoryService.refreshTTL(conversationId);
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error('Failed to refresh TTL', {
+        conversationId,
+        error: err.message,
+        stack: err.stack,
+      });
+      throw new Error(`Failed to refresh TTL: ${err.message}`);
+    }
   }
 }

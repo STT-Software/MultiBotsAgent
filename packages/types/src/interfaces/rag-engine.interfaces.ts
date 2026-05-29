@@ -6,6 +6,7 @@
  */
 
 import { MessageRole } from "../enums/rag-engine.enums";
+import { ChatMessage } from "../memory/memory.types";
 
 // ─── LLM Provider ────────────────────────────────────────────────────────────
 
@@ -79,6 +80,13 @@ export interface MemoryService {
     message: PersistMessage,
   ): Promise<void>;
   isNewSession(conversationId: string): Promise<boolean>;
+  addMessage?(
+    conversationId: string,
+    message: ChatMessage,
+  ): Promise<void>;
+  refreshTTL?(
+    conversationId: string,
+  ): Promise<void>;
 }
 
 /**

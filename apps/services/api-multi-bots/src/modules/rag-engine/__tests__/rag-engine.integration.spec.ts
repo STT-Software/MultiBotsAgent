@@ -68,6 +68,11 @@ describe('RagEngineModule Integration', () => {
     isNewSession: ReturnType<typeof vi.fn>;
   };
   let mockAgentConfigProvider: { getConfig: ReturnType<typeof vi.fn> };
+  let mockEscalatedRepo: {
+    findByUserIdAndStatus: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    addMessage: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     // Create mocks for external providers
@@ -113,6 +118,12 @@ describe('RagEngineModule Integration', () => {
       getConfig: vi.fn().mockResolvedValue(AGENT_CONFIG),
     };
 
+    mockEscalatedRepo = {
+      findByUserIdAndStatus: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue(undefined),
+      addMessage: vi.fn().mockResolvedValue(undefined),
+    };
+
     // Build the testing module with explicit providers to validate DI wiring.
     // NestJS Test.createTestingModule resolves injection tokens and verifies
     // that all dependencies are satisfied correctly.
@@ -137,6 +148,10 @@ describe('RagEngineModule Integration', () => {
         {
           provide: RAG_AGENT_CONFIG_SERVICE,
           useValue: mockAgentConfigProvider,
+        },
+        {
+          provide: 'ESCALATED_CONVERSATION_REPO',
+          useValue: mockEscalatedRepo,
         },
       ],
     }).compile();

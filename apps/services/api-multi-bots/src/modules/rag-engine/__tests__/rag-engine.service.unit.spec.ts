@@ -198,6 +198,29 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
     });
   });
 
+  describe('Análisis de intención de escalamiento (TRANSFER)', () => {
+    it('should return friendly transfer message with escalated=true and explicit type when LLM returns TRANSFER', async () => {
+      const deps = createMockDependencies({
+        vectorSearch: {
+          search: async () => [],
+        },
+        llmProvider: {
+          generate: async () => ({ content: 'TRANSFER', tokensUsed: 5, finishReason: 'stop' }),
+        },
+      });
+
+      const service = createService(deps);
+      const result = await service.processQuery(DEFAULT_INPUT);
+
+      expect(result.conversationId).toBe('conv-001');
+      expect(result.escalated).toBe(true);
+      expect(result.escalationReason).toBe(EscalationReason.LOW_RELEVANCE);
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0].type).toBe(ResponseType.TEXT);
+      expect(result.messages[0].content).toBe('Te voy a comunicar con un asesor que podrá ayudarte mejor. Un momento por favor.');
+    });
+  });
+
   describe('Base de conocimiento vacía (Req 3.5)', () => {
     it('should return noInfoMessage with escalated=true and reason=low_relevance when vector search returns empty and LLM returns NO_INFO', async () => {
       const deps = createMockDependencies({

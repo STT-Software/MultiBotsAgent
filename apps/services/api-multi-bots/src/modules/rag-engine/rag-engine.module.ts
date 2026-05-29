@@ -61,6 +61,6 @@ import { RagEngineController } from './rag-engine.controller';
       inject: ['MONGO_CLIENT'],
     },
   ],
-  exports: [RagEngineService],
+  exports: [RagEngineService, RAG_MEMORY_SERVICE],
 })
 export class RagEngineModule {}

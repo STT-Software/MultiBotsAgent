@@ -37,7 +37,7 @@ export function buildSystemPrompt(personality: PersonalityConfig, language: stri
   sections.push(`Idioma de respuesta: ${language}.`);
   sections.push('<instrucciones_criticas>');
   sections.push('1. SALUDOS: Si el mensaje del usuario es un saludo, despedida o cortesía, responde de forma amigable siguiendo tu personalidad.');
-  sections.push('2. ESCALAMIENTO A HUMANO (MUY IMPORTANTE): Analiza la intención del usuario. Si el usuario pide explícitamente "hablar con un asesor", "hablar con un humano", "operador", "soporte técnico", o pide ser transferido, DEBES responder ÚNICAMENTE con la palabra exacta: NO_INFO. No des explicaciones ni uses la información del contexto.');
+  sections.push('2. ESCALAMIENTO A HUMANO (MUY IMPORTANTE): Analiza la intención del usuario. Si el usuario pide explícitamente "hablar con un asesor", "hablar con un humano", "operador", "soporte técnico", o pide ser transferido, o de alguna manera expresa el deseo de ser atendido por una persona de soporte, DEBES responder ÚNICAMENTE con la palabra exacta: TRANSFER. No des explicaciones ni uses la información del contexto.');
   sections.push('3. INFORMACIÓN FALTANTE: Si te piden precios, horarios, o datos específicos y esa información NO está en el contexto proporcionado, responde ÚNICAMENTE con la palabra exacta: NO_INFO.');
   sections.push('4. NO INVENTES: No generes información, datos, enlaces o teléfonos que no estén en el contexto.');
   sections.push('</instrucciones_criticas>');

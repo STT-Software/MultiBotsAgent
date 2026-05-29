@@ -53,3 +53,6 @@ export * from "./knowledge";
 
 // WhatsApp
 export * from "./whatsapp";
+
+// Conversational Memory
+export * from "./memory";

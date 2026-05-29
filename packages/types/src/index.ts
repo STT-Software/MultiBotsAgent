@@ -33,3 +33,6 @@ export * from "./company-profile";
 export * from "./knowledge";
 // WhatsApp — Webhook verification y tipos del conector
 export * from "./whatsapp";
+
+// Conversational Memory
+export * from "./memory";

@@ -305,6 +305,9 @@ describe('Feature: rag-agent-engine, Property 9: No-info response structure', ()
             agentConfigProvider: {
               getConfig: async () => config,
             },
+            llmProvider: {
+              generate: async () => ({ content: 'NO_INFO', tokensUsed: 5, finishReason: 'stop' }),
+            },
           });
 
           const service = createService(deps);
@@ -333,6 +336,9 @@ describe('Feature: rag-agent-engine, Property 9: No-info response structure', ()
             },
             agentConfigProvider: {
               getConfig: async () => config,
+            },
+            llmProvider: {
+              generate: async () => ({ content: 'NO_INFO', tokensUsed: 5, finishReason: 'stop' }),
             },
           });
 
@@ -673,6 +679,9 @@ describe('Feature: rag-agent-engine, Property 12: Output structure invariants', 
             },
             agentConfigProvider: {
               getConfig: async () => config,
+            },
+            llmProvider: {
+              generate: async () => ({ content: 'NO_INFO', tokensUsed: 5, finishReason: 'stop' }),
             },
           });
 
