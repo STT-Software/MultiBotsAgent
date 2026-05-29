@@ -250,6 +250,42 @@ export async function uploadFileToS3(uploadUrl: string, file: File): Promise<voi
 
 // ─── Seed ────────────────────────────────────────────────────────────────────
 
+export interface EscalationEventsSummary {
+  todayCount: number;
+  avgDurationMinutes: number;
+}
+
+export interface EscalationEventsResponse {
+  data: Array<{
+    id: string;
+    conversationId: string;
+    agentId: string;
+    agentName: string;
+    escalationType: string;
+    reason: string;
+    escalatedAt: string;
+    resolvedAt: string;
+    resolvedBy: string;
+    durationMinutes: number;
+    createdAt: string;
+  }>;
+  summary: EscalationEventsSummary;
+}
+
+export async function fetchEscalationEvents(): Promise<EscalationEventsResponse> {
+  if (useMockMode) {
+    return { data: [], summary: { todayCount: 0, avgDurationMinutes: 0 } };
+  }
+
+  const res = await fetchWithAuth(`${API_BASE}/events?today=true&limit=5`);
+  if (!res.ok) {
+    return { data: [], summary: { todayCount: 0, avgDurationMinutes: 0 } };
+  }
+  return res.json();
+}
+
+// ─── Seed (data) ─────────────────────────────────────────────────────────────
+
 export async function seedConversations(): Promise<EscalatedConversation[]> {
   const res = await fetchWithAuth(`${API_BASE}/seed`, { method: "POST" });
   if (!res.ok) {

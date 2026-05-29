@@ -14,6 +14,7 @@ import { InboxConversationDetail } from "./inbox-conversation-detail";
 import { InboxEmptyState } from "./inbox-empty-state";
 import { InboxSkeleton } from "./inbox-skeleton";
 import { InboxResolveDialog } from "./inbox-resolve-dialog";
+import { InboxEventsSummary } from "./inbox-events-summary";
 
 export function InboxView() {
   const { conversations, loading, error, retry, refresh } = useEscalatedConversations();
@@ -114,7 +115,12 @@ export function InboxView() {
   const isResolved = conversation?.status === "resolved";
 
   return (
-    <div className="flex h-full relative">
+    <div className="flex flex-col h-full relative">
+      {/* Resumen de eventos */}
+      <InboxEventsSummary />
+
+      {/* Layout split */}
+      <div className="flex flex-1 overflow-hidden">
       {/* Lista */}
       <div
         className="w-[350px] shrink-0 flex flex-col"
@@ -139,6 +145,8 @@ export function InboxView() {
         onResolve={resolve.abrir}
         extraMessages={extraMessages}
       />
+
+      </div>
 
       {/* Diálogo de resolución */}
       <InboxResolveDialog

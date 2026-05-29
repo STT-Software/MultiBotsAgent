@@ -181,6 +181,7 @@ export interface IResetPasswordUserRepository {
 // ─── Escalated Conversation ──────────────────────────────────────────────────
 
 export type { IEscalatedConversationRepository } from '../adapters/mongodb/escalated-conversation.repository';
+export type { IEscalationEventRepository } from '../adapters/mongodb/escalation-event.repository';
 
 // ─── Channel ─────────────────────────────────────────────────────────────────
 

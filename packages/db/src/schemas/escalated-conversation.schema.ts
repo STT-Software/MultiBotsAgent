@@ -27,13 +27,15 @@ export interface EscalatedConversationDocument {
   agentId: string;
   agentName: string;
   agentType: "rag" | "cotizador" | "agendamiento";
-  status: "escalated" | "resolved" | "unassigned";
+  status: "escalated" | "resolved" | "unassigned" | "active";
   escalationType: "explicit" | "agent_detected";
   escalatedAt: Date;
   resolvedAt?: Date;
   reason: string;
   messages: EscalatedConversationMessageDocument[];
   isSeeded?: boolean;
+  hadEscalation?: boolean;
+  lastActivityAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -98,7 +100,7 @@ export const ESCALATED_CONVERSATIONS_VALIDATION = {
       },
       status: {
         bsonType: "string",
-        enum: ["escalated", "resolved", "unassigned"],
+        enum: ["escalated", "resolved", "unassigned", "active"],
         description: "Estado de la conversación — requerido",
       },
       escalationType: {

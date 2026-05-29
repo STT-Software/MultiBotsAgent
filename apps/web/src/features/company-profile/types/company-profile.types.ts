@@ -14,6 +14,7 @@ export interface CompanyProfileFormValues {
   size: string;
   phone: string;
   referralSource: string;
+  escalationTimeoutMinutes: string;
 }
 
 /** Errores de validación por campo del formulario. */
@@ -24,6 +25,7 @@ export interface CompanyProfileFormErrors {
   size?: string;
   phone?: string;
   referralSource?: string;
+  escalationTimeoutMinutes?: string;
 }
 
 /** Estados de carga del feature. */

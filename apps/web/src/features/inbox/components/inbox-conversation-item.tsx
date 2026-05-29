@@ -2,6 +2,7 @@
 
 import { EscalatedConversation } from "../types/inbox.types";
 import { InboxEscalationBadge } from "./inbox-escalation-badge";
+import { InboxUnassignedBadge } from "./inbox-unassigned-badge";
 import { useWaitTimer } from "../hooks/use-wait-timer";
 import { motion } from "motion/react";
 
@@ -60,9 +61,9 @@ export function InboxConversationItem({
           </span>
           <span
             className="text-[10px] shrink-0 font-medium"
-            style={{ color: isResolved ? "#10b981" : isUrgent ? "#f87171" : "#869489" }}
+            style={{ color: isResolved ? "#10b981" : conversation.status === "unassigned" ? "#f87171" : isUrgent ? "#f87171" : "#869489" }}
           >
-            {isResolved ? "Resuelta" : timeLabel}
+            {isResolved ? "Resuelta" : conversation.status === "unassigned" ? "Sin agente" : timeLabel}
           </span>
         </div>
 
@@ -73,6 +74,7 @@ export function InboxConversationItem({
         </div>
 
         <InboxEscalationBadge type={conversation.escalationType} />
+        {conversation.status === "unassigned" && <InboxUnassignedBadge />}
 
         <span className="text-[11px] truncate text-gray-400">
           {conversation.reason}

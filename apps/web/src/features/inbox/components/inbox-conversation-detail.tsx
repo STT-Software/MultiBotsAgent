@@ -111,7 +111,7 @@ export function InboxConversationDetail({
           </h3>
           <div className="flex items-center gap-2">
             <InboxEscalationBadge type={conversation.escalationType} />
-            {!isResolved && onResolve && (
+            {!isResolved && conversation.status !== "unassigned" && onResolve && (
               <button
                 type="button"
                 onClick={onResolve}
@@ -146,6 +146,18 @@ export function InboxConversationDetail({
           <span style={{ color: "#869489" }}>Motivo:</span> {conversation.reason}
         </p>
       </div>
+
+      {/* Banner unassigned */}
+      {conversation.status === "unassigned" && (
+        <div
+          className="flex items-center gap-2 px-6 py-2.5 shrink-0"
+          style={{ backgroundColor: "#2d1a1a", borderBottom: "1px solid #5c2a2a" }}
+        >
+          <span className="text-[11px] font-medium" style={{ color: "#f87171" }}>
+            ⚠️ El agente original no está disponible. Esta conversación requiere reasignación manual.
+          </span>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4">

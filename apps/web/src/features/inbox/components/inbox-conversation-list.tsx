@@ -11,7 +11,7 @@ interface InboxConversationListProps {
   onSelect: (id: string) => void;
 }
 
-type TabFilter = "escalated" | "resolved";
+type TabFilter = "escalated" | "resolved" | "unassigned";
 
 export function InboxConversationList({
   conversations,
@@ -21,6 +21,7 @@ export function InboxConversationList({
   const [activeTab, setActiveTab] = useState<TabFilter>("escalated");
 
   const filtered = conversations.filter((c) => c.status === activeTab);
+  const unassignedCount = conversations.filter((c) => c.status === "unassigned").length;
 
   return (
     <div className="flex h-full flex-col">
@@ -62,6 +63,19 @@ export function InboxConversationList({
               <span className="absolute bottom-0 left-0 right-0 h-0.5" style={{ backgroundColor: "#00bb7a" }} />
             )}
           </button>
+          {unassignedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("unassigned")}
+              className="relative px-3 py-2 text-[11px] font-medium transition-colors"
+              style={{ color: activeTab === "unassigned" ? "#f87171" : "#869489" }}
+            >
+              Sin asignar ({unassignedCount})
+              {activeTab === "unassigned" && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5" style={{ backgroundColor: "#f87171" }} />
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -72,6 +86,8 @@ export function InboxConversationList({
             <p className="text-xs" style={{ color: "#869489" }}>
               {activeTab === "escalated"
                 ? "No hay conversaciones activas"
+                : activeTab === "unassigned"
+                ? "No hay conversaciones sin asignar"
                 : "No hay conversaciones resueltas"}
             </p>
           </div>

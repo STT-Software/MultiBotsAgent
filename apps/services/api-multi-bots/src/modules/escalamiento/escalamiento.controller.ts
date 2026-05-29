@@ -21,6 +21,7 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EscalamientoService } from './escalamiento.service';
 import { EscalamientoStorageService } from './escalamiento-storage.service';
+import { EscalamientoEventsService } from './escalamiento-events.service';
 import {
   ConversationResponseDto,
   ConversationsListResponseDto,
@@ -29,6 +30,7 @@ import {
   SendMessageDto,
   UploadUrlRequestDto,
   UploadUrlResponseDto,
+  EventsListResponseDto,
 } from './dto';
 
 @ApiTags('Escalamiento')
@@ -39,6 +41,7 @@ export class EscalamientoController {
   constructor(
     private readonly escalamientoService: EscalamientoService,
     private readonly storageService: EscalamientoStorageService,
+    private readonly eventsService: EscalamientoEventsService,
   ) {}
 
   // ─── GET /api/escalamiento/conversations ─────────────────────────────────
@@ -125,9 +128,9 @@ export class EscalamientoController {
     @Req() req: Request,
     @Param('id') id: string,
   ) {
-    const { companyId } = (req as any).user;
-    await this.escalamientoService.resolveConversation(companyId, id);
-    return { success: true };
+    const { companyId, userId } = (req as any).user;
+    const result = await this.escalamientoService.resolveConversation(companyId, id, userId);
+    return result;
   }
 
   // ─── POST /api/escalamiento/conversations/:id/upload-url ─────────────────
@@ -170,5 +173,27 @@ export class EscalamientoController {
     const { companyId } = (req as any).user;
     const data = await this.escalamientoService.seed(companyId);
     return { data };
+  }
+
+  // ─── GET /api/escalamiento/events ────────────────────────────────────────
+
+  @Get('events')
+  @ApiOperation({
+    summary: 'Obtener eventos de escalamiento',
+    description: 'Retorna eventos de escalamiento con resumen de métricas.',
+  })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'today', required: false, type: Boolean })
+  @ApiResponse({ status: 200, type: EventsListResponseDto })
+  async getEvents(
+    @Req() req: Request,
+    @Query('limit') limit?: string,
+    @Query('today') today?: string,
+  ) {
+    const { companyId } = (req as any).user;
+    return this.eventsService.getEvents(companyId, {
+      limit: limit ? parseInt(limit, 10) : 20,
+      today: today === 'true',
+    });
   }
 }

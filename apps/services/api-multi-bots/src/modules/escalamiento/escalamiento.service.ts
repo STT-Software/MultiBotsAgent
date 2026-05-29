@@ -4,6 +4,7 @@ import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import type {
   IEscalatedConversationRepository,
   IChannelRepository,
+  IEscalationEventRepository,
   EscalatedConversation,
   EscalatedConversationMessage,
 } from '@multibotagents/db';
@@ -21,6 +22,8 @@ export class EscalamientoService {
     private readonly channelRepo: IChannelRepository,
     @Inject('SQS_CLIENT')
     private readonly sqsClient: SQSClient,
+    @Inject('ESCALATION_EVENT_REPO')
+    private readonly eventRepo: IEscalationEventRepository,
   ) {
     this.logger.log('EscalamientoService initialized');
   }
@@ -75,6 +78,9 @@ export class EscalamientoService {
       fileMimeType: dto.fileMimeType,
     });
 
+    // Actualizar lastActivityAt para el cálculo de timeout
+    await this.repo.updateLastActivity(companyId, conversationId);
+
     // Si es una conversación semilla/mock, no enviamos mensaje real a WhatsApp
     if (conversation.isSeeded || !ObjectId.isValid(conversation.agentId)) {
       this.logger.log(`Conversación semilla detectada (${conversationId}), omitiendo envío real a WhatsApp.`);
@@ -125,7 +131,7 @@ export class EscalamientoService {
     return message;
   }
 
-  async resolveConversation(companyId: string, conversationId: string): Promise<void> {
+  async resolveConversation(companyId: string, conversationId: string, resolvedBy: string): Promise<{ success: boolean; newStatus: string }> {
     // Verificar que la conversación existe y pertenece a la empresa
     const conversation = await this.repo.findById(companyId, conversationId);
     if (!conversation) {
@@ -137,7 +143,42 @@ export class EscalamientoService {
       throw new BadRequestException('La conversación ya está resuelta');
     }
 
-    await this.repo.updateStatus(companyId, conversationId, 'resolved', new Date());
+    // TODO: Verificar si el agente original está activo
+    // Cuando el módulo de agentes esté implementado en el backend, consultar aquí.
+    // Por ahora asumimos que el agente siempre está disponible.
+    const agentAvailable = true;
+
+    let newStatus: string;
+    if (agentAvailable) {
+      await this.repo.updateToActive(companyId, conversationId);
+      newStatus = 'active';
+    } else {
+      await this.repo.updateToUnassigned(companyId, conversationId);
+      newStatus = 'unassigned';
+    }
+
+    // Crear EscalationEvent para auditoría
+    const resolvedAt = new Date();
+    const escalatedAt = new Date(conversation.escalatedAt);
+    const durationMinutes = Math.round((resolvedAt.getTime() - escalatedAt.getTime()) / 60000);
+
+    await this.eventRepo.create({
+      conversationId: new ObjectId(conversationId),
+      companyId: new ObjectId(companyId),
+      agentId: conversation.agentId,
+      agentName: conversation.agentName,
+      escalationType: conversation.escalationType as "explicit" | "agent_detected",
+      reason: conversation.reason,
+      escalatedAt,
+      resolvedAt,
+      resolvedBy,
+      durationMinutes,
+      createdAt: resolvedAt,
+    });
+
+    this.logger.log(`Conversation ${conversationId} resolved by ${resolvedBy} → ${newStatus} (${durationMinutes} min)`);
+
+    return { success: true, newStatus };
   }
 
   async seed(companyId: string): Promise<EscalatedConversation[]> {

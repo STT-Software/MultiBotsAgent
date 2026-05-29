@@ -21,6 +21,8 @@ export { KnowledgeFragmentRepository } from "./knowledge-fragment.repository";
 export type { IKnowledgeFragmentRepository } from "./knowledge-fragment.repository";
 export { EscalatedConversationRepository } from "./escalated-conversation.repository";
 export type { IEscalatedConversationRepository, EscalatedConversation, EscalatedConversationMessage } from "./escalated-conversation.repository";
+export { EscalationEventRepository } from "./escalation-event.repository";
+export type { IEscalationEventRepository, EscalationEvent } from "./escalation-event.repository";
 export { ProcessedMessageRepository } from "./processed-message.repository";
 export { MessageLogRepository } from "./message-log.repository";
 

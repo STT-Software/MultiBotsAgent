@@ -64,6 +64,7 @@ export function CompanyProfileForm({
     size: profile.size,
     phone: profile.phone || '',
     referralSource: profile.referralSource || '',
+    escalationTimeoutMinutes: String((profile as any).escalationTimeoutMinutes ?? 60),
   });
 
   // Sync form values when profile changes (e.g., after logo update)
@@ -75,6 +76,7 @@ export function CompanyProfileForm({
       size: profile.size,
       phone: profile.phone || '',
       referralSource: profile.referralSource || '',
+      escalationTimeoutMinutes: String((profile as any).escalationTimeoutMinutes ?? 60),
     });
   }, [profile]);
 
@@ -106,7 +108,8 @@ export function CompanyProfileForm({
         size: formValues.size as UpdateCompanyProfileDto['size'],
         phone: formValues.phone.trim() || null,
         referralSource: (formValues.referralSource || null) as UpdateCompanyProfileDto['referralSource'],
-      };
+        escalationTimeoutMinutes: parseInt(formValues.escalationTimeoutMinutes, 10) || 60,
+      } as any;
 
       await onSave(data);
     },
@@ -210,6 +213,35 @@ export function CompanyProfileForm({
             error={errors.referralSource}
             placeholder="Selecciona una opción"
           />
+        </div>
+
+        {/* Escalation Timeout — full width */}
+        <div className="sm:col-span-2">
+          <div className="space-y-1.5">
+            <label
+              htmlFor="escalationTimeoutMinutes"
+              className="block text-xs font-medium text-[#bbcabe]"
+            >
+              Timeout de auto-devolución (minutos)
+            </label>
+            <input
+              id="escalationTimeoutMinutes"
+              name="escalationTimeoutMinutes"
+              type="number"
+              min={5}
+              max={1440}
+              value={formValues.escalationTimeoutMinutes}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-[#0e1510] px-3.5 py-2.5 text-sm text-[#dde5dc] outline-none transition-colors focus:border-[#00bb7a]"
+              style={{ borderColor: errors.escalationTimeoutMinutes ? '#f87171' : '#3c4a41' }}
+            />
+            <p className="text-[11px] text-[#869489]">
+              Tiempo máximo en minutos que una conversación puede estar escalada sin actividad antes de ser devuelta automáticamente al agente. (Mín: 5, Máx: 1440)
+            </p>
+            {errors.escalationTimeoutMinutes && (
+              <p className="text-xs text-red-400">{errors.escalationTimeoutMinutes}</p>
+            )}
+          </div>
         </div>
       </div>
 
