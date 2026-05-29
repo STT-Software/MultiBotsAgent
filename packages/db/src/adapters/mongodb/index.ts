@@ -25,6 +25,7 @@ export { EscalationEventRepository } from "./escalation-event.repository";
 export type { IEscalationEventRepository, EscalationEvent } from "./escalation-event.repository";
 export { ProcessedMessageRepository } from "./processed-message.repository";
 export { MessageLogRepository } from "./message-log.repository";
+export { MongoDBChatMemoryRepository } from "./chat-memory.repository";
 
 // Re-export interfaces desde la carpeta centralizada
 export type {

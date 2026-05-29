@@ -86,3 +86,11 @@ export {
   type MessageLogDocument,
 } from "./message-log.schema";
 
+export {
+  CHAT_MEMORIES_COLLECTION,
+  CHAT_MEMORIES_INDEXES,
+  CHAT_MEMORIES_VALIDATION,
+  type ChatMemoryDocument,
+} from "./chat-memory.schema";
+
+

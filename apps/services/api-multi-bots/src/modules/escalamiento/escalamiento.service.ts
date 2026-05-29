@@ -9,7 +9,8 @@ import type {
   EscalatedConversationMessage,
 } from '@multibotagents/db';
 import type { SendMessageDto } from './dto';
-import type { OutgoingMessageEvent } from '@multibotagents/types';
+import type { OutgoingMessageEvent, MemoryService } from '@multibotagents/types';
+import { RAG_MEMORY_SERVICE } from '../rag-engine/constants/injection-tokens';
 
 @Injectable()
 export class EscalamientoService {
@@ -24,6 +25,8 @@ export class EscalamientoService {
     private readonly sqsClient: SQSClient,
     @Inject('ESCALATION_EVENT_REPO')
     private readonly eventRepo: IEscalationEventRepository,
+    @Inject(RAG_MEMORY_SERVICE)
+    private readonly memoryService: MemoryService,
   ) {
     this.logger.log('EscalamientoService initialized');
   }
@@ -128,6 +131,20 @@ export class EscalamientoService {
       this.logger.error(`Error enviando mensaje de operador a SQS: ${err instanceof Error ? err.message : String(err)}`);
     }
 
+    try {
+      if (typeof this.memoryService.addMessage === 'function') {
+        await this.memoryService.addMessage(conversation.userId, {
+          type: 'ai',
+          content: dto.content,
+          timestamp: new Date(),
+          source: 'operator',
+        });
+        this.logger.log(`Mensaje de operador guardado en la memoria conversacional para ${conversation.userId}`);
+      }
+    } catch (err) {
+      this.logger.error(`Error guardando mensaje de operador en memoria: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
     return message;
   }
 
@@ -175,6 +192,15 @@ export class EscalamientoService {
       durationMinutes,
       createdAt: resolvedAt,
     });
+
+    try {
+      if (typeof this.memoryService.refreshTTL === 'function') {
+        await this.memoryService.refreshTTL(conversation.userId);
+        this.logger.log(`TTL de memoria conversacional refrescado para ${conversation.userId}`);
+      }
+    } catch (err) {
+      this.logger.error(`Error al refrescar TTL de memoria en escalamiento: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     this.logger.log(`Conversation ${conversationId} resolved by ${resolvedBy} → ${newStatus} (${durationMinutes} min)`);
 

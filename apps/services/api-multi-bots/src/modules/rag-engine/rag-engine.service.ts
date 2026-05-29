@@ -95,11 +95,20 @@ export class RagEngineService {
 
       // Also persist to history memory
       try {
-        await this.memoryService.saveMessage(input.conversationId, {
-          role: MessageRole.USER,
-          content: input.userMessage,
-          timestamp: input.timestamp,
-        });
+        if (typeof this.memoryService.addMessage === 'function') {
+          await this.memoryService.addMessage(input.conversationId, {
+            type: 'human',
+            content: input.userMessage,
+            timestamp: input.timestamp,
+            isEscalated: true,
+          });
+        } else {
+          await this.memoryService.saveMessage(input.conversationId, {
+            role: MessageRole.USER,
+            content: input.userMessage,
+            timestamp: input.timestamp,
+          });
+        }
       } catch (err: unknown) {
         this.logger.warn('Failed to save message to history memory, continuing', {
           conversationId: input.conversationId,
