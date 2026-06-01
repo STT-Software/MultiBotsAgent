@@ -1,10 +1,11 @@
-import { CloudOff, RefreshCw, ExternalLink, AlertTriangle, Clock } from "lucide-react";
+import { CloudOff, RefreshCw, AlertTriangle, Clock } from "lucide-react";
 
 interface AgentesListErrorProps {
   onRetry: () => void;
+  error?: string | null;
 }
 
-export function AgentesListError({ onRetry }: AgentesListErrorProps) {
+export function AgentesListError({ onRetry, error }: AgentesListErrorProps) {
   return (
     <div className="flex flex-col items-center justify-center gap-6 py-16">
       {/* Icon */}
@@ -28,7 +29,7 @@ export function AgentesListError({ onRetry }: AgentesListErrorProps) {
         className="max-w-md text-center text-sm leading-relaxed"
         style={{ color: "#bbcabe" }}
       >
-        La conexión con el núcleo de orquestación se ha visto interrumpida por un fallo en la red o un tiempo de espera excedido.
+        No se pudieron cargar los agentes creados para esta empresa. Por favor, compruebe su conexión e inténtelo de nuevo.
       </p>
 
       {/* Retry button */}
@@ -44,16 +45,6 @@ export function AgentesListError({ onRetry }: AgentesListErrorProps) {
         <RefreshCw size={14} aria-hidden="true" />
         Reintentar
       </button>
-
-      {/* System status link */}
-      <a
-        href="#"
-        className="inline-flex items-center gap-1 text-xs transition-colors hover:underline"
-        style={{ color: "#869489" }}
-      >
-        Ver estado del sistema
-        <ExternalLink size={11} aria-hidden="true" />
-      </a>
 
       {/* Technical info cards */}
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -73,7 +64,7 @@ export function AgentesListError({ onRetry }: AgentesListErrorProps) {
               className="text-[11px]"
               style={{ color: "#869489", fontFamily: "JetBrains Mono, monospace" }}
             >
-              v2/agents/list – Code 503 (Service Unavailable)
+              /agents – {error || "Fallo en la solicitud"}
             </span>
           </div>
         </div>

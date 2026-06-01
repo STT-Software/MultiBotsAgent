@@ -36,3 +36,6 @@ export * from "./whatsapp";
 
 // Conversational Memory
 export * from "./memory";
+
+// Agents
+export * from "./agents/agent.types";

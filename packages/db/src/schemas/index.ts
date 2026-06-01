@@ -93,4 +93,11 @@ export {
   type ChatMemoryDocument,
 } from "./chat-memory.schema";
 
+export {
+  AGENTS_COLLECTION,
+  AGENTS_INDEXES,
+  AGENTS_VALIDATION,
+  type AgentDocument,
+} from "./agent.schema";
+
 

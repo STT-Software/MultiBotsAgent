@@ -26,6 +26,7 @@ export type { IEscalationEventRepository, EscalationEvent } from "./escalation-e
 export { ProcessedMessageRepository } from "./processed-message.repository";
 export { MessageLogRepository } from "./message-log.repository";
 export { MongoDBChatMemoryRepository } from "./chat-memory.repository";
+export { AgentRepository } from "./agent.repository";
 
 // Re-export interfaces desde la carpeta centralizada
 export type {
@@ -50,4 +51,5 @@ export type {
   IChannelRepository,
   IProcessedMessageRepository,
   IMessageLogRepository,
+  IAgentRepository,
 } from "../../interfaces";

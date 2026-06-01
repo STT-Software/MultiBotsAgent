@@ -48,7 +48,16 @@ export function AgenteDetalleTabs({ agente, onAgenteUpdate }: AgenteDetalleTabsP
           />
         );
       case "personalidad":
-        return <AgenteTabPersonalidad />;
+        return (
+          <AgenteTabPersonalidad
+            agente={agente}
+            editarAgente={editarAgente}
+            saving={saving}
+            error={error}
+            success={success}
+            resetStatus={resetStatus}
+          />
+        );
       case "canal":
         return <AgenteTabCanal agente={agente} />;
       case "conocimiento":

@@ -22,6 +22,7 @@ import type {
   EncryptedToken,
   ProcessedMessage,
   MessageLog,
+  Agent,
 } from '@multibotagents/types';
 import type { Repository } from './repository.interface';
 
@@ -247,4 +248,10 @@ export interface IMessageLogRepository extends Repository<MessageLog> {
     status: MessageLog["status"],
     details?: { errorCode?: number; errorMessage?: string }
   ): Promise<void>;
+}
+
+// ─── Agent ───────────────────────────────────────────────────────────────────
+
+export interface IAgentRepository extends Repository<Agent> {
+  findByCompanyId(companyId: string): Promise<Agent[]>;
 }

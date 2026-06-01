@@ -93,7 +93,7 @@ export function AgenteDetalleView({ id }: AgenteDetalleViewProps) {
               className="text-xs"
               style={{ color: "#869489", fontFamily: "JetBrains Mono, monospace" }}
             >
-              ID: {agente.codigoId}
+              ID: {agente.codigoId || agente.id}
             </span>
           </div>
         </div>

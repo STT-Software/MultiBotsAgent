@@ -9,6 +9,7 @@ import { ChannelsModule } from "./modules/channels/channels.module";
 import { KnowledgeModule } from "./modules/knowledge/knowledge.module";
 import { RagEngineModule } from "./modules/rag-engine/rag-engine.module";
 import { EscalamientoModule } from "./modules/escalamiento/escalamiento.module";
+import { AgentsModule } from "./modules/agents/agents.module";
 import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-verified.guard";
 
 @Module({
@@ -22,6 +23,7 @@ import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-ve
     KnowledgeModule,
     RagEngineModule,
     EscalamientoModule,
+    AgentsModule,
   ],
   providers: [
     {

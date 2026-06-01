@@ -21,4 +21,5 @@ export type {
   IChannelRepository,
   IProcessedMessageRepository,
   IMessageLogRepository,
+  IAgentRepository,
 } from './repositories.interface';

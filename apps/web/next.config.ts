@@ -28,6 +28,14 @@ const nextConfig: NextConfig = {
         source: "/escalamiento/:path*",
         destination: `${apiUrl}/escalamiento/:path*`,
       },
+      {
+        source: "/agents",
+        destination: `${apiUrl}/agents`,
+      },
+      {
+        source: "/agents/:path*",
+        destination: `${apiUrl}/agents/:path*`,
+      },
     ];
   },
 };
