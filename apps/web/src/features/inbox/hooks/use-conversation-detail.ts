@@ -16,19 +16,25 @@ export function useConversationDetail(id: string | null): UseConversationDetailR
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (conversationId: string) => {
-    setLoading(true);
+  const load = useCallback(async (conversationId: string, isBackground = false) => {
+    if (!isBackground) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
       const result = await fetchConversationById(conversationId);
       setConversation(result);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Error al cargar la conversación";
-      setError(message);
+      if (!isBackground) {
+        const message =
+          err instanceof Error ? err.message : "Error al cargar la conversación";
+        setError(message);
+      }
     } finally {
-      setLoading(false);
+      if (!isBackground) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -37,7 +43,18 @@ export function useConversationDetail(id: string | null): UseConversationDetailR
       setConversation(null);
       return;
     }
-    load(id);
+    
+    // Carga inicial
+    load(id, false);
+
+    // Polling en background cada 3 segundos para reactividad en tiempo real
+    const interval = setInterval(() => {
+      load(id, true);
+    }, 3000);
+
+    return () => {
+      clearInterval(interval);
+    };
   }, [id, load]);
 
   return { conversation, loading, error };
