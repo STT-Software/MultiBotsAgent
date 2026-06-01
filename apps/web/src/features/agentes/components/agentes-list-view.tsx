@@ -45,7 +45,7 @@ export function AgentesListView() {
 
         {/* Content states */}
         {loading && <AgentesListSkeleton />}
-        {error && <AgentesListError onRetry={retry} />}
+        {error && <AgentesListError onRetry={retry} error={error} />}
         {!loading && !error && agentes.length === 0 && <AgentesEmptyState />}
         {!loading && !error && agentes.length > 0 && (
           <AgentesTable agentes={agentes} onEliminar={eliminar.abrir} />

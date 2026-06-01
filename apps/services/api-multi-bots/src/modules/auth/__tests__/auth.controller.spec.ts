@@ -68,7 +68,7 @@ describe('AuthController', () => {
       'refresh-token-hex',
       {
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         path: '/auth/refresh',
         maxAge: 604800000,

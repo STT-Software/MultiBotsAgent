@@ -1,3 +1,5 @@
+import type { PersonalityConfig } from "@multibotagents/types";
+
 export interface Agente {
   id: string;
   nombre: string;
@@ -6,6 +8,9 @@ export interface Agente {
   estado: "borrador" | "activo";
   vencimiento: string;
   createdAt: string;
+  language?: string;
+  welcomeMessage?: string;
+  personality?: PersonalityConfig;
 }
 
 export interface AgentesResponse {
@@ -31,6 +36,9 @@ export interface CreateAgenteDTO {
 export interface UpdateAgenteDTO {
   nombre?: string;
   tipo?: "rag" | "cotizador" | "agendamiento";
+  language?: string;
+  welcomeMessage?: string;
+  personality?: Partial<PersonalityConfig>;
 }
 
 // Errores de validación del formulario de creación

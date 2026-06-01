@@ -115,7 +115,7 @@ export function InboxView() {
   const isResolved = conversation?.status === "resolved";
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-[calc(100vh-48px)] relative overflow-hidden">
       {/* Resumen de eventos */}
       <InboxEventsSummary />
 
