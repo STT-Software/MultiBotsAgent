@@ -1,5 +1,6 @@
 import { Injectable, Inject, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { ObjectId } from 'mongodb';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import type {
   IEscalatedConversationRepository,
@@ -9,7 +10,7 @@ import type {
   EscalatedConversationMessage,
 } from '@multibotagents/db';
 import type { SendMessageDto } from './dto';
-import type { OutgoingMessageEvent, MemoryService } from '@multibotagents/types';
+import type { OutgoingMessageEvent, MemoryService, MetricEventPayload } from '@multibotagents/types';
 import { RAG_MEMORY_SERVICE } from '../rag-engine/constants/injection-tokens';
 
 @Injectable()
@@ -27,6 +28,7 @@ export class EscalamientoService {
     private readonly eventRepo: IEscalationEventRepository,
     @Inject(RAG_MEMORY_SERVICE)
     private readonly memoryService: MemoryService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.logger.log('EscalamientoService initialized');
   }
@@ -203,6 +205,20 @@ export class EscalamientoService {
     }
 
     this.logger.log(`Conversation ${conversationId} resolved by ${resolvedBy} → ${newStatus} (${durationMinutes} min)`);
+
+    // Emitir métrica de escalamiento resuelto (fire-and-forget)
+    this.eventEmitter.emit('metric.event', {
+      companyId,
+      agentId: conversation.agentId,
+      agentType: conversation.agentType as 'rag' | 'cotizador' | 'agendamiento',
+      eventType: 'escalation.resolved',
+      timestamp: resolvedAt,
+      metadata: {
+        resolvedAt: resolvedAt.toISOString(),
+        durationMinutes,
+        resolvedBy,
+      },
+    } satisfies MetricEventPayload);
 
     return { success: true, newStatus };
   }

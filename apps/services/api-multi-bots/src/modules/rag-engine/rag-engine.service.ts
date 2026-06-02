@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ObjectId } from 'mongodb';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { filterByThreshold } from '@multibotagents/core';
 import { EscalatedConversationRepository } from '@multibotagents/db';
 import {
@@ -7,6 +8,7 @@ import {
   MessageRole,
   ResponseType,
 } from '@multibotagents/types';
+import type { MetricEventPayload } from '@multibotagents/types';
 
 import {
   RAG_AGENT_CONFIG_SERVICE,
@@ -52,6 +54,7 @@ export class RagEngineService {
     @Inject(ReRankingService) private readonly reRankingService: ReRankingService,
     @Inject(ResponseFormatterService) private readonly responseFormatter: ResponseFormatterService,
     @Inject('ESCALATED_CONVERSATION_REPO') private readonly escalatedRepo: EscalatedConversationRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -482,6 +485,21 @@ export class RagEngineService {
         updatedAt: escalatedAt,
       });
 
+      // Emitir métrica de escalamiento abierto (fire-and-forget)
+      this.eventEmitter.emit('metric.event', {
+        companyId: config.companyId,
+        agentId: config.agentId,
+        agentType: 'rag',
+        eventType: 'escalation.opened',
+        timestamp: escalatedAt,
+        metadata: {
+          reason: escalationType === 'explicit'
+            ? 'El usuario solicitó hablar con un humano directamente.'
+            : 'El agente no tiene información sobre el producto solicitado.',
+          escalationType,
+        },
+      } satisfies MetricEventPayload);
+
       // Guardar también en la memoria general
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.USER,
@@ -558,6 +576,19 @@ export class RagEngineService {
         createdAt: escalatedAt,
         updatedAt: escalatedAt,
       });
+
+      // Emitir métrica de escalamiento abierto por error de LLM (fire-and-forget)
+      this.eventEmitter.emit('metric.event', {
+        companyId: config.companyId,
+        agentId: config.agentId,
+        agentType: 'rag',
+        eventType: 'escalation.opened',
+        timestamp: escalatedAt,
+        metadata: {
+          reason: 'Error al invocar o procesar el modelo de lenguaje.',
+          escalationType: 'agent_detected',
+        },
+      } satisfies MetricEventPayload);
 
       // Guardar también en la memoria general
       await this.memoryService.saveMessage(input.conversationId, {
