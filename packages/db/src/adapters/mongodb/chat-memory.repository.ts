@@ -1,17 +1,10 @@
 import type { Collection, Db } from "mongodb";
 import type { ChatMemoryEntity, ChatMessage } from "@multibotagents/types";
+import type { IChatMemoryRepository } from "@multibotagents/core/src/memory/interfaces/repositories";
 import {
   CHAT_MEMORIES_COLLECTION,
   type ChatMemoryDocument,
 } from "../../schemas/chat-memory.schema";
-
-// Interface definida localmente para evitar dependencia circular con @multibotagents/core
-interface IChatMemoryRepository {
-  findBySessionId(sessionId: string): Promise<ChatMemoryEntity | null>;
-  appendMessages(sessionId: string, messages: ChatMessage[]): Promise<void>;
-  touchSession(sessionId: string): Promise<void>;
-  deleteBySessionId(sessionId: string): Promise<void>;
-}
 
 export class MongoDBChatMemoryRepository implements IChatMemoryRepository {
   private readonly collection: Collection<ChatMemoryDocument>;
