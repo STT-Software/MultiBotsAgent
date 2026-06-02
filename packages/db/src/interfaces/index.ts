@@ -22,4 +22,5 @@ export type {
   IProcessedMessageRepository,
   IMessageLogRepository,
   IAgentRepository,
+  IMetricEventRepository,
 } from './repositories.interface';
