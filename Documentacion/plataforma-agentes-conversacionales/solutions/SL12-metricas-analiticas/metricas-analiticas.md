@@ -7,13 +7,16 @@ product: Plataforma de Agentes Conversacionales
 author: Oscar Gomez
 created: 2026-06-01
 updated: 2026-06-01
-version: "1.0.0"
+version: "1.1.0"
 status: drafting
 language: es
 changelog:
   - date: 2026-06-01
     author: Oscar Gomez
     change: "Creación inicial — Diseño completo de la solución con narrativa técnica, contexto técnico y acceptance criteria."
+  - date: 2026-06-01
+    author: Oscar Gomez
+    change: "Actualización — Modelo híbrido de métricas: WebSocket para actividad en vivo, query bajo demanda para agregados históricos."
 ---
 
 # Sistema de Métricas y Analíticas
@@ -138,27 +141,43 @@ Módulo NestJS que implementa un patrón event-driven interno: los motores de ag
 
 - **Trigger:** El usuario navega a la sección "Métricas" del Panel de Administración.
 
-- **Comportamiento:** El panel reemplaza el placeholder actual (Solución 1, flujo 2.7) con la vista real de métricas. La vista muestra:
+- **Comportamiento:** El panel reemplaza el placeholder actual (Solución 1, flujo 2.7) con la vista real de métricas. La vista opera en **modo híbrido**: una parte de los datos se actualiza en tiempo real via WebSocket, y otra se consulta bajo demanda.
 
-  1. **Selector de período:** 24h / 7 días / 30 días
-  2. **Selector de agente:** Todos los agentes / agente específico
-  3. **Métricas generales** (siempre visibles): conversaciones totales, tasa de resolución, escalamientos
-  4. **Métricas por tipo de agente** (se muestran según el agente seleccionado o como secciones separadas si se ven todos)
+  **Bloque de actividad en vivo (WebSocket):**
+  Al cargar la sección, el panel abre una conexión WebSocket al servidor. El servidor emite actualizaciones cada vez que se registra un nuevo evento de métrica (`metric.event`). El panel actualiza en tiempo real:
+  - Conversaciones activas en este momento
+  - Conversaciones resueltas hoy
+  - Escalamientos abiertos ahora
+  - Feed de actividad reciente: últimos 10 eventos (conversación resuelta, escalamiento abierto, pedido confirmado, cita agendada) con timestamp
 
-  Al cambiar el período o el agente seleccionado, el panel realiza una nueva consulta a la API y actualiza los datos. No hay actualización automática en tiempo real — el usuario refresca manualmente o cambia el filtro.
+  Este bloque es el más visible en la demo — muestra el sistema trabajando en vivo.
 
-- **Resultado:** El usuario ve las métricas actualizadas para el período y agente seleccionados.
+  **Bloque de métricas históricas (query bajo demanda):**
+  - Selector de período: 24h / 7 días / 30 días
+  - Selector de agente: Todos / agente específico
+  - Métricas agregadas: tasa de resolución, tasa de escalamiento, top de temas, productos más solicitados, horarios pico, tasa de conversión
 
-- **Error path:** Si la API de métricas no responde, el panel muestra un estado de error con opción de reintentar. Si no hay datos para el período seleccionado (agente nuevo, sin conversaciones), muestra estado vacío con mensaje informativo ("Sin actividad en este período").
+  Al cambiar el período o el agente, el panel realiza una nueva consulta REST a la API y actualiza solo el bloque histórico. El bloque en vivo no se interrumpe.
 
-- **Integraciones:** Consume el endpoint `GET /api/metricas` del backend NestJS. El Panel Web (Solución 1) es el único consumidor de esta API.
+  **Cierre de conexión:** Cuando el usuario navega fuera de la sección de Métricas, el panel cierra la conexión WebSocket para liberar recursos.
+
+- **Resultado:** El usuario ve actividad en tiempo real en la parte superior del panel y métricas históricas agregadas en la parte inferior. La combinación permite tanto monitoreo operativo (¿qué está pasando ahora?) como análisis de tendencias (¿cómo fue la semana?).
+
+- **Error path:**
+  - Si la conexión WebSocket se pierde, el panel muestra un indicador de "reconectando" e intenta reconectar automáticamente con backoff exponencial. Los datos en vivo se congelan hasta restablecer la conexión.
+  - Si la API de métricas históricas no responde, el bloque histórico muestra estado de error con opción de reintentar. El bloque en vivo no se ve afectado.
+  - Si no hay datos para el período seleccionado, el bloque histórico muestra estado vacío con mensaje informativo ("Sin actividad en este período").
+
+- **Decisiones de diseño:** Se reutiliza el mismo mecanismo WebSocket que ya usa la Solución 8 (Escalamiento) para el inbox. No se introduce nueva infraestructura — es el mismo servidor NestJS con un gateway WebSocket adicional. El bloque en vivo no reemplaza las métricas históricas: son complementarios. Los agregados históricos (tasa de éxito del mes, horarios pico) no tienen valor en tiempo real — actualizarlos cada segundo no aporta información nueva y añade carga innecesaria.
+
+- **Integraciones:** Consume `GET /api/metricas/*` para métricas históricas y el gateway WebSocket del servidor NestJS para actividad en vivo. El Panel Web (Solución 1) es el único consumidor.
 
 ---
 
 ## 3. Out of Scope
 
 - **Dashboards complejos o analíticas avanzadas:** Solo métricas básicas definidas en la iniciativa. Sin gráficos de tendencia, cohortes, funnels ni segmentación avanzada.
-- **Actualización en tiempo real de métricas:** Las métricas se consultan bajo demanda, no hay WebSocket ni polling automático.
+- **Actualización en tiempo real de métricas:** Las métricas históricas agregadas (7d, 30d) se consultan bajo demanda, no en tiempo real. El feed de actividad en vivo sí usa WebSocket, pero cubre contadores del día y eventos recientes — no recalcula agregados históricos en cada evento.
 - **Exportación de datos:** No hay descarga de CSV, Excel ni integración con herramientas de BI.
 - **Alertas y notificaciones basadas en métricas:** No hay umbrales configurables ni alertas automáticas.
 - **Métricas de rendimiento técnico:** Latencia de respuesta del LLM, tiempo de indexación, uso de recursos. Eso es observabilidad de infraestructura, no métricas de negocio.
@@ -178,8 +197,10 @@ Módulo NestJS que implementa un patrón event-driven interno: los motores de ag
 |--------|-----------|
 | Event-Driven (interno) | Los motores emiten eventos via NestJS EventEmitter. El módulo de métricas los escucha y persiste. Sin infraestructura externa. |
 | Event Sourcing (simplificado) | Los eventos son registros inmutables. Las métricas se derivan de los eventos, no se almacenan como estado. |
-| Query on Demand | Las métricas se calculan en el momento de la consulta via agregaciones MongoDB. Sin pre-cómputo para el MVP. |
-| Módulo NestJS | El sistema de métricas es un módulo independiente con sus propios listeners, servicio y controlador. |
+| Query on Demand | Las métricas históricas se calculan en el momento de la consulta via agregaciones MongoDB. Sin pre-cómputo para el MVP. |
+| WebSocket (actividad en vivo) | El servidor re-emite eventos de métrica al panel via WebSocket gateway de NestJS. Reutiliza el mismo mecanismo que la Solución 8 (Escalamiento). |
+| Modelo híbrido | Actividad en vivo via WebSocket + métricas históricas via REST. Cada canal sirve el tipo de dato que le corresponde. |
+| Módulo NestJS | El sistema de métricas es un módulo independiente con sus propios listeners, servicio, controlador y gateway WebSocket. |
 | Fire and Forget | Los emisores de eventos no esperan confirmación del módulo de métricas. El fallo de métricas no afecta la operación. |
 
 ### Stack técnico
@@ -188,9 +209,10 @@ Módulo NestJS que implementa un patrón event-driven interno: los motores de ag
 |-----------|-----------|-------|
 | Runtime | NestJS (módulo dentro del servicio existente `api-multi-bots`) | Consistente con el resto de la plataforma |
 | Event bus interno | `@nestjs/event-emitter` | Ya disponible en el proyecto. Sin infraestructura adicional. |
+| WebSocket gateway | `@nestjs/websockets` + `socket.io` | Reutiliza el mismo mecanismo que la Solución 8 (Escalamiento). Sin infraestructura nueva. |
 | Persistencia de eventos | MongoDB Atlas (colección `metric_events`) | Mismo cluster que el resto de la plataforma |
 | Agregaciones | MongoDB Aggregation Pipeline | Nativo, sin dependencias adicionales |
-| API | REST (NestJS Controller) | Consumida por el Panel Web |
+| API REST | NestJS Controller | Para métricas históricas, consumida por el Panel Web |
 
 ### Modelo de datos conceptual
 
@@ -238,7 +260,28 @@ this.eventEmitter.emit("metric.event", {
 } satisfies MetricEventPayload);
 ```
 
-#### API de consulta (lo que el Panel Web consume)
+#### Contrato WebSocket (actividad en vivo)
+
+```typescript
+// El servidor emite este evento al panel cada vez que se registra un metric.event
+// Evento: "metrics.live_update"
+interface LiveMetricUpdate {
+  companyId: string;
+  agentId: string;
+  agentType: "rag" | "cotizador" | "agendamiento";
+  eventType: MetricEventType;
+  timestamp: Date;
+  // Contadores acumulados del día (recalculados en memoria, no en BD)
+  todayCounters: {
+    conversationsResolved: number;
+    conversationsActive: number;
+    escalationsOpen: number;
+  };
+}
+
+// El panel se suscribe filtrando por companyId al conectar
+// socket.emit("subscribe", { companyId: "xxx" })
+```
 
 ```typescript
 // GET /api/metricas/generales?period=7d
@@ -307,11 +350,15 @@ interface AgentMetricsResponse {
 ### Visualización en el panel
 
 - [ ] La sección "Métricas" del panel muestra datos reales (reemplaza el placeholder de la Solución 1).
-- [ ] El panel permite seleccionar el período: 24h, 7 días, 30 días.
-- [ ] El panel permite filtrar por agente específico o ver todos los agentes.
-- [ ] Al cambiar el período o el agente, el panel actualiza los datos consultando la API.
-- [ ] Si la API no responde, el panel muestra estado de error con opción de reintentar.
-- [ ] Si no hay actividad en el período seleccionado, el panel muestra estado vacío con mensaje informativo.
+- [ ] Al cargar la sección, el panel abre una conexión WebSocket y muestra en tiempo real: conversaciones activas, conversaciones resueltas hoy, escalamientos abiertos y feed de últimos 10 eventos.
+- [ ] El feed de actividad en vivo se actualiza automáticamente cada vez que ocurre un nuevo evento, sin necesidad de refrescar la página.
+- [ ] Si la conexión WebSocket se pierde, el panel muestra un indicador de "reconectando" e intenta reconectar automáticamente.
+- [ ] Al navegar fuera de la sección de Métricas, el panel cierra la conexión WebSocket.
+- [ ] El panel permite seleccionar el período para métricas históricas: 24h, 7 días, 30 días.
+- [ ] El panel permite filtrar métricas históricas por agente específico o ver todos los agentes.
+- [ ] Al cambiar el período o el agente, el panel actualiza solo el bloque histórico sin interrumpir el feed en vivo.
+- [ ] Si la API de métricas históricas no responde, el bloque histórico muestra estado de error con opción de reintentar. El bloque en vivo no se ve afectado.
+- [ ] Si no hay actividad en el período seleccionado, el bloque histórico muestra estado vacío con mensaje informativo.
 
 ### Criterios generales
 
