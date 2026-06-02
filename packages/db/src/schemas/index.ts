@@ -101,3 +101,10 @@ export {
 } from "./agent.schema";
 
 
+
+export {
+  METRIC_EVENTS_COLLECTION,
+  METRIC_EVENTS_INDEXES,
+  METRIC_EVENTS_VALIDATION,
+  type MetricEventDocument,
+} from "./metric-event.schema";

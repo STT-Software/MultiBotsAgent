@@ -255,3 +255,21 @@ export interface IMessageLogRepository extends Repository<MessageLog> {
 export interface IAgentRepository extends Repository<Agent> {
   findByCompanyId(companyId: string): Promise<Agent[]>;
 }
+
+// ─── MetricEvent ─────────────────────────────────────────────────────────────
+
+import type { MetricEventDocument } from '../schemas/metric-event.schema';
+
+/**
+ * Repositorio de eventos de métricas.
+ * Inmutable por diseño: solo soporta inserción, nunca update ni delete.
+ */
+export interface IMetricEventRepository {
+  /** Inserta un único evento de métrica. */
+  create(payload: Omit<MetricEventDocument, '_id'>): Promise<MetricEventDocument>;
+  /** Inserta múltiples eventos en un solo batch (para seeding y bulk-insert). */
+  insertMany(payloads: Omit<MetricEventDocument, '_id'>[]): Promise<void>;
+  /** Cuenta los eventos de una empresa (usado para evitar duplicados en seed). */
+  countByCompany(companyId: string): Promise<number>;
+}
+
