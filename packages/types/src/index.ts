@@ -34,8 +34,14 @@ export * from "./knowledge";
 // WhatsApp — Webhook verification y tipos del conector
 export * from "./whatsapp";
 
+// Telegram — Tipos para la mensajería del bot
+export * from "./telegram";
+
 // Conversational Memory
 export * from "./memory";
 
 // Agents
 export * from "./agents/agent.types";
+
+// Bookings
+export * from "./interfaces/booking.interface";

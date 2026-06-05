@@ -144,6 +144,10 @@ function createService(deps: MockDeps): RagEngineService {
   const promptBuilder = new PromptBuilderService();
   const reRankingService = new ReRankingService(deps.llmProvider);
   const responseFormatter = new ResponseFormatterService();
+  const mockBookingsService = {
+    checkAvailability: async () => [],
+    createBooking: async () => ({}),
+  } as any;
 
   return new RagEngineService(
     deps.llmProvider,
@@ -154,6 +158,7 @@ function createService(deps: MockDeps): RagEngineService {
     reRankingService,
     responseFormatter,
     deps.escalatedRepo,
+    mockBookingsService,
   );
 }
 

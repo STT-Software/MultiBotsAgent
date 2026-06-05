@@ -1,4 +1,5 @@
 import { PersonalityConfig } from "../interfaces/rag-engine.interfaces";
+import { EncryptedToken } from "../whatsapp/channel.types";
 
 export type AgentTipo = "rag" | "cotizador" | "agendamiento";
 export type AgentEstado = "activo" | "borrador";
@@ -13,6 +14,7 @@ export interface Agent {
   nombre: string;
   tipo: AgentTipo;
   estado: AgentEstado;
+  timezone?: string;
   instrucciones?: string; // Fallback antiguo para compatibilidad
   relevanceThreshold: number;
   topK: number;
@@ -24,6 +26,8 @@ export interface Agent {
   language: string;
   failedAttemptsBeforeEscalation?: number;
   personality: PersonalityConfig;
+  googleCalendarEmail?: string;
+  googleCalendarRefreshToken?: EncryptedToken;
   createdAt: Date;
   updatedAt: Date;
 }

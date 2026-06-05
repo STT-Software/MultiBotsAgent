@@ -15,10 +15,11 @@ export interface ChannelDocument {
   _id: ObjectId;
   companyId: ObjectId;
   agentId: ObjectId;
-  provider: "whatsapp";
+  provider: "whatsapp" | "telegram";
   status: "connected" | "disconnected" | "requires_reconnection" | "partially_connected";
-  phoneNumberId: string;
-  wabaId: string;
+  phoneNumberId?: string;
+  wabaId?: string;
+  telegramBotUsername?: string;
   encryptedToken: {
     ciphertext: string;
     iv: string;
@@ -47,8 +48,10 @@ export const CHANNELS_INDEXES = [
     key: { phoneNumberId: 1 },
     name: "phoneNumberId_unique_active",
     unique: true,
+    sparse: true,
     partialFilterExpression: {
       status: { $in: ["connected", "partially_connected"] },
+      phoneNumberId: { $type: "string" },
     },
   },
   {
@@ -75,8 +78,6 @@ export const CHANNELS_VALIDATION = {
       "agentId",
       "provider",
       "status",
-      "phoneNumberId",
-      "wabaId",
       "encryptedToken",
       "displayName",
       "connectedAt",
@@ -94,7 +95,7 @@ export const CHANNELS_VALIDATION = {
       },
       provider: {
         bsonType: "string",
-        enum: ["whatsapp"],
+        enum: ["whatsapp", "telegram"],
         description: "Proveedor del canal — requerido",
       },
       status: {
@@ -104,11 +105,15 @@ export const CHANNELS_VALIDATION = {
       },
       phoneNumberId: {
         bsonType: "string",
-        description: "ID del número de teléfono en Meta — requerido",
+        description: "ID del número de teléfono en Meta — opcional para otros canales",
       },
       wabaId: {
         bsonType: "string",
-        description: "ID del WhatsApp Business Account — requerido",
+        description: "ID del WhatsApp Business Account — opcional para otros canales",
+      },
+      telegramBotUsername: {
+        bsonType: "string",
+        description: "Username del bot de Telegram — opcional",
       },
       encryptedToken: {
         bsonType: "object",

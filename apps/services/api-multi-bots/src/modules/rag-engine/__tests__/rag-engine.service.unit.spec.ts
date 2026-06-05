@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { ToolMessage } from '@langchain/core/messages';
 import { RagEngineService } from '../rag-engine.service';
 import { PromptBuilderService } from '../services/prompt-builder.service';
 import { ReRankingService } from '../services/re-ranking.service';
@@ -113,6 +114,10 @@ function createService(deps: MockDeps): RagEngineService {
   const promptBuilder = new PromptBuilderService();
   const reRankingService = new ReRankingService(deps.llmProvider);
   const responseFormatter = new ResponseFormatterService();
+  const mockBookingsService = {
+    checkAvailability: async () => [],
+    createBooking: async () => ({}),
+  } as any;
 
   return new RagEngineService(
     deps.llmProvider,
@@ -123,6 +128,7 @@ function createService(deps: MockDeps): RagEngineService {
     reRankingService,
     responseFormatter,
     deps.escalatedRepo,
+    mockBookingsService,
   );
 }
 
@@ -586,6 +592,62 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
       expect(result.escalated).toBe(true);
       expect(result.escalationReason).toBe(EscalationReason.LLM_UNAVAILABLE);
       expect(result.messages[0].content).toBe('Hubo un problema procesando tu consulta');
+    });
+  });
+
+  describe('Agente de Agendamiento (tipo=agendamiento)', () => {
+    it('debería ejecutar el flujo de herramientas de agendamiento y retornar la respuesta final', async () => {
+      const mockModelWithTools = {
+        invoke: async (messages: any[]) => {
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage instanceof ToolMessage) {
+            return {
+              content: 'Cita reservada exitosamente para Juan Pérez el día 2026-06-03 a las 10:00.',
+              tool_calls: [],
+            };
+          }
+          return {
+            content: '',
+            tool_calls: [
+              {
+                name: 'book_appointment',
+                args: {
+                  dateTime: '2026-06-03T10:00:00',
+                  customerName: 'Juan Pérez',
+                  customerPhone: '123456789',
+                },
+                id: 'call-123',
+              },
+            ],
+          };
+        },
+      };
+
+      const mockRawModel = {
+        bindTools: () => mockModelWithTools,
+      };
+
+      const deps = createMockDependencies({
+        agentConfigProvider: {
+          getConfig: async () => ({
+            ...DEFAULT_CONFIG,
+            tipo: 'agendamiento',
+          }),
+        },
+        llmProvider: {
+          generate: async () => ({ content: '', tokensUsed: 0, finishReason: 'stop' }),
+          getModel: () => mockRawModel,
+        },
+      });
+
+      const service = createService(deps);
+      const result = await service.processQuery(DEFAULT_INPUT);
+
+      expect(result.escalated).toBe(false);
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0].content).toBe(
+        'Cita reservada exitosamente para Juan Pérez el día 2026-06-03 a las 10:00.',
+      );
     });
   });
 });

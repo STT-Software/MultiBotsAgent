@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Calculator, Calendar } from "lucide-react";
+import { BookOpen, Calendar } from "lucide-react";
 import { TipoAgenteOption } from "../types/agentes.types";
 import { motion } from "motion/react";
 
@@ -10,11 +10,6 @@ const TIPO_COLORS: Record<string, { icon: string; bg: string; border: string }> 
     icon: "#10b981",      // emerald
     bg: "rgba(16, 185, 129, 0.1)",
     border: "rgba(16, 185, 129, 0.2)",
-  },
-  Calculator: {
-    icon: "#e6a817",      // amarillo/dorado
-    bg: "rgba(230, 168, 23, 0.1)",
-    border: "rgba(230, 168, 23, 0.2)",
   },
   Calendar: {
     icon: "#b366ff",      // púrpura
@@ -27,26 +22,19 @@ const TIPOS_AGENTE: TipoAgenteOption[] = [
   {
     value: "rag",
     label: "RAG",
-    description: "Retrieval Augmented Generation para respuestas basadas en datos.",
+    description: "Respuestas inteligentes basadas en tus documentos y base de conocimiento.",
     icon: "BookOpen",
   },
   {
-    value: "cotizador",
-    label: "Workflow",
-    description: "Basado en flujos lógicos y decisiones estructuradas paso a paso.",
-    icon: "Calculator",
-  },
-  {
     value: "agendamiento",
-    label: "Conversacional",
-    description: "Chat simple optimizado para interacciones humanas naturales.",
+    label: "Agendamiento",
+    description: "Gestión de citas y reservas automática sincronizada con Google Calendar.",
     icon: "Calendar",
   },
 ];
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
   BookOpen,
-  Calculator,
   Calendar,
 };
 
@@ -62,7 +50,7 @@ export function TipoAgenteSelector({ value, onChange, error }: TipoAgenteSelecto
       <div
         role="radiogroup"
         aria-label="Tipo de agente"
-        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
       >
         {TIPOS_AGENTE.map((option) => {
           const Icon = ICON_MAP[option.icon];

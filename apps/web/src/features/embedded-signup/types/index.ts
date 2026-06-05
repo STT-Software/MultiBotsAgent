@@ -10,14 +10,21 @@ export interface UseFacebookSDKReturn {
 export interface UseEmbeddedSignupReturn {
   connect: () => Promise<void>;
   connectManual: (wabaId: string, phoneNumberId: string, accessToken: string, pin?: string) => Promise<void>;
+  connectTelegram: (botToken: string) => Promise<void>;
   simulateMessage: (messageText: string, senderPhoneNumber?: string) => Promise<void>;
+  simulateTelegramMessage: (messageText: string, senderUsername?: string) => Promise<void>;
   disconnect: () => Promise<void>;
+  checkWebhookInfo: () => Promise<void>;
+  configureWebhook: (webhookUrl: string) => Promise<void>;
   isConnecting: boolean;
   isSimulating: boolean;
+  isCheckingWebhook: boolean;
+  isConfiguringWebhook: boolean;
   error: string | null;
   channelStatus: ChannelStatus | null;
   channelInfo: ChannelInfo | null;
   simulationResult: { success: boolean; messageId: string } | null;
+  webhookInfo: any;
 }
 
 export interface ConnectWhatsAppButtonProps {

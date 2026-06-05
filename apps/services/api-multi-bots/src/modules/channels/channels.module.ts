@@ -2,18 +2,19 @@ import { Module } from '@nestjs/common';
 import { MongoClient } from 'mongodb';
 import { CompanyRepository, ChannelRepository } from '@multibotagents/db';
 import { ChannelsController } from './channels.controller';
+import { TelegramChannelsController } from './telegram-channels.controller';
 import { ConnectWhatsAppService } from './services/connect-whatsapp.service';
+import { ConnectTelegramService } from './services/connect-telegram.service';
 import { MetaGraphApiProvider } from './providers/meta-graph-api.provider';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 /**
- * Módulo de canales de WhatsApp.
+ * Módulo de canales de WhatsApp y Telegram.
  *
- * Gestiona la conexión de números de WhatsApp a agentes de la plataforma
- * mediante el flujo de Embedded Signup de Meta.
+ * Gestiona la conexión de números de WhatsApp y bots de Telegram a agentes de la plataforma.
  */
 @Module({
-  controllers: [ChannelsController],
+  controllers: [ChannelsController, TelegramChannelsController],
   providers: [
     {
       provide: 'MONGO_CLIENT',
@@ -37,7 +38,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
       provide: 'CONNECT_WHATSAPP_SERVICE',
       useClass: ConnectWhatsAppService,
     },
+    {
+      provide: 'CONNECT_TELEGRAM_SERVICE',
+      useClass: ConnectTelegramService,
+    },
     ConnectWhatsAppService,
+    ConnectTelegramService,
     MetaGraphApiProvider,
     JwtAuthGuard,
   ],

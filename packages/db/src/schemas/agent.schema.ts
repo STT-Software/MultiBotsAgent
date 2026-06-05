@@ -22,6 +22,7 @@ export interface AgentDocument {
   maxResponseLength: number;
   memoryWindow: number;
   welcomeMessage?: string;
+  timezone?: string;
   noInfoMessage: string;
   errorMessage: string;
   language: string;
@@ -31,6 +32,12 @@ export interface AgentDocument {
     tone: string;
     restrictions: string[];
     instructions: string;
+  };
+  googleCalendarEmail?: string;
+  googleCalendarRefreshToken?: {
+    ciphertext: string;
+    iv: string;
+    tag: string;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -126,6 +133,10 @@ export const AGENTS_VALIDATION = {
         bsonType: "string",
         description: "Mensaje de saludo inicial proactivo — opcional",
       },
+      timezone: {
+        bsonType: "string",
+        description: "Huso horario configurado para el agente (ej. 'America/Bogota') — opcional",
+      },
       noInfoMessage: {
         bsonType: "string",
         description: "Mensaje cuando no se encuentra información en el RAG — requerido",
@@ -168,6 +179,29 @@ export const AGENTS_VALIDATION = {
           },
         },
         description: "Configuración de personalidad del agente — requerido",
+      },
+      googleCalendarEmail: {
+        bsonType: "string",
+        description: "Email de la cuenta vinculada de Google Calendar — opcional",
+      },
+      googleCalendarRefreshToken: {
+        bsonType: "object",
+        required: ["ciphertext", "iv", "tag"],
+        properties: {
+          ciphertext: {
+            bsonType: "string",
+            description: "Token de refresco cifrado",
+          },
+          iv: {
+            bsonType: "string",
+            description: "Vector de inicialización",
+          },
+          tag: {
+            bsonType: "string",
+            description: "Auth tag",
+          },
+        },
+        description: "Token de refresco de Google OAuth cifrado — opcional",
       },
       createdAt: {
         bsonType: "date",

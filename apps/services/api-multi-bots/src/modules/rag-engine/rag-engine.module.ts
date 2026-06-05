@@ -17,6 +17,7 @@ import { PromptBuilderService } from './services/prompt-builder.service';
 import { ReRankingService } from './services/re-ranking.service';
 import { ResponseFormatterService } from './services/response-formatter.service';
 import { RagEngineController } from './rag-engine.controller';
+import { BookingsModule } from '../bookings/bookings.module';
 
 /**
  * Módulo NestJS del Motor de Agente RAG.
@@ -25,6 +26,7 @@ import { RagEngineController } from './rag-engine.controller';
  * Valida: Requisito 10.5
  */
 @Module({
+  imports: [BookingsModule],
   controllers: [RagEngineController],
   providers: [
     RagEngineService,
