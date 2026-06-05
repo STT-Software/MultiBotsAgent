@@ -15,6 +15,8 @@ import { companyLogosBucket } from "../storage/company-logos";
 import { knowledgeBucket } from "../storage/knowledge-bucket";
 import { indexationQueue } from "../queues/indexation-queue";
 import { whatsAppOutgoingQueue, whatsAppIncomingQueue } from "../queues/whatsapp-queues";
+import { telegramOutgoingQueue, telegramIncomingQueue } from "../queues/telegram-queues";
+
 import {
   jwtSecrets,
   captchaSecret,
@@ -28,6 +30,9 @@ import {
   metaAppId,
   metaAppSecret,
   encryptionKey,
+  googleClientId,
+  googleClientSecret,
+  googleRedirectUri,
 } from "../shared/secrets";
 
 /**
@@ -68,6 +73,14 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
       resources: [whatsAppIncomingQueue.arn],
     },
     {
+      actions: ["sqs:SendMessage"],
+      resources: [telegramOutgoingQueue.arn],
+    },
+    {
+      actions: ["sqs:SendMessage"],
+      resources: [telegramIncomingQueue.arn],
+    },
+    {
       actions: ["bedrock:InvokeModel"],
       resources: ["*"],
     },
@@ -88,11 +101,18 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     INDEXATION_QUEUE_URL: indexationQueue.url,
     WHATSAPP_OUTGOING_QUEUE_URL: whatsAppOutgoingQueue.url,
     WHATSAPP_INCOMING_QUEUE_URL: whatsAppIncomingQueue.url,
+    TELEGRAM_OUTGOING_QUEUE_URL: telegramOutgoingQueue.url,
+    TELEGRAM_INCOMING_QUEUE_URL: telegramIncomingQueue.url,
+
     META_APP_ID: metaAppId.value,
     META_APP_SECRET: metaAppSecret.value,
     ENCRYPTION_KEY: encryptionKey.value,
+    GOOGLE_CLIENT_ID: googleClientId.value,
+    GOOGLE_CLIENT_SECRET: googleClientSecret.value,
+    GOOGLE_REDIRECT_URI: googleRedirectUri.value,
     MONGODB_VECTOR_INDEX: "knowledge_vector_index",
     BEDROCK_MODEL_ID: "minimax.minimax-m2.5",
+    WEBHOOK_URL: process.env.WEBHOOK_URL || "",
   },
   logging: {
     retention: "1 month",

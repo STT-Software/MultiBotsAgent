@@ -39,6 +39,7 @@ export interface UpdateAgenteDTO {
   language?: string;
   welcomeMessage?: string;
   personality?: Partial<PersonalityConfig>;
+  estado?: "borrador" | "activo";
 }
 
 // Errores de validación del formulario de creación

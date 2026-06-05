@@ -82,6 +82,7 @@ describe("sender handler", () => {
     mockFindById.mockResolvedValue({
       id: "chan-123",
       encryptedToken: "encrypted-meta-token",
+      provider: "whatsapp",
     });
     vi.mocked(decryptToken).mockReturnValue("decrypted-meta-token");
 
@@ -146,6 +147,7 @@ describe("sender handler", () => {
     mockFindById.mockResolvedValue({
       id: "chan-123",
       encryptedToken: "encrypted-meta-token",
+      provider: "whatsapp",
     });
     vi.mocked(decryptToken).mockReturnValue("decrypted-meta-token");
 

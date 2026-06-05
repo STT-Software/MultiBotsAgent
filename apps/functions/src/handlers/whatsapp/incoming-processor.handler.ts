@@ -61,6 +61,10 @@ async function processRecord(record: SQSRecord): Promise<void> {
   });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      log("WARN", `El agente ${agentId} no fue encontrado o está inactivo (404). Ignorando mensaje para evitar bucle de reintentos.`);
+      return;
+    }
     const errorBody = await response.text().catch(() => "");
     throw new Error(
       `Llamada fallida a NestJS (${response.status}): ${errorBody || response.statusText}`

@@ -76,6 +76,10 @@ async function processRecord(record: SQSRecord): Promise<void> {
     throw new Error(`Error descifrando el token del canal: ${error instanceof Error ? error.message : String(error)}`);
   }
 
+  if (channel.provider !== 'whatsapp') {
+    throw new Error(`WhatsAppSenderHandler recibió un mensaje para un canal con proveedor: ${channel.provider}`);
+  }
+
   // 3. Enviar cada mensaje individual
   for (const msg of messages) {
     // Solo enviamos mensajes del tipo texto
@@ -84,13 +88,12 @@ async function processRecord(record: SQSRecord): Promise<void> {
       continue;
     }
 
-    const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
-
-    let metaMessageId = `wamid.local_${new ObjectId().toHexString()}`; // ID local fallback
+    let metaMessageId = `msg.local_${new ObjectId().toHexString()}`; // ID local fallback
     let status: MessageLog["status"] = "sent";
     let errorCode: number | undefined;
     let errorMessage: string | undefined;
 
+    const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
     try {
       const response = await fetch(url, {
         method: "POST",

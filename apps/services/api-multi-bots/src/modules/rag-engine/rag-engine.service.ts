@@ -7,6 +7,14 @@ import {
   MessageRole,
   ResponseType,
 } from '@multibotagents/types';
+import { z } from 'zod';
+import { DynamicStructuredTool } from '@langchain/core/tools';
+import {
+  SystemMessage,
+  HumanMessage,
+  AIMessage,
+  ToolMessage,
+} from '@langchain/core/messages';
 
 import {
   RAG_AGENT_CONFIG_SERVICE,
@@ -14,15 +22,17 @@ import {
   RAG_MEMORY_SERVICE,
   RAG_VECTOR_SEARCH,
 } from './constants/injection-tokens';
-import { AgentNotFoundException, InvalidInputException } from './exceptions/rag-engine.exceptions';
+import { AgentNotFoundException, AgentInactiveException, InvalidInputException } from './exceptions/rag-engine.exceptions';
 import { PromptBuilderService } from './services/prompt-builder.service';
 import { ReRankingService } from './services/re-ranking.service';
 import { ResponseFormatterService } from './services/response-formatter.service';
+import { BookingsService } from '../bookings/bookings.service';
 
 import type {
   AgentConfig,
   AgentConfigProvider,
   HistoryMessage,
+  LlmPrompt,
   LlmProvider,
   MemoryService,
   RagProcessInput,
@@ -52,6 +62,7 @@ export class RagEngineService {
     @Inject(ReRankingService) private readonly reRankingService: ReRankingService,
     @Inject(ResponseFormatterService) private readonly responseFormatter: ResponseFormatterService,
     @Inject('ESCALATED_CONVERSATION_REPO') private readonly escalatedRepo: EscalatedConversationRepository,
+    private readonly bookingsService: BookingsService,
   ) {}
 
   /**
@@ -68,7 +79,20 @@ export class RagEngineService {
     this.validateInput(input);
 
     // 2. Get agent config
-    const config = await this.getAgentConfig(input.agentId);
+    let config: AgentConfig;
+    try {
+      config = await this.getAgentConfig(input.agentId);
+    } catch (error: unknown) {
+      if (error instanceof AgentInactiveException) {
+        this.logger.log(`Agent ${input.agentId} is inactive/borrador. Bypassing processing and returning empty response.`);
+        return {
+          conversationId: input.conversationId,
+          messages: [],
+          escalated: false,
+        };
+      }
+      throw error;
+    }
     this.logger.debug('Agent config retrieved', { agentId: config.agentId });
 
     // 2.5 Check if conversation is already escalated
@@ -203,11 +227,17 @@ export class RagEngineService {
     // 12. Invoke LLM
     let llmContent: string;
     try {
-      this.logger.debug('Invoking LLM');
-      const llmResponse = await this.llmProvider.generate(prompt);
+      if (config.tipo === 'agendamiento') {
+        this.logger.debug('Invoking agendamiento agent with tools');
+        llmContent = await this.executeAgentWithTools(config, prompt, input);
+      } else {
+        this.logger.debug('Invoking standard LLM');
+        const llmResponse = await this.llmProvider.generate(prompt);
+        llmContent = llmResponse.content;
+      }
 
       // 13. Handle empty LLM response
-      if (!llmResponse.content || llmResponse.content.trim().length === 0) {
+      if (!llmContent || llmContent.trim().length === 0) {
         this.logger.error('LLM returned empty response', {
           agentId: input.agentId,
           conversationId: input.conversationId,
@@ -216,32 +246,9 @@ export class RagEngineService {
         return this.buildErrorResponse(input, config, history);
       }
 
-      llmContent = llmResponse.content;
+      llmContent = llmContent;
 
-      // 13.5 Handle TRANSFER or NO_INFO response from LLM
-      const cleanContent = llmContent.trim().toUpperCase();
-      if (cleanContent === 'TRANSFER' || cleanContent.includes('TRANSFER')) {
-        this.logger.warn('LLM determined user wants human transfer, initiating escalation', {
-          agentId: input.agentId,
-          conversationId: input.conversationId,
-          stage: 'llm_invocation',
-        });
-        return this.buildNoInfoResponse(input, config, history, 'explicit');
-      }
-
-      if (cleanContent === 'NO_INFO' || cleanContent.includes('NO_INFO')) {
-        this.logger.warn('LLM determined no information was available, returning noInfoMessage', {
-          agentId: input.agentId,
-          conversationId: input.conversationId,
-          stage: 'llm_invocation',
-        });
-        return this.buildNoInfoResponse(input, config, history, 'agent_detected');
-      }
-
-      this.logger.debug('LLM response received', {
-        tokensUsed: llmResponse.tokensUsed,
-        finishReason: llmResponse.finishReason,
-      });
+      this.logger.debug('LLM response received');
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('LLM invocation failed', {
@@ -294,7 +301,7 @@ export class RagEngineService {
     try {
       return await this.agentConfigProvider.getConfig(agentId);
     } catch (error: unknown) {
-      if (error instanceof AgentNotFoundException) {
+      if (error instanceof AgentNotFoundException || error instanceof AgentInactiveException) {
         throw error;
       }
       throw new AgentNotFoundException(agentId);
@@ -583,5 +590,165 @@ export class RagEngineService {
       escalated: true,
       escalationReason: EscalationReason.LLM_UNAVAILABLE,
     };
+  }
+
+  /**
+   * Ejecuta el flujo del LLM para agentes de agendamiento con soporte de herramientas (Tools).
+   */
+  private async executeAgentWithTools(
+    config: AgentConfig,
+    prompt: LlmPrompt,
+    _input: RagProcessInput,
+  ): Promise<string> {
+    const rawModel = typeof this.llmProvider.getModel === 'function' ? this.llmProvider.getModel() : null;
+    if (!rawModel) {
+      this.logger.error('El proveedor de LLM no expone el modelo LangChain crudo');
+      throw new Error('Soporte de herramientas no configurado en el LLM');
+    }
+
+    // Definición de las herramientas
+    const checkAvailabilityTool = new DynamicStructuredTool({
+      name: 'check_availability',
+      description:
+        'Consulta los horarios/slots de 30 minutos disponibles para una fecha específica (YYYY-MM-DD). Retorna un array de strings con las horas disponibles (ej: ["09:00", "09:30"]).',
+      schema: z.object({
+        date: z.string().describe('Fecha en formato YYYY-MM-DD del día a consultar.'),
+        timeOfDay: z.enum(['morning', 'afternoon', 'any']).optional().describe('Preferencia de jornada de disponibilidad.'),
+      }),
+      func: async ({ date, timeOfDay }) => {
+        try {
+          const slots = await this.bookingsService.checkAvailability(
+            config.agentId,
+            date,
+            timeOfDay || 'any',
+          );
+          return JSON.stringify({ success: true, date, availableSlots: slots });
+        } catch (err: any) {
+          return JSON.stringify({ success: false, error: err.message || String(err) });
+        }
+      },
+    });
+
+    const bookAppointmentTool = new DynamicStructuredTool({
+      name: 'book_appointment',
+      description: 'Reserva una cita para un cliente en una fecha y hora específica.',
+      schema: z.object({
+        dateTime: z
+          .string()
+          .describe(
+            'Fecha y hora de inicio de la cita en formato ISO 8601 (ej. YYYY-MM-DDTHH:mm:ss). Debe ser uno de los slots disponibles.',
+          ),
+        customerName: z.string().describe('Nombre completo del cliente.'),
+        customerPhone: z.string().describe('Teléfono de contacto del cliente.'),
+        customerEmail: z.string().optional().describe('Correo electrónico del cliente.'),
+        notes: z.string().optional().describe('Notas o comentarios adicionales de la cita.'),
+      }),
+      func: async ({ dateTime, customerName, customerPhone, customerEmail, notes }) => {
+        try {
+          const booking = await this.bookingsService.createBooking(config.companyId, {
+            agentId: config.agentId,
+            dateTime,
+            customerName,
+            customerPhone,
+            customerEmail,
+            notes,
+          });
+          return JSON.stringify({ success: true, booking });
+        } catch (err: any) {
+          return JSON.stringify({ success: false, error: err.message || String(err) });
+        }
+      },
+    });
+
+    const tools = [checkAvailabilityTool, bookAppointmentTool];
+    const modelWithTools = rawModel.bindTools(tools);
+
+    // Construcción de mensajes para el LLM
+    const messages: any[] = [];
+
+    // System prompt con contexto inyectado
+    const systemPromptParts = [prompt.systemPrompt];
+    if (prompt.context) {
+      systemPromptParts.push(`\n\n--- CONTEXTO ---\n${prompt.context}`);
+    }
+    systemPromptParts.push(`\n\nRestriction: Your response must not exceed ${prompt.maxResponseLength} characters.`);
+
+    // Inyectar contexto temporal local del agente
+    const timezone = config.timezone || 'America/Bogota';
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('es-CO', {
+      timeZone: timezone,
+      dateStyle: 'full',
+      timeStyle: 'long',
+    });
+    const localTimeStr = formatter.format(now);
+    systemPromptParts.push(`\n\nFecha y hora actual del sistema (huso horario ${timezone}): ${localTimeStr}.`);
+
+    messages.push(new SystemMessage(systemPromptParts.join('')));
+
+    // Historial conversacional
+    for (const msg of prompt.history) {
+      if (msg.role === 'user') {
+        messages.push(new HumanMessage(msg.content));
+      } else {
+        messages.push(new AIMessage(msg.content));
+      }
+    }
+
+    // Mensaje de usuario actual
+    messages.push(new HumanMessage(prompt.userMessage));
+
+    this.logger.log(`Iniciando ejecución de agente de agendamiento. Mensaje usuario: "${prompt.userMessage}"`);
+
+    let response = await modelWithTools.invoke(messages);
+    let loopCount = 0;
+
+    while (loopCount < 5) {
+      const toolCalls = response.tool_calls || [];
+      if (toolCalls.length === 0) {
+        break;
+      }
+
+      loopCount++;
+      messages.push(response);
+
+      for (const toolCall of toolCalls) {
+        const targetTool = tools.find((t) => t.name === toolCall.name);
+        if (targetTool) {
+          this.logger.log(`Llamando herramienta ${toolCall.name} con argumentos: ${JSON.stringify(toolCall.args)}`);
+          const result = await (targetTool as any).invoke(toolCall.args);
+          let contentStr = '';
+          if (result && typeof result === 'object' && 'content' in result) {
+            contentStr = typeof result.content === 'string' ? result.content : JSON.stringify(result.content);
+          } else {
+            contentStr = typeof result === 'string' ? result : JSON.stringify(result);
+          }
+          messages.push(
+            new ToolMessage({
+              content: contentStr,
+              tool_call_id: toolCall.id!,
+            }),
+          );
+        } else {
+          messages.push(
+            new ToolMessage({
+              content: `Error: herramienta ${toolCall.name} no encontrada`,
+              tool_call_id: toolCall.id!,
+            }),
+          );
+        }
+      }
+
+      response = await modelWithTools.invoke(messages);
+    }
+
+    const finalContent =
+      typeof response.content === 'string'
+        ? response.content
+        : Array.isArray(response.content)
+          ? response.content.map((b: any) => b.text || '').join('')
+          : '';
+
+    return finalContent;
   }
 }

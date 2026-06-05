@@ -319,7 +319,7 @@ export class MetaGraphApiProvider {
     }
 
     throw new BadRequestException(
-      'Error en la comunicación con Meta Graph API',
+      `Error en la comunicación con Meta Graph API: ${errorMessage}`,
     );
   }
 }

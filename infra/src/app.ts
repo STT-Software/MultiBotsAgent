@@ -24,6 +24,7 @@ import "./storage/knowledge-bucket";
 // Queues
 import "./queues/indexation-queue";
 import "./queues/whatsapp-queues";
+import "./queues/telegram-queues";
 
 // Services
 import "./services/cluster";
@@ -33,6 +34,7 @@ import "./services/api-multi-bots";
 import "./apis/services-api";
 import "./apis/functions-api";
 import "./apis/whatsapp-webhook-api";
+import "./apis/telegram-api";
 // Functions (Lambda handlers)
 import "./functions/indexation-handler";
 

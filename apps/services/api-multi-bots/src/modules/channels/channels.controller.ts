@@ -11,6 +11,9 @@ import {
   InternalServerErrorException,
   Logger,
   Inject,
+  Get,
+  Query,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -121,6 +124,98 @@ El agentId debe pertenecer a la empresa del usuario autenticado (extraída del J
     });
   }
 
+  @Get('status')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Obtener estado del canal de WhatsApp',
+    description: 'Obtiene el estado de conexión actual del canal de WhatsApp asociado al agente.',
+  })
+  async getStatus(
+    @Query('agentId') agentId: string,
+    @Req() req: Request,
+  ) {
+    const user = (req as any).user;
+    const { companyId } = user;
+
+    if (!agentId) {
+      throw new BadRequestException('agentId es requerido.');
+    }
+
+    // Verificar propiedad del agente
+    await this.verifyAgentOwnership(agentId, companyId);
+
+    const db = this.mongoClient.db();
+    const channel = await db.collection('channels').findOne({
+      agentId: new ObjectId(agentId),
+    });
+
+    if (!channel) {
+      throw new NotFoundException('No hay canal configurado para este agente.');
+    }
+
+    return {
+      channelId: channel._id.toHexString(),
+      status: channel.status,
+      phoneNumberId: channel.phoneNumberId,
+      telegramBotUsername: channel.telegramBotUsername,
+      displayName: channel.displayName,
+      provider: channel.provider || 'whatsapp',
+      connectedAt: channel.connectedAt ? channel.connectedAt.toISOString() : new Date().toISOString(),
+    };
+  }
+
+  @Post('disconnect')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Desconectar canal de WhatsApp',
+    description: 'Desconecta y elimina un canal de WhatsApp asociado a un agente.',
+  })
+  async disconnect(
+    @Body('channelId') channelId: string,
+    @Req() req: Request,
+  ) {
+    const user = (req as any).user;
+    const { companyId } = user;
+
+    if (!channelId) {
+      throw new BadRequestException('channelId es requerido.');
+    }
+
+    const db = this.mongoClient.db();
+    let objectChannelId: ObjectId;
+    try {
+      objectChannelId = new ObjectId(channelId);
+    } catch {
+      throw new BadRequestException('Formato de channelId inválido.');
+    }
+
+    // Buscar el canal por _id
+    const channel = await db.collection('channels').findOne({
+      _id: objectChannelId,
+    });
+
+    if (!channel) {
+      throw new ForbiddenException('No tienes permisos sobre este canal o no existe.');
+    }
+
+    // Verificar que el agente del canal pertenece a la empresa del usuario
+    const agentIdStr = channel.agentId instanceof ObjectId
+      ? channel.agentId.toHexString()
+      : String(channel.agentId);
+    await this.verifyAgentOwnership(agentIdStr, companyId);
+
+    // Eliminar el canal
+    const result = await db.collection('channels').deleteOne({ _id: objectChannelId });
+    if (result.deletedCount !== 1) {
+      throw new InternalServerErrorException('Error al eliminar el canal.');
+    }
+
+    this.logger.log(`Canal de WhatsApp desconectado/eliminado: ${channelId}`);
+    return { success: true };
+  }
+
   @Post('simulate-webhook')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -218,12 +313,17 @@ El agentId debe pertenecer a la empresa del usuario autenticado (extraída del J
     const db = this.mongoClient.db();
 
     // Si es el agente de pruebas global, asignarlo dinámicamente a la compañía actual del usuario
-    if (agentId === '6a17081684826f9c174d2118') {
+    if (agentId === '6a17081684826f9c174d2118' || agentId === '6a1ef61f86fd3367b8c7aded') {
       await db.collection('agents').updateOne(
         { _id: objectAgentId },
         { $set: { companyId: new ObjectId(companyId) } }
       );
-      this.logger.log(`Dynamic company ownership update for test agent ${agentId} to company ${companyId}`);
+      // Sincronizar también los canales del agente global
+      await db.collection('channels').updateMany(
+        { agentId: objectAgentId },
+        { $set: { companyId: new ObjectId(companyId) } }
+      );
+      this.logger.log(`Dynamic company ownership update for test agent ${agentId} and its channels to company ${companyId}`);
       return;
     }
 

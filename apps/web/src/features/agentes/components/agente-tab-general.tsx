@@ -18,9 +18,9 @@ interface AgenteTabGeneralProps {
 // Descripción contextual según el estado
 const ESTADO_DESCRIPTIONS: Record<string, string> = {
   activo:
-    "El agente está actualmente procesando transacciones y respondiendo a leads de ventas en tiempo real. No es posible cambiar el estado durante una sesión activa.",
+    "El agente está actualmente activo, procesando mensajes y respondiendo a tus clientes en tiempo real en los canales vinculados.",
   borrador:
-    "El agente está en modo borrador. Completa la configuración para poder activarlo.",
+    "El agente está desactivado o en modo borrador. No responderá a ningún mensaje recibido hasta que decidas publicarlo.",
 };
 
 export function AgenteTabGeneral({
@@ -232,6 +232,53 @@ export function AgenteTabGeneral({
           <p className="text-xs leading-relaxed" style={{ color: "#869489" }}>
             {ESTADO_DESCRIPTIONS[agente.estado] ?? ""}
           </p>
+          <div className="pt-2" style={{ borderTop: "1px solid rgba(60, 74, 65, 0.4)" }}>
+            {isActivo ? (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => editarAgente({ estado: "borrador" })}
+                className="w-full rounded-lg py-2.5 text-xs font-bold transition-all duration-200"
+                style={{
+                  backgroundColor: "rgba(239, 68, 68, 0.1)",
+                  border: "1px solid rgba(239, 68, 68, 0.2)",
+                  color: "#f87171",
+                  cursor: saving ? "not-allowed" : "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.2)";
+                  e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.1)";
+                  e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.2)";
+                }}
+              >
+                {saving ? "Procesando..." : "Desactivar temporalmente"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => editarAgente({ estado: "activo" })}
+                className="w-full rounded-lg py-2.5 text-xs font-bold transition-all duration-200"
+                style={{
+                  backgroundColor: "#00bb7a",
+                  border: "1px solid rgba(0, 187, 122, 0.3)",
+                  color: "#0a0a0a",
+                  cursor: saving ? "not-allowed" : "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#00d98e";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "#00bb7a";
+                }}
+              >
+                {saving ? "Procesando..." : "Activar / Publicar agente"}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Eficiencia card (estático) */}

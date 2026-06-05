@@ -45,6 +45,10 @@ export class BedrockLlmProvider implements LlmProvider {
     );
   }
 
+  getModel(): ChatBedrockConverse {
+    return this.model;
+  }
+
   async generate(prompt: LlmPrompt): Promise<LlmResponse> {
     const messages = this.buildMessages(prompt);
 
