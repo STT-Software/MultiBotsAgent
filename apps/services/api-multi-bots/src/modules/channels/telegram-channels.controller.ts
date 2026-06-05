@@ -160,86 +160,6 @@ export class TelegramChannelsController {
     };
   }
 
-  @Post('webhook/:channelId')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Procesar webhook real de TelegramUpdate',
-    description: 'Recibe mensajes reales enviados por los usuarios finales al bot de Telegram.',
-  })
-  async receiveWebhook(
-    @Param('channelId') channelId: string,
-    @Body() body: any,
-  ) {
-    this.logger.log(`Recibida petición webhook de Telegram para el canal ${channelId}`);
-
-    if (!body || !body.message || !body.message.chat || !body.message.text) {
-      this.logger.warn('Petición webhook de Telegram sin campos requeridos. Omitiendo.');
-      return { ok: true };
-    }
-
-    const { message } = body;
-    const chatId = message.chat.id;
-    const messageText = message.text;
-    const senderUsername = message.from?.username || message.from?.first_name || 'telegram_user';
-
-    const db = this.mongoClient.db();
-    let objectChannelId: ObjectId;
-    try {
-      objectChannelId = new ObjectId(channelId);
-    } catch {
-      throw new BadRequestException('ID de canal inválido.');
-    }
-
-    const channel = await db.collection('channels').findOne({
-      _id: objectChannelId,
-      provider: 'telegram',
-    });
-
-    if (!channel) {
-      this.logger.warn(`Canal de Telegram ${channelId} no encontrado.`);
-      throw new BadRequestException('Canal no encontrado.');
-    }
-
-    const tgMessageId = `tg-${message.message_id}`;
-    const timestamp = message.date
-      ? new Date(message.date * 1000).toISOString()
-      : new Date().toISOString();
-
-    const eventPayload = {
-      agentId: channel.agentId.toString(),
-      companyId: channel.companyId.toString(),
-      channelId: channel._id.toString(),
-      conversationId: `telegram_${chatId}`,
-      senderUsername,
-      messageId: tgMessageId,
-      messageText,
-      provider: 'telegram',
-      timestamp,
-    };
-
-    const queueUrl = process.env.TELEGRAM_INCOMING_QUEUE_URL;
-    if (!queueUrl) {
-      this.logger.error('TELEGRAM_INCOMING_QUEUE_URL no está configurado');
-      throw new InternalServerErrorException('Error del sistema de mensajería.');
-    }
-
-    try {
-      const sqsClient = new SQSClient({ region: process.env.AWS_REGION || 'us-east-1' });
-      await sqsClient.send(
-        new SendMessageCommand({
-          QueueUrl: queueUrl,
-          MessageBody: JSON.stringify(eventPayload),
-        }),
-      );
-    } catch (e) {
-      this.logger.error(`No se pudo enviar el mensaje del webhook de Telegram a SQS: ${(e as Error).message}`);
-      throw new InternalServerErrorException('Error al encolar el mensaje.');
-    }
-
-    this.logger.log(`Mensaje real del bot @${channel.telegramBotUsername} encolado a SQS exitosamente.`);
-    return { ok: true };
-  }
-
   @Get('webhook/info')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -335,12 +255,102 @@ export class TelegramChannelsController {
       );
       const data = await response.json() as any;
       this.logger.log(`Respuesta de Telegram setWebhook: ${JSON.stringify(data)}`);
+      
+      if (!data.ok) {
+        throw new BadRequestException(
+          `Telegram rechazó el webhook: ${data.description || 'Sin descripción'}`
+        );
+      }
+      
       return data;
     } catch (e) {
+      if (e instanceof BadRequestException) {
+        throw e;
+      }
       throw new InternalServerErrorException(
         `Error al registrar el webhook en Telegram: ${(e as Error).message}`,
       );
     }
+  }
+
+  @Post('webhook/:channelId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Procesar webhook real de TelegramUpdate',
+    description: 'Recibe mensajes reales enviados por los usuarios finales al bot de Telegram.',
+  })
+  async receiveWebhook(
+    @Param('channelId') channelId: string,
+    @Body() body: any,
+  ) {
+    this.logger.log(`Recibida petición webhook de Telegram para el canal ${channelId}`);
+
+    if (!body || !body.message || !body.message.chat || !body.message.text) {
+      this.logger.warn('Petición webhook de Telegram sin campos requeridos. Omitiendo.');
+      return { ok: true };
+    }
+
+    const { message } = body;
+    const chatId = message.chat.id;
+    const messageText = message.text;
+    const senderUsername = message.from?.username || message.from?.first_name || 'telegram_user';
+
+    const db = this.mongoClient.db();
+    let objectChannelId: ObjectId;
+    try {
+      objectChannelId = new ObjectId(channelId);
+    } catch {
+      throw new BadRequestException('ID de canal inválido.');
+    }
+
+    const channel = await db.collection('channels').findOne({
+      _id: objectChannelId,
+      provider: 'telegram',
+    });
+
+    if (!channel) {
+      this.logger.warn(`Canal de Telegram ${channelId} no encontrado.`);
+      throw new BadRequestException('Canal no encontrado.');
+    }
+
+    const tgMessageId = `tg-${message.message_id}`;
+    const timestamp = message.date
+      ? new Date(message.date * 1000).toISOString()
+      : new Date().toISOString();
+
+    const eventPayload = {
+      agentId: channel.agentId.toString(),
+      companyId: channel.companyId.toString(),
+      channelId: channel._id.toString(),
+      conversationId: `telegram_${chatId}`,
+      senderUsername,
+      messageId: tgMessageId,
+      messageText,
+      provider: 'telegram',
+      timestamp,
+    };
+
+    const queueUrl = process.env.TELEGRAM_INCOMING_QUEUE_URL;
+    if (!queueUrl) {
+      this.logger.error('TELEGRAM_INCOMING_QUEUE_URL no está configurado');
+      throw new InternalServerErrorException('Error del sistema de mensajería.');
+    }
+
+    try {
+      const sqsClient = new SQSClient({ region: process.env.AWS_REGION || 'us-east-1' });
+      await sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: queueUrl,
+          MessageBody: JSON.stringify(eventPayload),
+        }),
+      );
+    } catch (e) {
+      this.logger.error(`No se pudo enviar el mensaje del webhook de Telegram a SQS: ${(e as Error).message}`);
+      throw new InternalServerErrorException('Error al encolar el mensaje.');
+    }
+
+    this.logger.log(`Mensaje real del bot @${channel.telegramBotUsername} encolado a SQS exitosamente.`);
+    return { ok: true };
   }
 
   private async verifyAgentOwnership(
