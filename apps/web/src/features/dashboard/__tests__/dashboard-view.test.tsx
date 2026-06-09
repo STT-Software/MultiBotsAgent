@@ -33,9 +33,6 @@ describe('DashboardView', () => {
       expect(screen.getAllByText('No pudimos cargar los datos').length).toBeGreaterThanOrEqual(1)
     })
 
-    // QuickActions siempre visible
-    expect(screen.getByLabelText('Crear nuevo agente')).toBeInTheDocument()
-
     // NavCards siempre visibles
     expect(screen.getByText('Agentes')).toBeInTheDocument()
     expect(screen.getByText('Inbox')).toBeInTheDocument()

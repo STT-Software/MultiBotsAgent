@@ -2,7 +2,6 @@
 
 import { useAgentesSummary } from '../hooks/use-agentes-summary'
 import { NavCards } from './nav-cards'
-import { QuickActions } from './quick-actions'
 import { StatsError } from './stats-error'
 import { StatsSkeleton } from './stats-skeleton'
 import { StatsSummary } from './stats-summary'
@@ -26,7 +25,6 @@ export function DashboardView() {
             Resumen en tiempo real de tus agentes.
           </p>
         </div>
-        <QuickActions />
       </div>
 
       {/* KPI Cards */}

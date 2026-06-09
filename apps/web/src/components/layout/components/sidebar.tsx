@@ -66,9 +66,12 @@ export function Sidebar() {
       </div>
 
       {/* New Project button */}
-      <button className="relative mb-10 w-full rounded-lg bg-[#00bb7a] py-3 text-sm font-semibold text-[#004329] flex items-center justify-center gap-2 transition-colors duration-200 hover:bg-[#49df9a]">
+      <button
+        onClick={() => router.push('/agentes/crear')}
+        className="relative mb-10 w-full rounded-lg bg-[#00bb7a] py-3 text-sm font-semibold text-[#004329] flex items-center justify-center gap-2 transition-colors duration-200 hover:bg-[#49df9a]"
+      >
         <Plus className="h-[18px] w-[18px]" strokeWidth={2} />
-        Nuevo Proyecto
+        Nuevo Agente
       </button>
 
       {/* Navigation */}
