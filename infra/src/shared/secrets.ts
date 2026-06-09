@@ -36,3 +36,8 @@ export const metaAppId = new sst.Secret("META_APP_ID");
 export const metaAppSecret = new sst.Secret("META_APP_SECRET");
 export const metaConfigId = new sst.Secret("META_CONFIG_ID");
 export const encryptionKey = new sst.Secret("ENCRYPTION_KEY");
+
+// Google Calendar
+export const googleClientId = new sst.Secret("GOOGLE_CLIENT_ID");
+export const googleClientSecret = new sst.Secret("GOOGLE_CLIENT_SECRET");
+export const googleRedirectUri = new sst.Secret("GOOGLE_REDIRECT_URI");

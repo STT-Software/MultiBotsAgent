@@ -7,6 +7,7 @@ import {
   ValidateNested,
   MaxLength,
   ArrayMaxSize,
+  IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -83,6 +84,15 @@ export class UpdateAgentDto {
   welcomeMessage?: string;
 
   @ApiPropertyOptional({
+    description: 'Huso horario del agente.',
+    example: 'America/Bogota',
+  })
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  timezone?: string;
+
+  @ApiPropertyOptional({
     description: 'Configuración detallada de la personalidad y restricciones.',
     type: PersonalityConfigDto,
   })
@@ -90,4 +100,20 @@ export class UpdateAgentDto {
   @ValidateNested()
   @Type(() => PersonalityConfigDto)
   personality?: PersonalityConfigDto;
+
+  @ApiPropertyOptional({
+    description: 'Tipo de agente.',
+    enum: ['rag', 'cotizador', 'agendamiento'],
+  })
+  @IsOptional()
+  @IsIn(['rag', 'cotizador', 'agendamiento'])
+  tipo?: 'rag' | 'cotizador' | 'agendamiento';
+
+  @ApiPropertyOptional({
+    description: 'Estado operativo del agente.',
+    enum: ['activo', 'borrador'],
+  })
+  @IsOptional()
+  @IsIn(['activo', 'borrador'])
+  estado?: 'activo' | 'borrador';
 }

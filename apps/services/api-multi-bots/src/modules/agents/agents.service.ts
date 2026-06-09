@@ -85,10 +85,16 @@ export class AgentsService {
     const updatedData: Partial<Agent> = {};
     if (dto.nombre !== undefined) updatedData.nombre = dto.nombre;
     if (dto.language !== undefined) updatedData.language = dto.language;
+    if (dto.tipo !== undefined) updatedData.tipo = dto.tipo;
+    if (dto.estado !== undefined) updatedData.estado = dto.estado;
     
     // Permitir explícitamente guardar un welcomeMessage vacío/nulo si se desea deshabilitar
     if (dto.welcomeMessage !== undefined) {
       updatedData.welcomeMessage = dto.welcomeMessage;
+    }
+
+    if (dto.timezone !== undefined) {
+      updatedData.timezone = dto.timezone;
     }
 
     if (dto.personality !== undefined) {

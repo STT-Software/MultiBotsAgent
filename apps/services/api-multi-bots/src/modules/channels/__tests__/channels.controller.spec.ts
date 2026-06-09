@@ -111,4 +111,53 @@ describe('ChannelsController', () => {
       expect(mockConnectWhatsAppService.execute).not.toHaveBeenCalled();
     });
   });
+
+  describe('disconnect', () => {
+    const mockReq = {
+      user: {
+        companyId: new ObjectId().toHexString(),
+      },
+    } as unknown as Request;
+
+    it('should disconnect channel successfully', async () => {
+      const channelId = new ObjectId().toHexString();
+      const agentId = new ObjectId().toHexString();
+
+      // Mock findOne para retornar primero el canal y luego el agente
+      mockCollection.findOne
+        .mockResolvedValueOnce({
+          _id: new ObjectId(channelId),
+          agentId: new ObjectId(agentId),
+          companyId: new ObjectId((mockReq as any).user.companyId),
+        })
+        .mockResolvedValueOnce({
+          _id: new ObjectId(agentId),
+          companyId: new ObjectId((mockReq as any).user.companyId),
+        });
+
+      mockCollection.deleteOne = vi.fn().mockResolvedValue({ deletedCount: 1 });
+
+      const result = await controller.disconnect(channelId, mockReq);
+
+      expect(result).toEqual({ success: true });
+      expect(mockCollection.findOne).toHaveBeenNthCalledWith(1, {
+        _id: new ObjectId(channelId),
+      });
+      expect(mockCollection.findOne).toHaveBeenNthCalledWith(2, {
+        _id: new ObjectId(agentId),
+        companyId: new ObjectId((mockReq as any).user.companyId),
+      });
+      expect(mockCollection.deleteOne).toHaveBeenCalledWith({
+        _id: new ObjectId(channelId),
+      });
+    });
+
+    it('should throw ForbiddenException if channel does not exist', async () => {
+      const channelId = new ObjectId().toHexString();
+      mockCollection.findOne.mockResolvedValue(null);
+
+      await expect(controller.disconnect(channelId, mockReq)).rejects.toThrow(ForbiddenException);
+      expect(mockCollection.findOne).toHaveBeenCalledWith({ _id: new ObjectId(channelId) });
+    });
+  });
 });

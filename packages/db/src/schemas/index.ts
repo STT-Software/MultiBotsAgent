@@ -100,6 +100,13 @@ export {
   type AgentDocument,
 } from "./agent.schema";
 
+export {
+  BOOKINGS_COLLECTION,
+  BOOKINGS_INDEXES,
+  BOOKINGS_VALIDATION,
+  type BookingDocument,
+} from "./booking.schema";
+
 
 
 export {

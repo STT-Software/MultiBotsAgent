@@ -5,8 +5,15 @@
 
 export class AgentNotFoundException extends Error {
   constructor(agentId: string) {
-    super(`Agent not found or inactive: ${agentId}`);
+    super(`Agent not found: ${agentId}`);
     this.name = 'AgentNotFoundException';
+  }
+}
+
+export class AgentInactiveException extends Error {
+  constructor(agentId: string) {
+    super(`Agent is inactive: ${agentId}`);
+    this.name = 'AgentInactiveException';
   }
 }
 

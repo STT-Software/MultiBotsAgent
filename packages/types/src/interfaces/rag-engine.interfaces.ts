@@ -18,6 +18,7 @@ import { ChatMessage } from "../memory/memory.types";
  */
 export interface LlmProvider {
   generate(prompt: LlmPrompt): Promise<LlmResponse>;
+  getModel?(): any;
 }
 
 /**
@@ -131,6 +132,8 @@ export interface AgentConfigProvider {
 export interface AgentConfig {
   agentId: string;
   companyId: string;
+  tipo?: 'rag' | 'cotizador' | 'agendamiento';
+  timezone?: string;
   personality: PersonalityConfig;
   relevanceThreshold: number;
   topK: number;

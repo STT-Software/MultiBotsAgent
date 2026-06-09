@@ -40,6 +40,8 @@ function toEntity(doc: AgentDocument): Agent {
       restrictions: [],
       instructions: instructions,
     },
+    googleCalendarEmail: doc.googleCalendarEmail,
+    googleCalendarRefreshToken: doc.googleCalendarRefreshToken,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
@@ -103,6 +105,8 @@ export class AgentRepository implements IAgentRepository {
         restrictions: entity.personality.restrictions,
         instructions: personalityInstructions,
       },
+      googleCalendarEmail: entity.googleCalendarEmail,
+      googleCalendarRefreshToken: entity.googleCalendarRefreshToken,
       createdAt: entity.createdAt || now,
       updatedAt: entity.updatedAt || now,
     };
@@ -142,6 +146,13 @@ export class AgentRepository implements IAgentRepository {
         instructions: entity.personality.instructions,
       };
       updateData.instrucciones = entity.personality.instructions;
+    }
+
+    if (entity.googleCalendarEmail !== undefined) {
+      updateData.googleCalendarEmail = entity.googleCalendarEmail;
+    }
+    if (entity.googleCalendarRefreshToken !== undefined) {
+      updateData.googleCalendarRefreshToken = entity.googleCalendarRefreshToken;
     }
 
     updateData.updatedAt = new Date();

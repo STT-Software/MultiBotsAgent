@@ -12,6 +12,7 @@ import { RagEngineModule } from "./modules/rag-engine/rag-engine.module";
 import { EscalamientoModule } from "./modules/escalamiento/escalamiento.module";
 import { AgentsModule } from "./modules/agents/agents.module";
 import { MetricasModule } from "./modules/metricas/metricas.module";
+import { BookingsModule } from "./modules/bookings/bookings.module";
 import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-verified.guard";
 
 @Module({
@@ -28,6 +29,7 @@ import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-ve
     EscalamientoModule,
     AgentsModule,
     MetricasModule,
+    BookingsModule,
   ],
   providers: [
     {

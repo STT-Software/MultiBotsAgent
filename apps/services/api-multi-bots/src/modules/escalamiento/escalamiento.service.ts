@@ -109,7 +109,7 @@ export class EscalamientoService {
 
       const outgoingEvent: OutgoingMessageEvent = {
         channelId: channel.id,
-        phoneNumberId: channel.phoneNumberId,
+        phoneNumberId: channel.phoneNumberId ?? '',
         recipientPhone,
         conversationId: conversation.userId,
         messages: [

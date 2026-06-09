@@ -23,6 +23,7 @@ import type {
   ProcessedMessage,
   MessageLog,
   Agent,
+  Booking,
 } from '@multibotagents/types';
 import type { Repository } from './repository.interface';
 
@@ -273,3 +274,25 @@ export interface IMetricEventRepository {
   countByCompany(companyId: string): Promise<number>;
 }
 
+
+// ─── Booking (Agendamiento) ──────────────────────────────────────────────────
+
+export interface CreateBookingData {
+  companyId: string;
+  agentId: string;
+  googleEventId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  dateTime: Date;
+  durationMinutes: number;
+  notes?: string;
+}
+
+export interface IBookingRepository extends Repository<Booking> {
+  findByCompanyId(companyId: string): Promise<Booking[]>;
+  findByAgentId(agentId: string): Promise<Booking[]>;
+  findByCustomerPhone(customerPhone: string): Promise<Booking[]>;
+  findActiveByCustomerPhone(customerPhone: string): Promise<Booking[]>;
+  findByDateRange(companyId: string, startDate: Date, endDate: Date): Promise<Booking[]>;
+}
