@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
         destination: `${apiUrl}/api/:path*`,
       },
       {
+        source: "/metricas/:path*",
+        destination: `${apiUrl}/metricas/:path*`,
+      },
+      {
         source: "/company-profile",
         destination: `${apiUrl}/company-profile`,
       },

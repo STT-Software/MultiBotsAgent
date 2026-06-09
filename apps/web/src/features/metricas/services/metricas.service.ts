@@ -8,7 +8,7 @@ import type { AgentMetricsResponse, GeneralMetricsResponse, MetricPeriod } from 
 export async function fetchGeneralMetrics(
   period: MetricPeriod,
 ): Promise<GeneralMetricsResponse> {
-  const res = await fetchWithAuth(`/metricas/generales?period=${period}`);
+  const res = await fetchWithAuth(`/api/metricas/generales?period=${period}`);
   if (!res.ok) {
     throw new Error(`Error al obtener métricas generales: ${res.status}`);
   }
@@ -23,7 +23,7 @@ export async function fetchAgentTypeMetrics(
   agentType: 'rag' | 'cotizador' | 'agendamiento',
   period: MetricPeriod,
 ): Promise<AgentMetricsResponse> {
-  const res = await fetchWithAuth(`/metricas/tipo/${agentType}?period=${period}`);
+  const res = await fetchWithAuth(`/api/metricas/tipo/${agentType}?period=${period}`);
   if (!res.ok) {
     throw new Error(`Error al obtener métricas del agente ${agentType}: ${res.status}`);
   }

@@ -20,22 +20,31 @@ const INITIAL_STATE: MetricasLiveState = {
 
 /**
  * Hook que abre una conexión WebSocket al namespace /metricas del backend.
- * Implementa reconexión con backoff exponencial.
- * Se desconecta limpiamente al desmontar el componente.
+ * - Usa la URL directa del backend (NEXT_PUBLIC_API_URL) para el WS,
+ *   ya que Next.js rewrites no manejan WebSocket upgrades.
+ * - Soporta React Strict Mode en desarrollo con un flag de montado.
+ * - Implementa reconexión con backoff exponencial.
  */
 export function useMetricasWs(): MetricasLiveState {
   const [state, setState] = useState<MetricasLiveState>(INITIAL_STATE);
   const retryCountRef = useRef(0);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const timeoutRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const socketRef     = useRef<Socket | null>(null);
+  const mountedRef    = useRef(false); // protege contra el double-invoke de Strict Mode
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? '';
-    const token = AuthStore.getToken() ?? '';
+    // Strict Mode en dev invoca el cleanup antes de re-montar.
+    // Si el socket ya existe (segunda ejecución), no volvemos a crear uno.
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+
+    // El WS va directo al backend — los rewrites de Next.js no manejan upgrades WS.
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+    const token  = AuthStore.getToken() ?? '';
 
     const socket = io(`${apiUrl}/metricas`, {
-      query: { token },
-      transports: ['websocket'],
+      query:       { token },
+      transports:  ['websocket'],
       autoConnect: false,
     });
 
@@ -57,7 +66,7 @@ export function useMetricasWs(): MetricasLiveState {
 
     socket.on('metrics.live_update', (data: LiveMetricUpdate) => {
       const feedItem: FeedItem = {
-        id: crypto.randomUUID(),
+        id:        crypto.randomUUID(),
         eventType: data.eventType,
         agentType: data.agentType,
         timestamp: new Date(data.timestamp),
@@ -66,7 +75,7 @@ export function useMetricasWs(): MetricasLiveState {
       setState((prev) => ({
         ...prev,
         counters: { ...data.todayCounters },
-        feed: [feedItem, ...prev.feed].slice(0, 10),
+        feed:     [feedItem, ...prev.feed].slice(0, 10),
       }));
     });
 
@@ -84,7 +93,7 @@ export function useMetricasWs(): MetricasLiveState {
       retryCountRef.current = retryCount + 1;
 
       timeoutRef.current = setTimeout(() => {
-        socket.connect();
+        if (socketRef.current) socketRef.current.connect();
       }, delay);
     });
 
@@ -92,10 +101,11 @@ export function useMetricasWs(): MetricasLiveState {
 
     return () => {
       clearBackoffTimeout();
+      mountedRef.current = false;
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []); // Solo al montar — el socket es persistente durante toda la sesión de la vista
+  }, []); // Solo al montar
 
   return state;
 }
