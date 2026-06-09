@@ -2,8 +2,8 @@ import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
-  UseGuards,
 } from '@nestjs/websockets';
+import { UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { WsJwtGuard } from './guards/ws-jwt.guard';
 
@@ -27,7 +27,7 @@ import { WsJwtGuard } from './guards/ws-jwt.guard';
 @WebSocketGateway({ namespace: '/metricas', cors: { origin: '*' } })
 export class MetricasWsGateway {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   /**
    * Une al cliente autenticado al room de su empresa.
