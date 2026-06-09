@@ -260,18 +260,64 @@ export interface IAgentRepository extends Repository<Agent> {
 // ─── MetricEvent ─────────────────────────────────────────────────────────────
 
 import type { MetricEventDocument } from '../schemas/metric-event.schema';
+import type { MetricEventType } from '@multibotagents/types';
+import type { ObjectId } from 'mongodb';
 
 /**
  * Repositorio de eventos de métricas.
- * Inmutable por diseño: solo soporta inserción, nunca update ni delete.
+ * Inmutable por diseño: solo soporta inserción y lectura, nunca update ni delete.
  */
 export interface IMetricEventRepository {
+  // ── Escritura (Slice 1) ──────────────────────────────────────────────────
   /** Inserta un único evento de métrica. */
   create(payload: Omit<MetricEventDocument, '_id'>): Promise<MetricEventDocument>;
   /** Inserta múltiples eventos en un solo batch (para seeding y bulk-insert). */
   insertMany(payloads: Omit<MetricEventDocument, '_id'>[]): Promise<void>;
   /** Cuenta los eventos de una empresa (usado para evitar duplicados en seed). */
   countByCompany(companyId: string): Promise<number>;
+
+  // ── Agregaciones de lectura (Slice 2 — Consulta de Métricas Generales) ───
+  /**
+   * Cuenta documentos que coincidan con uno o más eventTypes dentro de un período.
+   */
+  countByEventTypes(
+    companyId: ObjectId,
+    eventTypes: MetricEventType[],
+    since: Date,
+  ): Promise<number>;
+
+  /**
+   * Cuenta documentos de un eventType que tengan un campo de metadata con valor concreto.
+   */
+  countByEventTypeAndMeta(
+    companyId: ObjectId,
+    eventType: MetricEventType,
+    metaKey: string,
+    metaValue: unknown,
+    since: Date,
+  ): Promise<number>;
+
+  /**
+   * Agrega los N valores más frecuentes de un campo de metadata para un eventType.
+   */
+  topValuesByMetaField(
+    companyId: ObjectId,
+    eventType: MetricEventType,
+    metaField: string,
+    limit: number,
+    since: Date,
+  ): Promise<{ value: string; count: number }[]>;
+
+  /**
+   * Calcula el promedio de un campo numérico de metadata para un eventType.
+   * Retorna 0 si no hay documentos o el campo no existe.
+   */
+  avgMetaNumberField(
+    companyId: ObjectId,
+    eventType: MetricEventType,
+    metaField: string,
+    since: Date,
+  ): Promise<number>;
 }
 
 

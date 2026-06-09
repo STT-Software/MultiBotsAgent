@@ -5,7 +5,7 @@ import {
   type MetricEventDocument,
 } from "../../schemas/metric-event.schema";
 import type { IMetricEventRepository } from "../../interfaces/repositories.interface";
-import type { MetricEventPayload } from "@multibotagents/types";
+import type { MetricEventPayload, MetricEventType } from "@multibotagents/types";
 
 // ─── Implementation ──────────────────────────────────────────────────────────
 
@@ -71,6 +71,136 @@ export class MetricEventRepository implements IMetricEventRepository {
     return this.collection.countDocuments({
       companyId: new ObjectId(companyId),
     });
+  }
+
+  // ─── Métodos de Agregación (Slice 2 — Consulta de Métricas Generales) ───────
+
+  /**
+   * Cuenta documentos que coincidan con uno o más eventTypes dentro de un período.
+   * Usa el índice { companyId, eventType, timestamp }.
+   */
+  async countByEventTypes(
+    companyId: ObjectId,
+    eventTypes: MetricEventType[],
+    since: Date,
+  ): Promise<number> {
+    const result = await this.collection
+      .aggregate<{ count: number }>([
+        {
+          $match: {
+            companyId,
+            eventType: { $in: eventTypes },
+            timestamp: { $gte: since },
+          },
+        },
+        { $count: "count" },
+      ])
+      .toArray();
+
+    return result[0]?.count ?? 0;
+  }
+
+  /**
+   * Cuenta documentos de un eventType específico que además tengan
+   * un campo de metadata con un valor concreto.
+   * Ej: conversation.completed donde metadata.resolved === true
+   */
+  async countByEventTypeAndMeta(
+    companyId: ObjectId,
+    eventType: MetricEventType,
+    metaKey: string,
+    metaValue: unknown,
+    since: Date,
+  ): Promise<number> {
+    const result = await this.collection
+      .aggregate<{ count: number }>([
+        {
+          $match: {
+            companyId,
+            eventType,
+            timestamp: { $gte: since },
+            [`metadata.${metaKey}`]: metaValue,
+          },
+        },
+        { $count: "count" },
+      ])
+      .toArray();
+
+    return result[0]?.count ?? 0;
+  }
+
+  /**
+   * Agrega los valores más frecuentes de un campo de metadata para un eventType dado.
+   * Ej: top 10 de metadata.topic en eventos rag.topic_identified
+   */
+  async topValuesByMetaField(
+    companyId: ObjectId,
+    eventType: MetricEventType,
+    metaField: string,
+    limit: number,
+    since: Date,
+  ): Promise<{ value: string; count: number }[]> {
+    const result = await this.collection
+      .aggregate<{ value: string; count: number }>([
+        {
+          $match: {
+            companyId,
+            eventType,
+            timestamp: { $gte: since },
+          },
+        },
+        {
+          $group: {
+            _id: `$metadata.${metaField}`,
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { count: -1 } },
+        { $limit: limit },
+        {
+          $project: {
+            _id: 0,
+            value: "$_id",
+            count: 1,
+          },
+        },
+      ])
+      .toArray();
+
+    return result;
+  }
+
+  /**
+   * Calcula el promedio de un campo numérico de metadata para un eventType dado.
+   * Ej: promedio de metadata.durationMinutes en eventos escalation.resolved
+   * Retorna 0 si no hay documentos o el campo no existe.
+   */
+  async avgMetaNumberField(
+    companyId: ObjectId,
+    eventType: MetricEventType,
+    metaField: string,
+    since: Date,
+  ): Promise<number> {
+    const result = await this.collection
+      .aggregate<{ avg: number | null }>([
+        {
+          $match: {
+            companyId,
+            eventType,
+            timestamp: { $gte: since },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            avg: { $avg: `$metadata.${metaField}` },
+          },
+        },
+      ])
+      .toArray();
+
+    const avg = result[0]?.avg;
+    return avg != null && !Number.isNaN(avg) ? avg : 0;
   }
 }
 
