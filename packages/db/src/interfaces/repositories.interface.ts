@@ -262,6 +262,7 @@ export interface IAgentRepository extends Repository<Agent> {
 import type { MetricEventDocument } from '../schemas/metric-event.schema';
 import type { MetricEventType } from '@multibotagents/types';
 import type { ObjectId } from 'mongodb';
+import type { AgentFilter } from '../adapters/mongodb/metric-event.repository';
 
 /**
  * Repositorio de eventos de métricas.
@@ -277,18 +278,14 @@ export interface IMetricEventRepository {
   countByCompany(companyId: string): Promise<number>;
 
   // ── Agregaciones de lectura (Slice 2 — Consulta de Métricas Generales) ───
-  /**
-   * Cuenta documentos que coincidan con uno o más eventTypes dentro de un período.
-   */
+  /** Cuenta documentos que coincidan con uno o más eventTypes dentro de un período. */
   countByEventTypes(
     companyId: ObjectId,
     eventTypes: MetricEventType[],
     since: Date,
   ): Promise<number>;
 
-  /**
-   * Cuenta documentos de un eventType que tengan un campo de metadata con valor concreto.
-   */
+  /** Cuenta documentos de un eventType que tengan un campo de metadata con valor concreto. */
   countByEventTypeAndMeta(
     companyId: ObjectId,
     eventType: MetricEventType,
@@ -297,9 +294,7 @@ export interface IMetricEventRepository {
     since: Date,
   ): Promise<number>;
 
-  /**
-   * Agrega los N valores más frecuentes de un campo de metadata para un eventType.
-   */
+  /** Agrega los N valores más frecuentes de un campo de metadata para un eventType. */
   topValuesByMetaField(
     companyId: ObjectId,
     eventType: MetricEventType,
@@ -308,16 +303,61 @@ export interface IMetricEventRepository {
     since: Date,
   ): Promise<{ value: string; count: number }[]>;
 
-  /**
-   * Calcula el promedio de un campo numérico de metadata para un eventType.
-   * Retorna 0 si no hay documentos o el campo no existe.
-   */
+  /** Calcula el promedio de un campo numérico de metadata. Retorna 0 si no hay datos. */
   avgMetaNumberField(
     companyId: ObjectId,
     eventType: MetricEventType,
     metaField: string,
     since: Date,
   ): Promise<number>;
+
+  // ── Agregaciones por Agente (Slice 3 — Métricas por Tipo de Agente) ─────
+  /** Cuenta eventos filtrando por empresa, agente (id o tipo) y eventTypes. */
+  countByAgentAndEventTypes(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventTypes: MetricEventType[],
+    since: Date,
+  ): Promise<number>;
+
+  /** Cuenta eventos filtrando por empresa, agente, eventType y campo de metadata. */
+  countByAgentEventTypeAndMeta(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    metaKey: string,
+    metaValue: unknown,
+    since: Date,
+  ): Promise<number>;
+
+  /** Top N valores de un campo de metadata, filtrado por agente. */
+  topAgentValuesByMetaField(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    metaField: string,
+    limit: number,
+    since: Date,
+  ): Promise<{ value: string; count: number }[]>;
+
+  /** Top N valores desanidando un campo array de metadata, filtrado por agente. */
+  topAgentValuesByArrayMetaField(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    arrayMetaField: string,
+    limit: number,
+    since: Date,
+  ): Promise<{ value: string; count: number }[]>;
+
+  /** Distribución de eventos por hora del día (campo fecha en metadata), filtrado por agente. */
+  distributionByMetaHour(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    dateMetaField: string,
+    since: Date,
+  ): Promise<{ hour: number; count: number }[]>;
 }
 
 

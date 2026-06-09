@@ -7,6 +7,20 @@ import {
 import type { IMetricEventRepository } from "../../interfaces/repositories.interface";
 import type { MetricEventPayload, MetricEventType } from "@multibotagents/types";
 
+// ─── Agent Filter Types (Slice 3 — Métricas por Agente) ─────────────────────
+
+export type AgentType = 'rag' | 'cotizador' | 'agendamiento';
+
+export type AgentFilter =
+  | { type: 'byId';   agentId: string }
+  | { type: 'byType'; agentType: AgentType };
+
+function buildAgentMatch(filter: AgentFilter): Record<string, unknown> {
+  return filter.type === 'byId'
+    ? { agentId: filter.agentId }
+    : { agentType: filter.agentType };
+}
+
 // ─── Implementation ──────────────────────────────────────────────────────────
 
 export class MetricEventRepository implements IMetricEventRepository {
@@ -201,6 +215,158 @@ export class MetricEventRepository implements IMetricEventRepository {
 
     const avg = result[0]?.avg;
     return avg != null && !Number.isNaN(avg) ? avg : 0;
+  }
+
+  // ─── Agregaciones por Agente (Slice 3 — Métricas por Tipo de Agente) ────────
+
+  /**
+   * Cuenta eventos filtrando por empresa, agente (id o tipo) y eventTypes.
+   */
+  async countByAgentAndEventTypes(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventTypes: MetricEventType[],
+    since: Date,
+  ): Promise<number> {
+    const result = await this.collection
+      .aggregate<{ count: number }>([
+        {
+          $match: {
+            companyId,
+            ...buildAgentMatch(agentFilter),
+            eventType: { $in: eventTypes },
+            timestamp: { $gte: since },
+          },
+        },
+        { $count: 'count' },
+      ])
+      .toArray();
+
+    return result[0]?.count ?? 0;
+  }
+
+  /**
+   * Cuenta eventos filtrando por empresa, agente, un eventType y un campo de metadata.
+   */
+  async countByAgentEventTypeAndMeta(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    metaKey: string,
+    metaValue: unknown,
+    since: Date,
+  ): Promise<number> {
+    const result = await this.collection
+      .aggregate<{ count: number }>([
+        {
+          $match: {
+            companyId,
+            ...buildAgentMatch(agentFilter),
+            eventType,
+            timestamp: { $gte: since },
+            [`metadata.${metaKey}`]: metaValue,
+          },
+        },
+        { $count: 'count' },
+      ])
+      .toArray();
+
+    return result[0]?.count ?? 0;
+  }
+
+  /**
+   * Top N valores de un campo de metadata, filtrado por agente.
+   * Ej: top temas RAG de un agente específico.
+   */
+  async topAgentValuesByMetaField(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    metaField: string,
+    limit: number,
+    since: Date,
+  ): Promise<{ value: string; count: number }[]> {
+    return this.collection
+      .aggregate<{ value: string; count: number }>([
+        {
+          $match: {
+            companyId,
+            ...buildAgentMatch(agentFilter),
+            eventType,
+            timestamp: { $gte: since },
+          },
+        },
+        { $group: { _id: `$metadata.${metaField}`, count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: limit },
+        { $project: { _id: 0, value: '$_id', count: 1 } },
+      ])
+      .toArray();
+  }
+
+  /**
+   * Top N valores desanidando un campo array de metadata.
+   * Ej: top productos de order.initiated donde metadata.productIds es un array.
+   */
+  async topAgentValuesByArrayMetaField(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    arrayMetaField: string,
+    limit: number,
+    since: Date,
+  ): Promise<{ value: string; count: number }[]> {
+    return this.collection
+      .aggregate<{ value: string; count: number }>([
+        {
+          $match: {
+            companyId,
+            ...buildAgentMatch(agentFilter),
+            eventType,
+            timestamp: { $gte: since },
+          },
+        },
+        { $unwind: `$metadata.${arrayMetaField}` },
+        { $group: { _id: `$metadata.${arrayMetaField}`, count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: limit },
+        { $project: { _id: 0, value: '$_id', count: 1 } },
+      ])
+      .toArray();
+  }
+
+  /**
+   * Distribución de eventos por hora del día extrayendo la hora de un campo fecha en metadata.
+   * Ej: horarios pico de appointment.scheduled usando metadata.scheduledAt.
+   * Retorna solo horas con count > 0.
+   */
+  async distributionByMetaHour(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    dateMetaField: string,
+    since: Date,
+  ): Promise<{ hour: number; count: number }[]> {
+    return this.collection
+      .aggregate<{ hour: number; count: number }>([
+        {
+          $match: {
+            companyId,
+            ...buildAgentMatch(agentFilter),
+            eventType,
+            timestamp: { $gte: since },
+          },
+        },
+        {
+          $addFields: {
+            __hour: { $hour: { $toDate: `$metadata.${dateMetaField}` } },
+          },
+        },
+        { $group: { _id: '$__hour', count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+        { $project: { _id: 0, hour: '$_id', count: 1 } },
+      ])
+      .toArray();
   }
 }
 

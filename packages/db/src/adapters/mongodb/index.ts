@@ -29,6 +29,7 @@ export { MongoDBChatMemoryRepository } from "./chat-memory.repository";
 export { AgentRepository } from "./agent.repository";
 export { MetricEventRepository } from "./metric-event.repository";
 export { buildMetricEventDocument } from "./metric-event.repository";
+export type { AgentFilter, AgentType } from "./metric-event.repository";
 export { BookingRepository } from "./booking.repository";
 
 // Re-export interfaces desde la carpeta centralizada
