@@ -4,9 +4,11 @@ import {
   Get,
   Req,
   Query,
+  Param,
   UseGuards,
   ForbiddenException,
   GatewayTimeoutException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,12 +18,17 @@ import {
   ApiOkResponse,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
+import type { AgentType } from '@multibotagents/db';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MetricasSeedService } from './metricas-seed.service';
 import { MetricasGeneralesService } from './metricas-generales.service';
+import { MetricasPorAgenteService } from './metricas-por-agente.service';
 import { SeedCreatedResponseDto, SeedSkippedResponseDto } from './dto/seed-response.dto';
 import { GeneralMetricsDto } from './dto/general-metrics.dto';
+import { AgentMetricsDto } from './dto/agent-metrics.dto';
 import { PeriodQueryDto } from './dto/period-query.dto';
+
+const VALID_AGENT_TYPES: AgentType[] = ['rag', 'cotizador', 'agendamiento'];
 
 @ApiTags('Métricas')
 @ApiBearerAuth('access-token')
@@ -31,6 +38,7 @@ export class MetricasController {
   constructor(
     private readonly seedService: MetricasSeedService,
     private readonly metricasGeneralesService: MetricasGeneralesService,
+    private readonly metricasPorAgenteService: MetricasPorAgenteService,
   ) {}
 
   /**
@@ -103,5 +111,82 @@ export class MetricasController {
     ]);
 
     return result;
+  }
+
+  /**
+   * GET /api/metricas/agente/:agentId?period=7d
+   *
+   * Retorna las métricas del agente específico identificado por agentId.
+   * Detecta el agentType automáticamente desde los eventos almacenados.
+   * Si el agente no tiene eventos, retorna DTO vacío con successRate: 0.
+   */
+  @Get('agente/:agentId')
+  @ApiOperation({
+    summary: 'Métricas de un agente específico',
+    description:
+      'Detecta el tipo de agente automáticamente y retorna sus métricas específicas. ' +
+      'companyId proviene del JWT — no puede acceder a agentes de otras empresas.',
+  })
+  @ApiOkResponse({ type: AgentMetricsDto })
+  @ApiResponse({ status: 400, description: "Período inválido." })
+  @ApiResponse({ status: 504, description: 'Consulta tardó más de 5 segundos.' })
+  async getByAgent(
+    @Param('agentId') agentId: string,
+    @Query() query: PeriodQueryDto,
+    @Req() req: Request,
+  ): Promise<AgentMetricsDto> {
+    const { companyId } = (req as any).user;
+    const period = query.period ?? '7d';
+    const timeoutMs = parseInt(process.env.METRICS_QUERY_TIMEOUT_MS ?? '5000', 10);
+
+    return Promise.race([
+      this.metricasPorAgenteService.getByAgentId(companyId, agentId, period),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new GatewayTimeoutException('Consulta de métricas tardó demasiado. Intente nuevamente.')),
+          timeoutMs,
+        ),
+      ),
+    ]);
+  }
+
+  /**
+   * GET /api/metricas/tipo/:agentType?period=7d
+   *
+   * Retorna las métricas agregadas de todos los agentes de un tipo en la empresa.
+   * agentType debe ser: rag | cotizador | agendamiento.
+   */
+  @Get('tipo/:agentType')
+  @ApiOperation({
+    summary: 'Métricas agregadas de todos los agentes de un tipo',
+    description:
+      'Agrega métricas de todos los agentes del tipo indicado para la empresa del JWT. ' +
+      "agentType debe ser 'rag', 'cotizador' o 'agendamiento'.",
+  })
+  @ApiOkResponse({ type: AgentMetricsDto })
+  @ApiResponse({ status: 400, description: "agentType o period inválido." })
+  @ApiResponse({ status: 504, description: 'Consulta tardó más de 5 segundos.' })
+  async getByAgentType(
+    @Param('agentType') agentType: string,
+    @Query() query: PeriodQueryDto,
+    @Req() req: Request,
+  ): Promise<AgentMetricsDto> {
+    if (!VALID_AGENT_TYPES.includes(agentType as AgentType)) {
+      throw new BadRequestException("agentType debe ser 'rag', 'cotizador' o 'agendamiento'");
+    }
+
+    const { companyId } = (req as any).user;
+    const period = query.period ?? '7d';
+    const timeoutMs = parseInt(process.env.METRICS_QUERY_TIMEOUT_MS ?? '5000', 10);
+
+    return Promise.race([
+      this.metricasPorAgenteService.getByAgentType(companyId, agentType as AgentType, period),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new GatewayTimeoutException('Consulta de métricas tardó demasiado. Intente nuevamente.')),
+          timeoutMs,
+        ),
+      ),
+    ]);
   }
 }
