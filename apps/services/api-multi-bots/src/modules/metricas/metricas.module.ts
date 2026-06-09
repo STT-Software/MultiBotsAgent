@@ -5,6 +5,7 @@ import { MetricasListenerService } from './metricas-listener.service';
 import { MetricasWsGateway } from './metricas-ws.gateway';
 import { WsJwtGuard } from './guards/ws-jwt.guard';
 import { MetricasSeedService } from './metricas-seed.service';
+import { MetricasGeneralesService } from './metricas-generales.service';
 import { MetricasController } from './metricas.controller';
 
 /**
@@ -44,6 +45,7 @@ import { MetricasController } from './metricas.controller';
     MetricasWsGateway,
     WsJwtGuard,
     MetricasSeedService,
+    MetricasGeneralesService,
   ],
   exports: ['METRIC_EVENT_REPO'],
 })
