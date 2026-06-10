@@ -27,6 +27,9 @@ export { ProcessedMessageRepository } from "./processed-message.repository";
 export { MessageLogRepository } from "./message-log.repository";
 export { MongoDBChatMemoryRepository } from "./chat-memory.repository";
 export { AgentRepository } from "./agent.repository";
+export { MetricEventRepository } from "./metric-event.repository";
+export { buildMetricEventDocument } from "./metric-event.repository";
+export type { AgentFilter, AgentType } from "./metric-event.repository";
 export { BookingRepository } from "./booking.repository";
 
 // Re-export interfaces desde la carpeta centralizada
@@ -53,6 +56,7 @@ export type {
   IProcessedMessageRepository,
   IMessageLogRepository,
   IAgentRepository,
+  IMetricEventRepository,
   CreateBookingData,
   IBookingRepository,
 } from "../../interfaces";

@@ -22,6 +22,7 @@ export type {
   IProcessedMessageRepository,
   IMessageLogRepository,
   IAgentRepository,
+  IMetricEventRepository,
   CreateBookingData,
   IBookingRepository,
 } from './repositories.interface';

@@ -43,5 +43,7 @@ export * from "./memory";
 // Agents
 export * from "./agents/agent.types";
 
+// Metrics — Contrato de eventos para el sistema de métricas y analíticas (SL12)
+export * from "./metrics";
 // Bookings
 export * from "./interfaces/booking.interface";

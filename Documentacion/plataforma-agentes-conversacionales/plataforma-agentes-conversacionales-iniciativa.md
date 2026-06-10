@@ -25,6 +25,9 @@ changelog:
   - date: 2026-05-20
     author: Oscar Gomez
     description: "Refinamiento del Solution Map — Solución 8 (Sistema de Escalamiento a Humano) diseñada. Status: drafting."
+  - date: 2026-06-01
+    author: Oscar Gomez
+    description: "Refinamiento del Solution Map — Solución 12 (Sistema de Métricas y Analíticas) diseñada. Status: drafting."
 ---
 
 # Plataforma de Agentes Conversacionales
@@ -227,7 +230,7 @@ Una plataforma plug & play donde una empresa pueda:
 | 9 | **Motor de Mensajes Proactivos** | Recordatorios de citas, actualizaciones de pedido, mensajes según gestión del agente | Transversal | Media | Aplica a agendamiento y cotizador principalmente |
 | 10 | **Sistema de Notificaciones** | Notificar a empresa (pedidos, escalamientos), notificar a cliente (estados, confirmaciones) | Transversal | Alta | Canales: plataforma, WhatsApp, correo |
 | 11 | **Motor de Personalidad del Agente** | Tono, nombre, idioma, restricciones, mensaje de bienvenida | Transversal | Media | Configurable por agente, aplica a todos los tipos |
-| 12 | **Sistema de Métricas y Analíticas** | Tasa de éxito, consultas frecuentes, métricas específicas por tipo de agente | Transversal | Media | Métricas básicas, sin dashboards complejos |
+| 12 | **Sistema de Métricas y Analíticas** | Tasa de éxito, consultas frecuentes, métricas específicas por tipo de agente | Transversal | Media | Métricas básicas, sin dashboards complejos. Status: `drafting` |
 | 13 | **Gestión de Integraciones Externas** | Conexión con Google Drive, Notion, Confluence, SharePoint, Dropbox, Google Calendar | Transversal | Alta | Credenciales simples, conexión automática |
 | 14 | **Gestión de Empresas y Acceso** | Multi-empresa, acceso sin roles, múltiples agentes por empresa | Transversal | Alta | Sin planes/tiers por ahora |
 
