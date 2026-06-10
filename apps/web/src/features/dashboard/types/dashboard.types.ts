@@ -16,4 +16,8 @@ export interface AgentesSummary {
   total: number
   activos: number
   borradores: number
+  totalChangePct: number
+  activosPct: number
+  borradoresPct: number
 }
+

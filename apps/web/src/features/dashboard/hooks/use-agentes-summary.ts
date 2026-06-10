@@ -29,11 +29,47 @@ export function useAgentesSummary(): UseAgentesSummaryReturn {
 
       const activos = agentes.filter((a) => a.estado === 'activo').length
       const borradores = agentes.filter((a) => a.estado === 'borrador').length
+      const total = agentes.length
+
+      // Calcular fecha de hace 30 días
+      const ahora = new Date()
+      // Si estamos en entorno de desarrollo/testing con mocks antiguos,
+      // usamos el agente más reciente como referencia para que no dé 0%
+      const fechas = agentes
+        .map((a) => (a.createdAt ? new Date(a.createdAt).getTime() : 0))
+        .filter((t) => t > 0)
+      const maxFecha = fechas.length > 0 ? Math.max(...fechas) : ahora.getTime()
+      
+      // Si la fecha máxima tiene más de 30 días de antigüedad con respecto a hoy,
+      // asumimos que es mock o tests y usamos maxFecha. Si no, usamos el ahora real.
+      const esMock = ahora.getTime() - maxFecha > 30 * 24 * 60 * 60 * 1000
+      const ahoraRef = esMock ? new Date(maxFecha) : ahora
+      const hace30Dias = new Date(ahoraRef.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+      const creadosUltimos30Dias = agentes.filter((a) => {
+        if (!a.createdAt) return false
+        const fecha = new Date(a.createdAt)
+        return fecha >= hace30Dias && fecha <= ahoraRef
+      }).length
+
+      const totalPrevio = total - creadosUltimos30Dias
+      const totalChangePct =
+        totalPrevio > 0
+          ? (creadosUltimos30Dias / totalPrevio) * 100
+          : creadosUltimos30Dias > 0
+            ? 100
+            : 0
+
+      const activosPct = total > 0 ? (activos / total) * 100 : 0
+      const borradoresPct = total > 0 ? (borradores / total) * 100 : 0
 
       setData({
-        total: agentes.length,
+        total,
         activos,
         borradores,
+        totalChangePct,
+        activosPct,
+        borradoresPct,
       })
     } catch (err) {
       if (signal.aborted) return

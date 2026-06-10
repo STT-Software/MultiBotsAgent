@@ -36,6 +36,9 @@ export function DashboardView() {
             total={data.total}
             activos={data.activos}
             borradores={data.borradores}
+            totalChangePct={data.totalChangePct}
+            activosPct={data.activosPct}
+            borradoresPct={data.borradoresPct}
           />
         )}
       </section>
