@@ -51,3 +51,5 @@ export * from "./interfaces/booking.interface";
 // Audit Logs
 export * from "./audit/audit-log.types";
 
+// Orders
+export * from "./interfaces/order.interface";

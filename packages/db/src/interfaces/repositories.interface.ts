@@ -24,6 +24,8 @@ import type {
   MessageLog,
   Agent,
   Booking,
+  Order,
+  OrderStatus,
 } from '@multibotagents/types';
 import type { Repository } from './repository.interface';
 
@@ -404,3 +406,31 @@ export interface IAuditLogRepository {
   countByCompany(companyId: string): Promise<number>;
 }
 
+
+// ─── Order (Pedidos) ─────────────────────────────────────────────────────────
+
+export interface CreateOrderData {
+  companyId: string;
+  agentId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  items: {
+    nombre: string;
+    precioUnitario: number;
+    cantidad: number;
+    subtotal: number;
+  }[];
+  total: number;
+  status: OrderStatus;
+  notes?: string;
+}
+
+export interface IOrderRepository extends Repository<Order> {
+  findByCompanyId(companyId: string): Promise<Order[]>;
+  findByAgentId(agentId: string): Promise<Order[]>;
+  findByCustomerPhone(customerPhone: string): Promise<Order[]>;
+  findActiveByCustomerPhone(customerPhone: string): Promise<Order[]>;
+  createWithSession(data: CreateOrderData, session: ClientSession): Promise<Order>;
+  updateStatus(orderId: string, status: OrderStatus, session?: ClientSession): Promise<Order | null>;
+}

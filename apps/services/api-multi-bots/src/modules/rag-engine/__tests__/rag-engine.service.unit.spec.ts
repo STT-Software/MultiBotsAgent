@@ -119,6 +119,11 @@ function createService(deps: MockDeps): RagEngineService {
     createBooking: async () => ({}),
   } as any;
   const mockEventEmitter = { emit: () => {} } as any;
+  const mockOrdersService = {
+    createOrder: async () => ({}),
+    getOrder: async () => ({}),
+    cancelOrder: async () => ({}),
+  } as any;
 
   return new RagEngineService(
     deps.llmProvider,
@@ -131,6 +136,7 @@ function createService(deps: MockDeps): RagEngineService {
     deps.escalatedRepo,
     mockEventEmitter,
     mockBookingsService,
+    mockOrdersService,
   );
 }
 
@@ -649,6 +655,64 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
       expect(result.messages).toHaveLength(1);
       expect(result.messages[0].content).toBe(
         'Cita reservada exitosamente para Juan Pérez el día 2026-06-03 a las 10:00.',
+      );
+    });
+  });
+
+  describe('Agente Cotizador (tipo=cotizador)', () => {
+    it('debería ejecutar el flujo de herramientas de cotización y retornar la respuesta final', async () => {
+      const mockModelWithTools = {
+        invoke: async (messages: any[]) => {
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage instanceof ToolMessage) {
+            return {
+              content: 'Pedido #123 creado exitosamente para Juan Pérez por un total de $150.',
+              tool_calls: [],
+            };
+          }
+          return {
+            content: '',
+            tool_calls: [
+              {
+                name: 'create_order',
+                args: {
+                  customerName: 'Juan Pérez',
+                  customerPhone: '123456789',
+                  items: [
+                    { nombre: 'Producto A', cantidad: 3, precioUnitario: 50 }
+                  ],
+                },
+                id: 'call-456',
+              },
+            ],
+          };
+        },
+      };
+
+      const mockRawModel = {
+        bindTools: () => mockModelWithTools,
+      };
+
+      const deps = createMockDependencies({
+        agentConfigProvider: {
+          getConfig: async () => ({
+            ...DEFAULT_CONFIG,
+            tipo: 'cotizador',
+          }),
+        },
+        llmProvider: {
+          generate: async () => ({ content: '', tokensUsed: 0, finishReason: 'stop' }),
+          getModel: () => mockRawModel,
+        },
+      });
+
+      const service = createService(deps);
+      const result = await service.processQuery(DEFAULT_INPUT);
+
+      expect(result.escalated).toBe(false);
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0].content).toBe(
+        'Pedido #123 creado exitosamente para Juan Pérez por un total de $150.',
       );
     });
   });
