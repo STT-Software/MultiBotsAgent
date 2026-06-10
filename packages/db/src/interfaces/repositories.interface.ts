@@ -358,6 +358,12 @@ export interface IMetricEventRepository {
     dateMetaField: string,
     since: Date,
   ): Promise<{ hour: number; count: number }[]>;
+
+  /** Obtiene los eventos más recientes de una empresa ordenados por timestamp desc. */
+  findRecent(
+    companyId: ObjectId,
+    limit: number,
+  ): Promise<MetricEventDocument[]>;
 }
 
 

@@ -2,54 +2,12 @@
 
 import { MessageSquare, ShoppingCart, ArrowUpRight, ShieldCheck, UserCheck, Bot } from "lucide-react";
 import { motion } from "motion/react";
-
-interface ActivityItem {
-  id: string;
-  time: string;
-  type: "chat" | "order" | "escalate" | "system";
-  message: string;
-  agent: string;
-}
-
-const ACTIVITIES: ActivityItem[] = [
-  {
-    id: "act-1",
-    time: "Hace 2 min",
-    type: "chat",
-    message: "Respuesta automática enviada a cliente +54 9 11 5902...",
-    agent: "Agente Ventas",
-  },
-  {
-    id: "act-2",
-    time: "Hace 15 min",
-    type: "order",
-    message: "Cotización enviada y carrito guardado de $45,200 ARS",
-    agent: "Cotizador Auto",
-  },
-  {
-    id: "act-3",
-    time: "Hace 45 min",
-    type: "escalate",
-    message: "Conversación escalada a operador humano (Usuario requiere soporte técnico)",
-    agent: "Soporte IA",
-  },
-  {
-    id: "act-4",
-    time: "Hace 2 horas",
-    type: "system",
-    message: "Sincronización exitosa con Base de Datos de Productos",
-    agent: "Sistema",
-  },
-  {
-    id: "act-5",
-    time: "Hace 4 horas",
-    type: "chat",
-    message: "Cliente agendó videollamada para demostración técnica",
-    agent: "Agente Demo",
-  },
-];
+import { useRecentActivity } from "../hooks/use-recent-activity";
+import type { ActivityItem } from "../types/dashboard.types";
 
 export function RecentActivity() {
+  const { loading, error, activities = [] } = useRecentActivity();
+
   const getIcon = (type: ActivityItem["type"]) => {
     switch (type) {
       case "chat":
@@ -81,7 +39,7 @@ export function RecentActivity() {
   };
 
   return (
-    <div className="rounded-xl border border-gray-800/80 bg-gray-900/40 backdrop-blur-md p-6 h-full flex flex-col justify-between hover:border-gray-800/90 transition-all duration-300">
+    <div className="rounded-xl border border-gray-800/80 bg-gray-900/40 backdrop-blur-md p-6 h-full flex flex-col justify-between hover:border-gray-800/90 transition-all duration-300 min-h-[432px]">
       <div>
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -101,35 +59,60 @@ export function RecentActivity() {
           </div>
         </div>
 
-        {/* List of Activities */}
-        <div className="flex flex-col gap-4">
-          {ACTIVITIES.map((act, index) => (
-            <motion.div
-              key={act.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.08 }}
-              className="flex gap-3 pb-3.5 border-b border-gray-800/50 last:border-b-0 last:pb-0"
-            >
-              <div className={`mt-0.5 rounded-lg border p-2 shrink-0 ${getBadgeStyle(act.type)}`}>
-                {getIcon(act.type)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start gap-2">
-                  <span className="font-[family-name:var(--font-inter)] text-xs font-semibold text-gray-400">
-                    {act.agent}
-                  </span>
-                  <span className="font-mono text-[10px] text-gray-500 whitespace-nowrap">
-                    {act.time}
-                  </span>
+        {/* Loading and Error States */}
+        {loading ? (
+          <div className="flex flex-col gap-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex gap-3 pb-3.5 border-b border-gray-800/30 animate-pulse">
+                <div className="h-8 w-8 rounded-lg bg-gray-800 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 bg-gray-800 rounded w-1/4" />
+                  <div className="h-3 bg-gray-800 rounded w-3/4" />
                 </div>
-                <p className="font-[family-name:var(--font-inter)] text-xs text-gray-200 mt-1 leading-relaxed line-clamp-2">
-                  {act.message}
-                </p>
               </div>
-            </motion.div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-8">
+            <p className="text-xs text-red-400">{error}</p>
+          </div>
+        ) : activities.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="font-[family-name:var(--font-inter)] text-sm text-gray-500">
+              No hay actividad reciente registrada.
+            </p>
+          </div>
+        ) : (
+          /* List of Activities */
+          <div className="flex flex-col gap-4">
+            {activities.map((act, index) => (
+              <motion.div
+                key={act.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.08 }}
+                className="flex gap-3 pb-3.5 border-b border-gray-800/50 last:border-b-0 last:pb-0"
+              >
+                <div className={`mt-0.5 rounded-lg border p-2 shrink-0 ${getBadgeStyle(act.type)}`}>
+                  {getIcon(act.type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="font-[family-name:var(--font-inter)] text-xs font-semibold text-gray-400 truncate max-w-[150px]">
+                      {act.agent}
+                    </span>
+                    <span className="font-mono text-[10px] text-gray-500 whitespace-nowrap">
+                      {act.time}
+                    </span>
+                  </div>
+                  <p className="font-[family-name:var(--font-inter)] text-xs text-gray-200 mt-1 leading-relaxed line-clamp-2">
+                    {act.message}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-6 pt-4 border-t border-gray-800/50">

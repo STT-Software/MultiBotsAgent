@@ -368,6 +368,20 @@ export class MetricEventRepository implements IMetricEventRepository {
       ])
       .toArray();
   }
+
+  /**
+   * Obtiene los eventos más recientes de una empresa ordenados por timestamp desc.
+   */
+  async findRecent(
+    companyId: ObjectId,
+    limit: number,
+  ): Promise<MetricEventDocument[]> {
+    return this.collection
+      .find({ companyId })
+      .sort({ timestamp: -1 })
+      .limit(limit)
+      .toArray();
+  }
 }
 
 // ─── Helper: build document from MetricEventPayload ─────────────────────────

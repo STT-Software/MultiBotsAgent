@@ -20,4 +20,10 @@ export interface AgentesSummary {
   activosPct: number
   borradoresPct: number
 }
-
+export interface ActivityItem {
+  id: string
+  time: string
+  type: 'chat' | 'order' | 'escalate' | 'system'
+  message: string
+  agent: string
+}
