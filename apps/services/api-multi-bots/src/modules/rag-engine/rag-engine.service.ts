@@ -738,8 +738,9 @@ export class RagEngineService {
         description: 'Crea un nuevo pedido o cotización para el cliente con los ítems y precios especificados.',
         schema: z.object({
           customerName: z.string().describe('Nombre completo del cliente.'),
-          customerPhone: z.string().optional().describe('Teléfono del cliente. Si no se provee, se usará el de la conversación actual.'),
-          customerEmail: z.string().optional().describe('Correo electrónico del cliente.'),
+          customerPhone: z.string().describe('Teléfono de WhatsApp del cliente.'),
+          customerEmail: z.string().email().describe('Correo electrónico del cliente.'),
+          customerAddress: z.string().describe('Dirección física de entrega del cliente.'),
           items: z.array(
             z.object({
               nombre: z.string().describe('Nombre del producto o servicio.'),
@@ -749,15 +750,15 @@ export class RagEngineService {
           ).describe('Lista de productos o ítems agregados al pedido.'),
           notes: z.string().optional().describe('Notas o comentarios adicionales del pedido.'),
         }),
-        func: async ({ customerName, customerPhone, customerEmail, items, notes }) => {
+        func: async ({ customerName, customerPhone, customerEmail, customerAddress, items, notes }) => {
           try {
             const total = items.reduce((acc, item) => acc + item.cantidad * item.precioUnitario, 0);
-            const finalPhone = customerPhone || _input.conversationId;
             const order = await this.ordersService.createOrder(config.companyId, {
               agentId: config.agentId,
               customerName,
-              customerPhone: finalPhone,
-              customerEmail: customerEmail || '',
+              customerPhone,
+              customerEmail,
+              customerAddress,
               items: items.map(item => ({
                 nombre: item.nombre,
                 cantidad: item.cantidad,

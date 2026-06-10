@@ -415,6 +415,7 @@ export interface CreateOrderData {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
+  customerAddress: string;
   items: {
     nombre: string;
     precioUnitario: number;

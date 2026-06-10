@@ -20,6 +20,7 @@ export interface OrderDocument {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
+  customerAddress: string;
   items: OrderItemDocument[];
   total: number;
   status: "pending_confirmation" | "confirmed" | "preparing" | "shipped" | "delivered" | "cancelled";
@@ -64,6 +65,7 @@ export const ORDERS_VALIDATION = {
       "customerName",
       "customerPhone",
       "customerEmail",
+      "customerAddress",
       "items",
       "total",
       "status",
@@ -92,6 +94,11 @@ export const ORDERS_VALIDATION = {
       customerEmail: {
         bsonType: "string",
         description: "Email del cliente — requerido",
+      },
+      customerAddress: {
+        bsonType: "string",
+        minLength: 1,
+        description: "Dirección física del cliente — requerido",
       },
       items: {
         bsonType: "array",

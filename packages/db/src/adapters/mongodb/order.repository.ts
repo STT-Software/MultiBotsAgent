@@ -17,6 +17,7 @@ function toEntity(doc: OrderDocument): Order {
     customerName: doc.customerName,
     customerPhone: doc.customerPhone,
     customerEmail: doc.customerEmail,
+    customerAddress: doc.customerAddress,
     items: doc.items.map((item: OrderItem) => ({
       nombre: item.nombre,
       precioUnitario: item.precioUnitario,
@@ -114,6 +115,7 @@ export class OrderRepository implements IOrderRepository {
       customerName: entity.customerName,
       customerPhone: entity.customerPhone,
       customerEmail: entity.customerEmail,
+      customerAddress: entity.customerAddress,
       items: entity.items.map((item: OrderItem) => ({
         nombre: item.nombre,
         precioUnitario: item.precioUnitario,
@@ -139,6 +141,7 @@ export class OrderRepository implements IOrderRepository {
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       customerEmail: data.customerEmail,
+      customerAddress: data.customerAddress,
       items: data.items.map((item: any) => ({
         nombre: item.nombre,
         precioUnitario: item.precioUnitario,
@@ -166,6 +169,7 @@ export class OrderRepository implements IOrderRepository {
     if (entity.customerName !== undefined) updateData.customerName = entity.customerName;
     if (entity.customerPhone !== undefined) updateData.customerPhone = entity.customerPhone;
     if (entity.customerEmail !== undefined) updateData.customerEmail = entity.customerEmail;
+    if (entity.customerAddress !== undefined) updateData.customerAddress = entity.customerAddress;
     if (entity.items !== undefined) {
       updateData.items = entity.items.map((item: OrderItem) => ({
         nombre: item.nombre,

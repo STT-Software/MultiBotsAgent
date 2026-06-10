@@ -25,6 +25,7 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
+  customerAddress: string;
   items: OrderItem[];
   total: number;
   status: OrderStatus;

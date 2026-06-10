@@ -86,6 +86,14 @@ export class CreateOrderDto {
   customerEmail!: string;
 
   @ApiProperty({
+    description: 'Dirección física del cliente.',
+    example: 'Calle 123 # 45-67, Bogotá',
+  })
+  @IsString()
+  @IsNotEmpty()
+  customerAddress!: string;
+
+  @ApiProperty({
     description: 'Lista de ítems incluidos en el pedido.',
     type: [OrderItemDto],
   })

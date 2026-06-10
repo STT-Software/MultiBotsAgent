@@ -149,27 +149,28 @@ export class OrdersController {
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Cancelar un pedido',
-    description: 'Realiza una cancelación del pedido actualizando su estado a "cancelled".',
+    summary: 'Eliminar un pedido',
+    description: 'Elimina físicamente un pedido de la base de datos.',
   })
   @ApiParam({
     name: 'id',
-    description: 'ID del pedido a cancelar.',
+    description: 'ID del pedido a eliminar.',
     example: '60d5ec49f1b29c3a388fbf05',
   })
   @ApiResponse({
     status: 200,
-    description: 'Pedido cancelado con éxito.',
+    description: 'Pedido eliminado con éxito.',
   })
   @ApiResponse({ status: 401, description: 'Token JWT no proporcionado o inválido.' })
   @ApiResponse({ status: 403, description: 'El pedido pertenece a otra empresa.' })
   @ApiResponse({ status: 404, description: 'Pedido no encontrado.' })
   @ApiResponse({ status: 500, description: 'Error interno del servidor.' })
-  async cancelOrder(
+  async deleteOrder(
     @Param('id') id: string,
     @Req() req: Request,
-  ): Promise<Order> {
+  ): Promise<{ success: boolean }> {
     const { companyId } = (req as any).user;
-    return this.ordersService.cancelOrder(id, companyId);
+    const success = await this.ordersService.deleteOrder(id, companyId);
+    return { success };
   }
 }

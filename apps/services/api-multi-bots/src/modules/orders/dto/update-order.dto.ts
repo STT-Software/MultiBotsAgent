@@ -43,6 +43,14 @@ export class UpdateOrderDto {
   customerEmail?: string;
 
   @ApiPropertyOptional({
+    description: 'Dirección física del cliente.',
+    example: 'Calle 123 # 45-67, Bogotá',
+  })
+  @IsString()
+  @IsOptional()
+  customerAddress?: string;
+
+  @ApiPropertyOptional({
     description: 'Lista de ítems incluidos en el pedido.',
     type: [OrderItemDto],
   })

@@ -5,7 +5,7 @@ import { usePedidos } from "../hooks/use-pedidos";
 import { PedidosTable } from "./PedidosTable";
 
 export function PedidosContainer() {
-  const { pedidos, loading, error, refetch } = usePedidos();
+  const { pedidos, loading, error, refetch, changeStatus, deleteOrder } = usePedidos();
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto px-4 py-8">
@@ -74,7 +74,12 @@ export function PedidosContainer() {
       ) : pedidos.length === 0 ? (
         <PedidosEmptyState />
       ) : (
-        <PedidosTable pedidos={pedidos} />
+        <PedidosTable
+          pedidos={pedidos}
+          onCancel={(id) => changeStatus(id, "cancelled")}
+          onComplete={(id) => changeStatus(id, "delivered")}
+          onDelete={(id) => deleteOrder(id)}
+        />
       )}
     </div>
   );

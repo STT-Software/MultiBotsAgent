@@ -61,6 +61,7 @@ export class OrdersService {
       customerName: dto.customerName,
       customerPhone: dto.customerPhone,
       customerEmail: dto.customerEmail,
+      customerAddress: dto.customerAddress,
       items: dto.items,
       total: dto.total,
       status: dto.status,
@@ -139,6 +140,7 @@ export class OrdersService {
     if (dto.customerName !== undefined) updateData.customerName = dto.customerName;
     if (dto.customerPhone !== undefined) updateData.customerPhone = dto.customerPhone;
     if (dto.customerEmail !== undefined) updateData.customerEmail = dto.customerEmail;
+    if (dto.customerAddress !== undefined) updateData.customerAddress = dto.customerAddress;
     if (dto.items !== undefined) updateData.items = dto.items;
     if (dto.total !== undefined) updateData.total = dto.total;
     if (dto.status !== undefined) updateData.status = dto.status;
@@ -168,6 +170,22 @@ export class OrdersService {
     const updatedOrder = await this.orderRepository.update(id, { status: 'cancelled' });
     this.logger.log(`Pedido ${id} cancelado correctamente`);
     return updatedOrder;
+  }
+
+  /**
+   * Elimina físicamente un pedido de la base de datos.
+   */
+  async deleteOrder(id: string, companyId: string): Promise<boolean> {
+    const order = await this.orderRepository.findById(id);
+    if (!order) {
+      throw new NotFoundException(`Pedido no encontrado: ${id}`);
+    }
+    if (order.companyId !== companyId) {
+      throw new ForbiddenException('No tienes permisos para eliminar este pedido.');
+    }
+    const success = await this.orderRepository.delete(id);
+    this.logger.log(`Pedido ${id} eliminado físicamente: ${success}`);
+    return success;
   }
 
   // ─── Helpers de Notificaciones ──────────────────────────────────────────────

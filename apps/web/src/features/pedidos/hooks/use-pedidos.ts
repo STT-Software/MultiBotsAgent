@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchPedidos } from "../services/pedidos.service";
+import { fetchPedidos, updatePedidoStatus, deletePedido } from "../services/pedidos.service";
 import { fetchAgentes } from "@/features/agentes/services/agentes.service";
 import type { Order } from "@multibotagents/types";
 import type { Agente } from "@/features/agentes/types/agentes.types";
@@ -9,6 +9,7 @@ export interface UiOrder {
   cliente: string;
   total: string;
   estado: "procesando" | "pendiente" | "completado" | "cancelado";
+  rawStatus: Order["status"];
   agenteName: string;
   fecha: string;
 }
@@ -42,7 +43,6 @@ export function usePedidos() {
       });
 
       const formatted = rawOrders.map((order: Order): UiOrder => {
-        // Formateador de moneda en pesos colombianos para coincidir con la localización por defecto
         const totalFormatted = new Intl.NumberFormat("es-CO", {
           style: "currency",
           currency: "COP",
@@ -54,6 +54,7 @@ export function usePedidos() {
           cliente: order.customerName,
           total: totalFormatted,
           estado: ESTADO_MAP[order.status] || "pendiente",
+          rawStatus: order.status,
           agenteName: agentsMap.get(order.agentId) || `Agente (${order.agentId.substring(0, 6)})`,
           fecha: new Date(order.createdAt).toLocaleDateString("es-CO", {
             year: "numeric",
@@ -73,9 +74,31 @@ export function usePedidos() {
     }
   };
 
+  const changeStatus = async (id: string, status: Order["status"]) => {
+    try {
+      setLoading(true);
+      await updatePedidoStatus(id, status);
+      await loadData();
+    } catch (err: any) {
+      setError(err.message || "Error al actualizar el estado del pedido");
+      setLoading(false);
+    }
+  };
+
+  const deleteOrder = async (id: string) => {
+    try {
+      setLoading(true);
+      await deletePedido(id);
+      await loadData();
+    } catch (err: any) {
+      setError(err.message || "Error al eliminar el pedido");
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
 
-  return { pedidos, loading, error, refetch: loadData };
+  return { pedidos, loading, error, refetch: loadData, changeStatus, deleteOrder };
 }

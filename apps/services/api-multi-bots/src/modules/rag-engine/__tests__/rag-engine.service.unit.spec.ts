@@ -678,6 +678,8 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
                 args: {
                   customerName: 'Juan Pérez',
                   customerPhone: '123456789',
+                  customerEmail: 'juan.perez@example.com',
+                  customerAddress: 'Calle Falsa 123',
                   items: [
                     { nombre: 'Producto A', cantidad: 3, precioUnitario: 50 }
                   ],
