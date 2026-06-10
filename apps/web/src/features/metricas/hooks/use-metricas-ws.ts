@@ -47,7 +47,7 @@ export function useMetricasWs(): MetricasLiveState {
 
     const socket = io(`${apiUrl}/metricas`, {
       query:       { token },
-      transports:  ['websocket'],
+      transports:  ['polling', 'websocket'],
       autoConnect: false,
       reconnection: false, // gestionamos reconexión manualmente con backoff
     });
