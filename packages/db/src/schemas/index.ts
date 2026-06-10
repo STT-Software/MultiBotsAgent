@@ -107,6 +107,13 @@ export {
   type BookingDocument,
 } from "./booking.schema";
 
+export {
+  ORDERS_COLLECTION,
+  ORDERS_INDEXES,
+  ORDERS_VALIDATION,
+  type OrderDocument,
+} from "./order.schema";
+
 
 
 export {

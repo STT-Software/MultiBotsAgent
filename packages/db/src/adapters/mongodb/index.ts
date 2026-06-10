@@ -32,6 +32,7 @@ export { buildMetricEventDocument } from "./metric-event.repository";
 export type { AgentFilter, AgentType } from "./metric-event.repository";
 export { BookingRepository } from "./booking.repository";
 export { AuditLogRepository } from "./audit-log.repository";
+export { OrderRepository } from "./order.repository";
 
 // Re-export interfaces desde la carpeta centralizada
 export type {
@@ -61,4 +62,6 @@ export type {
   CreateBookingData,
   IBookingRepository,
   IAuditLogRepository,
+  CreateOrderData,
+  IOrderRepository,
 } from "../../interfaces";

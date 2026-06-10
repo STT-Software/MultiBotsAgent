@@ -26,4 +26,6 @@ export type {
   CreateBookingData,
   IBookingRepository,
   IAuditLogRepository,
+  CreateOrderData,
+  IOrderRepository,
 } from './repositories.interface';

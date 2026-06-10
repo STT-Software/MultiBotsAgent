@@ -153,6 +153,30 @@ export class EmailWorkerCronService {
         };
       }
 
+      case 'order_client': {
+        const orderId = payload.orderId as string;
+        const total = payload.total as string;
+        const itemsSummary = payload.itemsSummary as string;
+        return {
+          subject: 'Confirmación de tu pedido - MultiBotAgents',
+          templateName: process.env.ELASTIC_EMAIL_ORDER_CLIENT_TEMPLATE_ID || this.templateId,
+          merge: { username, orderId, total, itemsSummary },
+        };
+      }
+
+      case 'order_operator': {
+        const orderId = payload.orderId as string;
+        const clientName = payload.clientName as string;
+        const clientPhone = payload.clientPhone as string;
+        const total = payload.total as string;
+        const itemsSummary = payload.itemsSummary as string;
+        return {
+          subject: '¡Nuevo pedido registrado! - MultiBotAgents',
+          templateName: process.env.ELASTIC_EMAIL_ORDER_OPERATOR_TEMPLATE_ID || this.templateId,
+          merge: { username, orderId, clientName, clientPhone, total, itemsSummary },
+        };
+      }
+
       case 'verification':
       default: {
         const token = payload.token as string;

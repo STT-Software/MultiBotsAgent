@@ -29,6 +29,7 @@ import { PromptBuilderService } from './services/prompt-builder.service';
 import { ReRankingService } from './services/re-ranking.service';
 import { ResponseFormatterService } from './services/response-formatter.service';
 import { BookingsService } from '../bookings/bookings.service';
+import { OrdersService } from '../orders/orders.service';
 
 import type {
   AgentConfig,
@@ -66,6 +67,7 @@ export class RagEngineService {
     @Inject('ESCALATED_CONVERSATION_REPO') private readonly escalatedRepo: EscalatedConversationRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly bookingsService: BookingsService,
+    private readonly ordersService: OrdersService,
   ) {}
 
   /**
@@ -230,8 +232,8 @@ export class RagEngineService {
     // 12. Invoke LLM
     let llmContent: string;
     try {
-      if (config.tipo === 'agendamiento') {
-        this.logger.debug('Invoking agendamiento agent with tools');
+      if (config.tipo === 'agendamiento' || config.tipo === 'cotizador') {
+        this.logger.debug(`Invoking ${config.tipo} agent with tools`);
         llmContent = await this.executeAgentWithTools(config, prompt, input);
       } else {
         this.logger.debug('Invoking standard LLM');
@@ -249,7 +251,24 @@ export class RagEngineService {
         return this.buildErrorResponse(input, config, history);
       }
 
-      llmContent = llmContent;
+      const cleanContent = llmContent.trim().toUpperCase();
+      if (cleanContent === 'TRANSFER' || cleanContent.includes('TRANSFER')) {
+        this.logger.warn('LLM determined user wants human transfer, initiating escalation', {
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+          stage: 'llm_invocation',
+        });
+        return this.buildNoInfoResponse(input, config, history, 'explicit');
+      }
+
+      if (cleanContent === 'NO_INFO' || cleanContent.includes('NO_INFO')) {
+        this.logger.warn('LLM determined no information was available, returning noInfoMessage', {
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+          stage: 'llm_invocation',
+        });
+        return this.buildNoInfoResponse(input, config, history, 'agent_detected');
+      }
 
       this.logger.debug('LLM response received');
     } catch (error: unknown) {
@@ -637,61 +656,169 @@ export class RagEngineService {
       throw new Error('Soporte de herramientas no configurado en el LLM');
     }
 
-    // Definición de las herramientas
-    const checkAvailabilityTool = new DynamicStructuredTool({
-      name: 'check_availability',
-      description:
-        'Consulta los horarios/slots de 30 minutos disponibles para una fecha específica (YYYY-MM-DD). Retorna un array de strings con las horas disponibles (ej: ["09:00", "09:30"]).',
-      schema: z.object({
-        date: z.string().describe('Fecha en formato YYYY-MM-DD del día a consultar.'),
-        timeOfDay: z.enum(['morning', 'afternoon', 'any']).optional().describe('Preferencia de jornada de disponibilidad.'),
-      }),
-      func: async ({ date, timeOfDay }) => {
-        try {
-          const slots = await this.bookingsService.checkAvailability(
-            config.agentId,
-            date,
-            timeOfDay || 'any',
-          );
-          return JSON.stringify({ success: true, date, availableSlots: slots });
-        } catch (err: any) {
-          return JSON.stringify({ success: false, error: err.message || String(err) });
-        }
-      },
-    });
+    let tools: any[] = [];
 
-    const bookAppointmentTool = new DynamicStructuredTool({
-      name: 'book_appointment',
-      description: 'Reserva una cita para un cliente en una fecha y hora específica.',
-      schema: z.object({
-        dateTime: z
-          .string()
-          .describe(
-            'Fecha y hora de inicio de la cita en formato ISO 8601 (ej. YYYY-MM-DDTHH:mm:ss). Debe ser uno de los slots disponibles.',
-          ),
-        customerName: z.string().describe('Nombre completo del cliente.'),
-        customerPhone: z.string().describe('Teléfono de contacto del cliente.'),
-        customerEmail: z.string().optional().describe('Correo electrónico del cliente.'),
-        notes: z.string().optional().describe('Notas o comentarios adicionales de la cita.'),
-      }),
-      func: async ({ dateTime, customerName, customerPhone, customerEmail, notes }) => {
-        try {
-          const booking = await this.bookingsService.createBooking(config.companyId, {
-            agentId: config.agentId,
-            dateTime,
-            customerName,
-            customerPhone,
-            customerEmail,
-            notes,
-          });
-          return JSON.stringify({ success: true, booking });
-        } catch (err: any) {
-          return JSON.stringify({ success: false, error: err.message || String(err) });
-        }
-      },
-    });
+    if (config.tipo === 'agendamiento') {
+      const checkAvailabilityTool = new DynamicStructuredTool({
+        name: 'check_availability',
+        description:
+          'Consulta los horarios/slots de 30 minutos disponibles para una fecha específica (YYYY-MM-DD). Retorna un array de strings con las horas disponibles (ej: ["09:00", "09:30"]).',
+        schema: z.object({
+          date: z.string().describe('Fecha en formato YYYY-MM-DD del día a consultar.'),
+          timeOfDay: z.enum(['morning', 'afternoon', 'any']).optional().describe('Preferencia de jornada de disponibilidad.'),
+        }),
+        func: async ({ date, timeOfDay }) => {
+          try {
+            const slots = await this.bookingsService.checkAvailability(
+              config.agentId,
+              date,
+              timeOfDay || 'any',
+            );
+            return JSON.stringify({ success: true, date, availableSlots: slots });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
 
-    const tools = [checkAvailabilityTool, bookAppointmentTool];
+      const bookAppointmentTool = new DynamicStructuredTool({
+        name: 'book_appointment',
+        description: 'Reserva una cita para un cliente en una fecha y hora específica.',
+        schema: z.object({
+          dateTime: z
+            .string()
+            .describe(
+              'Fecha y hora de inicio de la cita en formato ISO 8601 (ej. YYYY-MM-DDTHH:mm:ss). Debe ser uno de los slots disponibles.',
+            ),
+          customerName: z.string().describe('Nombre completo del cliente.'),
+          customerPhone: z.string().describe('Teléfono de contacto del cliente.'),
+          customerEmail: z.string().optional().describe('Correo electrónico del cliente.'),
+          notes: z.string().optional().describe('Notas o comentarios adicionales de la cita.'),
+        }),
+        func: async ({ dateTime, customerName, customerPhone, customerEmail, notes }) => {
+          try {
+            const booking = await this.bookingsService.createBooking(config.companyId, {
+              agentId: config.agentId,
+              dateTime,
+              customerName,
+              customerPhone,
+              customerEmail,
+              notes,
+            });
+            return JSON.stringify({ success: true, booking });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
+
+      tools = [checkAvailabilityTool, bookAppointmentTool];
+    } else if (config.tipo === 'cotizador') {
+      const listProductsTool = new DynamicStructuredTool({
+        name: 'list_products',
+        description: 'Busca productos o consulta el catálogo del agente cotizador. Puedes pasar términos de búsqueda para encontrar productos específicos.',
+        schema: z.object({
+          query: z.string().optional().describe('Término de búsqueda para filtrar productos o vacío para ver general.'),
+        }),
+        func: async ({ query }) => {
+          try {
+            const results = await this.vectorSearch.search(config.agentId, query || 'productos', 10);
+            return JSON.stringify({
+              success: true,
+              products: results.map(r => r.content),
+            });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
+
+      const createOrderTool = new DynamicStructuredTool({
+        name: 'create_order',
+        description: 'Crea un nuevo pedido o cotización para el cliente con los ítems y precios especificados.',
+        schema: z.object({
+          customerName: z.string().describe('Nombre completo del cliente.'),
+          customerPhone: z.string().describe('Teléfono de WhatsApp del cliente.'),
+          customerEmail: z.string().email().describe('Correo electrónico del cliente.'),
+          customerAddress: z.string().describe('Dirección física de entrega del cliente.'),
+          items: z.array(
+            z.object({
+              nombre: z.string().describe('Nombre del producto o servicio.'),
+              cantidad: z.number().describe('Cantidad ordenada.'),
+              precioUnitario: z.number().describe('Precio unitario del producto.'),
+            })
+          ).describe('Lista de productos o ítems agregados al pedido.'),
+          notes: z.string().optional().describe('Notas o comentarios adicionales del pedido.'),
+        }),
+        func: async ({ customerName, customerPhone, customerEmail, customerAddress, items, notes }) => {
+          try {
+            const total = items.reduce((acc, item) => acc + item.cantidad * item.precioUnitario, 0);
+            const order = await this.ordersService.createOrder(config.companyId, {
+              agentId: config.agentId,
+              customerName,
+              customerPhone,
+              customerEmail,
+              customerAddress,
+              items: items.map(item => ({
+                nombre: item.nombre,
+                cantidad: item.cantidad,
+                precioUnitario: item.precioUnitario,
+                subtotal: item.cantidad * item.precioUnitario,
+              })),
+              total,
+              status: 'pending_confirmation',
+              notes,
+            });
+            return JSON.stringify({ success: true, order });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
+
+      const getOrderStatusTool = new DynamicStructuredTool({
+        name: 'get_order_status',
+        description: 'Obtiene el estado de un pedido específico por su ID.',
+        schema: z.object({
+          orderId: z.string().describe('ID único del pedido a consultar.'),
+        }),
+        func: async ({ orderId }) => {
+          try {
+            const order = await this.ordersService.getOrder(orderId, config.companyId);
+            return JSON.stringify({
+              success: true,
+              orderId: order.id,
+              status: order.status,
+              customerName: order.customerName,
+              total: order.total,
+              createdAt: order.createdAt,
+              updatedAt: order.updatedAt,
+            });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
+
+      const cancelOrderTool = new DynamicStructuredTool({
+        name: 'cancel_order',
+        description: 'Cancela un pedido existente usando su ID.',
+        schema: z.object({
+          orderId: z.string().describe('ID único del pedido a cancelar.'),
+        }),
+        func: async ({ orderId }) => {
+          try {
+            const order = await this.ordersService.cancelOrder(orderId, config.companyId);
+            return JSON.stringify({ success: true, order });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
+
+      tools = [listProductsTool, createOrderTool, getOrderStatusTool, cancelOrderTool];
+    }
+
     const modelWithTools = rawModel.bindTools(tools);
 
     // Construcción de mensajes para el LLM
