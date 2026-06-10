@@ -91,7 +91,7 @@ export function HistorialContainer() {
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="flex flex-col gap-6 w-full animate-fade-in">
       {/* Header Area */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

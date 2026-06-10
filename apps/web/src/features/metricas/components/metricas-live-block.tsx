@@ -2,6 +2,7 @@ import type { MetricasLiveState } from '../types/metricas.types';
 import { MetricasLiveCounters } from './metricas-live-counters';
 import { MetricasActivityFeed } from './metricas-activity-feed';
 import { MetricasLiveChart } from './metricas-live-chart';
+import { MetricasTokensChart } from './metricas-tokens-chart';
 
 interface MetricasLiveBlockProps {
   liveState: MetricasLiveState;
@@ -32,8 +33,11 @@ export function MetricasLiveBlock({ liveState }: MetricasLiveBlockProps) {
       {/* Contadores */}
       <MetricasLiveCounters counters={liveState.counters} />
 
-      {/* Gráfico en vivo */}
-      <MetricasLiveChart counters={liveState.counters} />
+      {/* Gráficos en vivo */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <MetricasLiveChart counters={liveState.counters} />
+        <MetricasTokensChart counters={liveState.counters} />
+      </div>
 
       {/* Feed de actividad */}
       <div
