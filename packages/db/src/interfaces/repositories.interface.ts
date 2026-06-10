@@ -388,3 +388,19 @@ export interface IBookingRepository extends Repository<Booking> {
   findActiveByCustomerPhone(customerPhone: string): Promise<Booking[]>;
   findByDateRange(companyId: string, startDate: Date, endDate: Date): Promise<Booking[]>;
 }
+
+// ─── Audit Log (Auditoría Administrativa) ───────────────────────────────────
+
+import type { AuditLogDocument } from "../schemas/audit-log.schema";
+import type { AuditLogPayload } from "@multibotagents/types";
+
+export interface IAuditLogRepository {
+  create(payload: AuditLogPayload): Promise<AuditLogDocument>;
+  findPaginated(
+    companyId: string,
+    limit: number,
+    skip: number,
+  ): Promise<AuditLogDocument[]>;
+  countByCompany(companyId: string): Promise<number>;
+}
+

@@ -15,7 +15,13 @@ describe('AgentsController', () => {
     };
 
     // Instanciación manual del controlador para evitar problemas de metadatos de SWC en Vitest
-    controller = new AgentsController(mockAgentsService as unknown as AgentsService);
+    const mockEventEmitter = {
+      emit: vi.fn(),
+    };
+    controller = new AgentsController(
+      mockAgentsService as unknown as AgentsService,
+      mockEventEmitter as any,
+    );
   });
 
   describe('getAgent', () => {

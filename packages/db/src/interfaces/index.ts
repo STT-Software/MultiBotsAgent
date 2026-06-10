@@ -25,4 +25,5 @@ export type {
   IMetricEventRepository,
   CreateBookingData,
   IBookingRepository,
+  IAuditLogRepository,
 } from './repositories.interface';

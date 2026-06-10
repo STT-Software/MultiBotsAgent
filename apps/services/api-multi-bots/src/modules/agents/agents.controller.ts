@@ -23,7 +23,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AgentsService } from './agents.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
-import type { Agent } from '@multibotagents/types';
+import type { Agent, AuditLogPayload } from '@multibotagents/types';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 /**
  * Controlador REST para la gestión de personalidad e identidad de agentes.
@@ -34,7 +35,10 @@ import type { Agent } from '@multibotagents/types';
 @UseGuards(JwtAuthGuard)
 @Controller('agents')
 export class AgentsController {
-  constructor(private readonly agentsService: AgentsService) {}
+  constructor(
+    private readonly agentsService: AgentsService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   // ─── GET /agents ─────────────────────────────────────────────────────────
 
@@ -103,8 +107,20 @@ export class AgentsController {
     @Body() dto: CreateAgentDto,
     @Req() req: Request,
   ): Promise<Agent> {
-    const { companyId } = (req as any).user;
-    return this.agentsService.createAgent(companyId, dto);
+    const { companyId, userId, email } = (req as any).user;
+    const result = await this.agentsService.createAgent(companyId, dto);
+
+    this.eventEmitter.emit("audit.create", {
+      companyId,
+      userId,
+      userEmail: email,
+      action: "agent.create",
+      description: `Se creó el agente "${result.nombre}" (tipo: ${result.tipo})`,
+      metadata: { agentId: result.id, tipo: result.tipo },
+      timestamp: new Date(),
+    } satisfies AuditLogPayload);
+
+    return result;
   }
 
   // ─── PATCH /agents/:id ────────────────────────────────────────────────────
@@ -134,8 +150,20 @@ export class AgentsController {
     @Body() dto: UpdateAgentDto,
     @Req() req: Request,
   ): Promise<Agent> {
-    const { companyId } = (req as any).user;
-    return this.agentsService.updateAgent(id, companyId, dto);
+    const { companyId, userId, email } = (req as any).user;
+    const result = await this.agentsService.updateAgent(id, companyId, dto);
+
+    this.eventEmitter.emit("audit.create", {
+      companyId,
+      userId,
+      userEmail: email,
+      action: "agent.update",
+      description: `Se actualizó la configuración del agente "${result.nombre}"`,
+      metadata: { agentId: id, camposModificados: Object.keys(dto) },
+      timestamp: new Date(),
+    } satisfies AuditLogPayload);
+
+    return result;
   }
 
   // ─── DELETE /agents/:id ───────────────────────────────────────────────────
@@ -163,8 +191,20 @@ export class AgentsController {
     @Param('id') id: string,
     @Req() req: Request,
   ): Promise<{ success: boolean }> {
-    const { companyId } = (req as any).user;
+    const { companyId, userId, email } = (req as any).user;
+    const agent = await this.agentsService.getAgent(id, companyId);
     await this.agentsService.deleteAgent(id, companyId);
+
+    this.eventEmitter.emit("audit.create", {
+      companyId,
+      userId,
+      userEmail: email,
+      action: "agent.delete",
+      description: `Se eliminó el agente "${agent.nombre}"`,
+      metadata: { agentId: id },
+      timestamp: new Date(),
+    } satisfies AuditLogPayload);
+
     return { success: true };
   }
 }

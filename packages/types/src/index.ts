@@ -47,3 +47,7 @@ export * from "./agents/agent.types";
 export * from "./metrics";
 // Bookings
 export * from "./interfaces/booking.interface";
+
+// Audit Logs
+export * from "./audit/audit-log.types";
+

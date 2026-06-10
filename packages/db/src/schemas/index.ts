@@ -115,3 +115,10 @@ export {
   METRIC_EVENTS_VALIDATION,
   type MetricEventDocument,
 } from "./metric-event.schema";
+
+export {
+  AUDIT_LOGS_COLLECTION,
+  AUDIT_LOGS_INDEXES,
+  type AuditLogDocument,
+} from "./audit-log.schema";
+

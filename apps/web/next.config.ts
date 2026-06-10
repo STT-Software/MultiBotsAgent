@@ -48,6 +48,14 @@ const nextConfig: NextConfig = {
         source: "/bookings/:path*",
         destination: `${apiUrl}/bookings/:path*`,
       },
+      {
+        source: "/auditoria",
+        destination: `${apiUrl}/auditoria`,
+      },
+      {
+        source: "/auditoria/:path*",
+        destination: `${apiUrl}/auditoria/:path*`,
+      },
     ];
   },
 };
