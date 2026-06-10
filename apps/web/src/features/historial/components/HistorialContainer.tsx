@@ -91,16 +91,21 @@ export function HistorialContainer() {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
-      {/* Subheader */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm" style={{ color: "#bbcabe" }}>
-          Registro cronológico detallado de las acciones administrativas y de auditoría de tu cuenta.
-        </p>
+    <div className="flex flex-col gap-6 w-full animate-fade-in">
+      {/* Header Area */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "#dde5dc" }}>
+            Historial de Auditoría
+          </h1>
+          <p className="text-sm mt-1.5" style={{ color: "#bbcabe" }}>
+            Registro cronológico detallado de las acciones administrativas y de auditoría de tu cuenta.
+          </p>
+        </div>
         <button
           onClick={handleRefresh}
           disabled={loading || isRefreshing}
-          className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
+          className="flex h-9 items-center justify-center gap-2 rounded-md border px-4 text-xs font-semibold transition-all hover:bg-[#242c27]"
           style={{
             borderColor: "#3c4a41",
             backgroundColor: "#16221d",
@@ -111,6 +116,7 @@ export function HistorialContainer() {
           <RefreshCw
             size={14}
             className={`${isRefreshing || loading ? "animate-spin" : ""}`}
+            style={{ color: "#00bb7a" }}
             aria-hidden="true"
           />
           Refrescar

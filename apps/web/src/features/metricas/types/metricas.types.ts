@@ -33,6 +33,10 @@ export interface MetricasLiveState {
     conversationsResolved: number;
     conversationsActive: number;
     escalationsOpen: number;
+    tokensSpent?: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    estimatedCost?: number;
   };
   feed: FeedItem[]; // máximo 10 ítems
 }
