@@ -17,86 +17,62 @@ export function AgentesListView() {
   const eliminar = useEliminarAgente(() => {
     retry();
   });
-
   return (
-    <div className="flex min-h-full flex-col">
-      {/* Main content */}
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        {/* Subheader */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm" style={{ color: "#bbcabe" }}>
+    <div className="flex flex-col gap-6 w-full">
+      {/* Header Area */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "#dde5dc" }}>
+            Agentes Inteligentes
+          </h1>
+          <p className="text-sm mt-1.5" style={{ color: "#bbcabe" }}>
             Orquestación y gestión de modelos inteligentes en tiempo real.
           </p>
-          <Link
-            href="/agentes/crear"
-            className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors"
-            style={{ backgroundColor: "#00bb7a", color: "#004329" }}
-            aria-label="Crear nuevo agente"
-          >
-            <Plus size={16} aria-hidden="true" />
-            Crear agente
-          </Link>
         </div>
-
-        {/* Metrics cards - only show when we have data */}
-        {!loading && !error && metrics && (
-          <AgentesMetricsCards metrics={metrics} />
-        )}
-
-        {/* Content states */}
-        {loading && <AgentesListSkeleton />}
-        {error && <AgentesListError onRetry={retry} error={error} />}
-        {!loading && !error && agentes.length === 0 && <AgentesEmptyState />}
-        {!loading && !error && agentes.length > 0 && (
-          <AgentesTable agentes={agentes} onEliminar={eliminar.abrir} />
-        )}
-
-        {/* Toast de éxito */}
-        {eliminar.success && (
-          <div
-            className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg px-4 py-3 shadow-lg"
-            style={{ backgroundColor: "#1a3d2f", border: "1px solid #2d6e5a", color: "#49df9a" }}
-          >
-            <CheckCircle size={16} aria-hidden="true" />
-            <span className="text-sm font-medium">Agente eliminado exitosamente</span>
-          </div>
-        )}
-
-        {/* Diálogo de confirmación */}
-        <EliminarAgenteDialog
-          isOpen={eliminar.isOpen}
-          agente={eliminar.agenteSeleccionado}
-          deleting={eliminar.deleting}
-          error={eliminar.error}
-          onConfirm={eliminar.confirmar}
-          onCancel={eliminar.cerrar}
-        />
+        <Link
+          href="/agentes/crear"
+          className="inline-flex h-9 items-center gap-2 rounded-md px-4 text-xs font-semibold transition-all hover:bg-[#00bb7a]"
+          style={{ backgroundColor: "#00bb7a", color: "#004329" }}
+          aria-label="Crear nuevo agente"
+        >
+          <Plus size={14} aria-hidden="true" />
+          Crear agente
+        </Link>
       </div>
 
-      {/* Footer */}
-      <footer
-        className="flex items-center justify-between border-t px-6 py-4"
-        style={{ borderColor: "#3c4a41" }}
-      >
-        <span
-          className="text-xs"
-          style={{ color: "#869489" }}
+      {/* Metrics cards - only show when we have data */}
+      {!loading && !error && metrics && (
+        <AgentesMetricsCards metrics={metrics} />
+      )}
+
+      {/* Content states */}
+      {loading && <AgentesListSkeleton />}
+      {error && <AgentesListError onRetry={retry} error={error} />}
+      {!loading && !error && agentes.length === 0 && <AgentesEmptyState />}
+      {!loading && !error && agentes.length > 0 && (
+        <AgentesTable agentes={agentes} onEliminar={eliminar.abrir} />
+      )}
+
+      {/* Toast de éxito */}
+      {eliminar.success && (
+        <div
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg px-4 py-3 shadow-lg"
+          style={{ backgroundColor: "#1a3d2f", border: "1px solid #2d6e5a", color: "#49df9a" }}
         >
-          © 2026 Obsidian AI Orchestrator
-        </span>
-        <div className="flex items-center gap-4">
-          <a href="#" className="text-xs transition-colors hover:underline" style={{ color: "#869489" }}>
-            Privacy Policy
-          </a>
-          <a href="#" className="text-xs transition-colors hover:underline" style={{ color: "#869489" }}>
-            Terms of Service
-          </a>
-          <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "#869489" }}>
-            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "#49df9a" }} aria-hidden="true" />
-            API Status
-          </span>
+          <CheckCircle size={16} aria-hidden="true" />
+          <span className="text-sm font-medium">Agente eliminado exitosamente</span>
         </div>
-      </footer>
+      )}
+
+      {/* Diálogo de confirmación */}
+      <EliminarAgenteDialog
+        isOpen={eliminar.isOpen}
+        agente={eliminar.agenteSeleccionado}
+        deleting={eliminar.deleting}
+        error={eliminar.error}
+        onConfirm={eliminar.confirmar}
+        onCancel={eliminar.cerrar}
+      />
     </div>
   );
 }

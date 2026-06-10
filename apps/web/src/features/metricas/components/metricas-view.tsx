@@ -20,13 +20,13 @@ export function MetricasView() {
   const [agentFilter, setAgentFilter] = useState<AgentTypeFilter>('todos');
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-5xl mx-auto w-full">
+    <div className="flex flex-col gap-6 w-full">
       {/* Encabezado */}
       <div>
-        <h1 className="text-xl font-semibold" style={{ color: '#c8d8cc' }}>
+        <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "#dde5dc" }}>
           Métricas y Analíticas
         </h1>
-        <p className="text-sm mt-1" style={{ color: '#5a6b5e' }}>
+        <p className="text-sm mt-1.5" style={{ color: "#bbcabe" }}>
           Actividad en tiempo real y métricas históricas de tus agentes
         </p>
       </div>

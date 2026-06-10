@@ -8,14 +8,14 @@ export function PedidosContainer() {
   const { pedidos, loading, error, refetch, changeStatus, deleteOrder } = usePedidos();
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto px-4 py-8">
+    <div className="flex flex-col gap-6 w-full">
       {/* Header Area */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
             <h1
-              className="text-2xl font-bold leading-tight"
-              style={{ color: "#dde5dc", fontFamily: "Geist, sans-serif" }}
+              className="text-2xl font-semibold tracking-tight"
+              style={{ color: "#dde5dc" }}
             >
               Listado de Pedidos
             </h1>
@@ -38,7 +38,7 @@ export function PedidosContainer() {
           disabled={loading}
           className="flex h-9 items-center justify-center gap-2 rounded-md border px-4 text-xs font-semibold transition-all hover:bg-[#242c27]"
           style={{
-            backgroundColor: "#1a211c",
+            backgroundColor: "#16221d",
             borderColor: "#3c4a41",
             color: "#dde5dc",
             cursor: loading ? "not-allowed" : "pointer",
