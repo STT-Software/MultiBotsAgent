@@ -117,20 +117,16 @@ export class BedrockLlmProvider implements LlmProvider {
    * Converts LlmPrompt into LangChain message format.
    */
   private buildMessages(prompt: LlmPrompt): BaseMessage[] {
-    const messages: BaseMessage[] = [];
-
-    // System message with personality, context, and constraints
-    const systemContent = this.buildSystemContent(prompt);
-    messages.push(new SystemMessage(systemContent));
+    const rawConversationalMessages: BaseMessage[] = [];
 
     // History messages
     for (const msg of prompt.history) {
-      messages.push(this.toBaseMessage(msg));
+      rawConversationalMessages.push(this.toBaseMessage(msg));
     }
 
     // User message
     if (prompt.image) {
-      messages.push(
+      rawConversationalMessages.push(
         new HumanMessage({
           content: [
             { type: 'text', text: prompt.userMessage || 'Analiza esta imagen.' },
@@ -145,10 +141,100 @@ export class BedrockLlmProvider implements LlmProvider {
         }),
       );
     } else {
-      messages.push(new HumanMessage(prompt.userMessage));
+      rawConversationalMessages.push(new HumanMessage(prompt.userMessage));
     }
 
-    return messages;
+    // Sanitize conversational messages for Bedrock constraints
+    const sanitizedConversational = this.sanitizeMessages(rawConversationalMessages);
+
+    // Ensure there is at least one user message
+    if (sanitizedConversational.length === 0) {
+      sanitizedConversational.push(new HumanMessage(prompt.userMessage || 'Hola'));
+    }
+
+    return [
+      new SystemMessage(this.buildSystemContent(prompt)),
+      ...sanitizedConversational,
+    ];
+  }
+
+  /**
+   * Sanitizes conversational messages to meet Bedrock's strict validation rules:
+   * 1. The conversation must start with a user/human message.
+   * 2. Consecutive messages with the same role are merged to ensure strict alternation.
+   */
+  private sanitizeMessages(nonSystemMessages: BaseMessage[]): BaseMessage[] {
+    const sanitized: BaseMessage[] = [];
+
+    for (const msg of nonSystemMessages) {
+      const isHuman = msg instanceof HumanMessage;
+      const isAI = msg instanceof AIMessage;
+
+      // 1. A conversation must start with a user/human message
+      if (sanitized.length === 0) {
+        if (isHuman) {
+          sanitized.push(msg);
+        } else {
+          this.logger.warn(
+            `Discarding leading non-human message in history for Bedrock: ${JSON.stringify(msg.content)}`,
+          );
+        }
+        continue;
+      }
+
+      const lastMsg = sanitized[sanitized.length - 1];
+      const lastIsHuman = lastMsg instanceof HumanMessage;
+      const lastIsAI = lastMsg instanceof AIMessage;
+
+      // 2. Merge consecutive messages of the same role
+      if ((isHuman && lastIsHuman) || (isAI && lastIsAI)) {
+        this.logger.debug(
+          `Merging consecutive messages of role: ${isHuman ? 'human' : 'ai'}`,
+        );
+
+        let mergedContent: any;
+        const lastContent = lastMsg.content;
+        const currentContent = msg.content;
+
+        if (Array.isArray(lastContent)) {
+          if (Array.isArray(currentContent)) {
+            mergedContent = [...lastContent, ...currentContent];
+          } else {
+            mergedContent = [
+              ...lastContent,
+              { type: 'text', text: String(currentContent) },
+            ];
+          }
+        } else {
+          if (Array.isArray(currentContent)) {
+            mergedContent = [
+              { type: 'text', text: String(lastContent) },
+              ...currentContent,
+            ];
+          } else {
+            mergedContent = String(lastContent) + '\n' + String(currentContent);
+          }
+        }
+
+        // Recreate the message with merged content
+        if (isHuman) {
+          sanitized[sanitized.length - 1] = new HumanMessage({
+            ...lastMsg,
+            content: mergedContent,
+          });
+        } else {
+          sanitized[sanitized.length - 1] = new AIMessage({
+            ...lastMsg,
+            content: mergedContent,
+          });
+        }
+      } else if (isHuman || isAI) {
+        // Alternating message types
+        sanitized.push(msg);
+      }
+    }
+
+    return sanitized;
   }
 
   /**
