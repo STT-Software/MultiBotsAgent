@@ -142,6 +142,23 @@ describe('Feature: rag-agent-engine, Property 5: Prompt construction invariants'
     );
   });
 
+  it('system prompt includes off-topic and irrelevant requests instruction', () => {
+    fc.assert(
+      fc.property(
+        agentConfigArb,
+        (config: AgentConfig) => {
+          const systemPrompt = buildSystemPrompt(config.personality, config.language);
+
+          expect(systemPrompt).toContain(
+            'TEMAS FUERA DE CONTEXTO Y SOLICITUDES IRRELEVANTES',
+          );
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+
+
   it('full prompt system prompt includes maxResponseLength constraint', () => {
     fc.assert(
       fc.property(

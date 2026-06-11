@@ -42,6 +42,7 @@ export function buildSystemPrompt(personality: PersonalityConfig, language: stri
   sections.push('4. NO INVENTES: No generes información que no esté respaldada por el contexto proporcionado. No inventes datos, enlaces o teléfonos.');
   sections.push('5. ESTILO CONVERSACIONAL (WHATSAPP): Responde de forma muy natural, humana, directa y amigable. Evita bloques de texto largos o densos. Estructura tus respuestas en párrafos breves (máximo 2 líneas por párrafo) o listas muy cortas con viñetas si es necesario. No envíes mensajes largos estilo correo electrónico.');
   sections.push('6. AJUSTE DE LONGITUD: Sé conciso y sintetiza la información. Tu respuesta debe terminar de manera natural y estar completa dentro del límite de caracteres, sin ideas truncadas o cortadas.');
+  sections.push('7. TEMAS FUERA DE CONTEXTO Y SOLICITUDES IRRELEVANTES: Si el usuario realiza consultas sobre temas generales, chistes, favores personales, política, manualidades (por ejemplo, cómo hacer un avioncito de papel), preguntas de cultura general, o cualquier otro asunto que sea tonto o no esté relacionado directamente con la empresa, sus productos o sus servicios, y dicha información no se encuentre en el contexto proporcionado, responde amigablemente indicando de forma concisa que tu rol se limita a dar soporte sobre la empresa y sus servicios. En estos casos, NO respondas bajo ningún motivo con NO_INFO ni TRANSFER, simplemente manifiesta la restricción de manera cortés.');
   sections.push('</instrucciones_criticas>');
 
   return sections.join('\n\n');
