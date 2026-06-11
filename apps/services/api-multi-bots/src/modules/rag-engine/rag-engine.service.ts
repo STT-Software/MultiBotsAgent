@@ -181,21 +181,28 @@ export class RagEngineService {
           throw new Error(`Unsupported channel provider for audio download: ${channelDoc.provider}`);
         }
 
-        this.logger.log(`Sending audio buffer to OpenAI Whisper for transcription...`);
         const openaiApiKey = process.env.OPENAI_API_KEY;
         if (!openaiApiKey) {
           throw new Error('OPENAI_API_KEY no está configurada en las variables de entorno.');
         }
 
+        const isGroq = openaiApiKey.startsWith('gsk_');
+        const transcriptionUrl = isGroq 
+          ? 'https://api.groq.com/openai/v1/audio/transcriptions'
+          : 'https://api.openai.com/v1/audio/transcriptions';
+        const modelName = isGroq ? 'whisper-large-v3' : 'whisper-1';
+
+        this.logger.log(`Sending audio buffer to ${isGroq ? 'Groq' : 'OpenAI'} Whisper for transcription...`);
+
         const formData = new FormData();
         const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
         formData.append('file', blob, 'audio.ogg');
-        formData.append('model', 'whisper-1');
+        formData.append('model', modelName);
         if (config.language) {
           formData.append('language', config.language.substring(0, 2).toLowerCase());
         }
 
-        const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        const whisperResponse = await fetch(transcriptionUrl, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${openaiApiKey}`,
@@ -205,7 +212,7 @@ export class RagEngineService {
 
         if (!whisperResponse.ok) {
           const errText = await whisperResponse.text();
-          throw new Error(`OpenAI Whisper API failed: ${errText}`);
+          throw new Error(`${isGroq ? 'Groq' : 'OpenAI'} Whisper API failed: ${errText}`);
         }
 
         const whisperData = await whisperResponse.json() as { text: string };
