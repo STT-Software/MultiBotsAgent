@@ -285,14 +285,18 @@ export class TelegramChannelsController {
   ) {
     this.logger.log(`Recibida petición webhook de Telegram para el canal ${channelId}`);
 
-    if (!body || !body.message || !body.message.chat || !body.message.text) {
-      this.logger.warn('Petición webhook de Telegram sin campos requeridos. Omitiendo.');
+    if (!body || !body.message || !body.message.chat || (!body.message.text && !body.message.voice)) {
+      this.logger.warn('Petición webhook de Telegram sin campos requeridos (texto o voz). Omitiendo.');
       return { ok: true };
     }
 
     const { message } = body;
     const chatId = message.chat.id;
-    const messageText = message.text;
+    const isVoice = !!message.voice;
+    const messageText = isVoice ? '' : message.text;
+    const mediaId = isVoice ? message.voice.file_id : undefined;
+    const mimeType = isVoice ? (message.voice.mime_type || 'audio/ogg') : undefined;
+    const messageType = isVoice ? 'audio' : 'text';
     const senderUsername = message.from?.username || message.from?.first_name || 'telegram_user';
 
     const db = this.mongoClient.db();
@@ -328,6 +332,9 @@ export class TelegramChannelsController {
       messageText,
       provider: 'telegram',
       timestamp,
+      messageType,
+      mediaId,
+      mimeType,
     };
 
     const queueUrl = process.env.TELEGRAM_INCOMING_QUEUE_URL;

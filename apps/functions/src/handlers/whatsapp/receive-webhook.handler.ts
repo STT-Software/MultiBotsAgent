@@ -87,12 +87,22 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
         for (const message of value.messages) {
           const waMessageId = message.id;
 
-          // Ignorar mensajes que no sean del tipo texto
-          if (message.type !== "text" || !message.text?.body) {
-            log("INFO", "Mensaje ignorado (tipo no soportado o cuerpo vacío)", {
+          // Permitir mensajes del tipo texto o audio
+          if (message.type !== "text" && message.type !== "audio") {
+            log("INFO", "Mensaje ignorado (tipo no soportado)", {
               waMessageId,
               type: message.type,
             });
+            continue;
+          }
+
+          if (message.type === "text" && !message.text?.body) {
+            log("INFO", "Mensaje de texto ignorado por cuerpo vacío", { waMessageId });
+            continue;
+          }
+
+          if (message.type === "audio" && !message.audio?.id) {
+            log("INFO", "Mensaje de audio ignorado por falta de media id", { waMessageId });
             continue;
           }
 
@@ -111,7 +121,8 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
           });
 
           const senderPhoneNumber = message.from;
-          const messageText = message.text.body;
+          const isAudio = message.type === "audio";
+          const messageText = isAudio ? "" : message.text.body;
           const timestamp = message.timestamp; // Unix timestamp en segundos
 
           // Construir el evento de entrada para la cola
@@ -125,6 +136,9 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
             messageId: waMessageId,
             messageText,
             timestamp: new Date(parseInt(timestamp, 10) * 1000).toISOString(),
+            messageType: isAudio ? "audio" : "text",
+            mediaId: isAudio ? message.audio.id : undefined,
+            mimeType: isAudio ? message.audio.mime_type : undefined,
           };
 
           // 3. Encolar el evento en SQS

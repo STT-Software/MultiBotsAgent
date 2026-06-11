@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { ObjectId } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { decryptToken } from '@multibotagents/core/whatsapp';
 import { filterByThreshold } from '@multibotagents/core';
 import { EscalatedConversationRepository } from '@multibotagents/db';
 import {
@@ -65,6 +66,7 @@ export class RagEngineService {
     @Inject(ReRankingService) private readonly reRankingService: ReRankingService,
     @Inject(ResponseFormatterService) private readonly responseFormatter: ResponseFormatterService,
     @Inject('ESCALATED_CONVERSATION_REPO') private readonly escalatedRepo: EscalatedConversationRepository,
+    @Inject('MONGO_CLIENT') private readonly mongoClient: MongoClient,
     private readonly eventEmitter: EventEmitter2,
     private readonly bookingsService: BookingsService,
     private readonly ordersService: OrdersService,
@@ -100,6 +102,132 @@ export class RagEngineService {
     }
     this.logger.debug('Agent config retrieved', { agentId: config.agentId });
 
+    // -- AUDIO TRANSCRIPTION FLOW --
+    let userMessage = input.userMessage || '';
+    if (input.messageType === 'audio' && input.mediaId) {
+      this.logger.log(`Audio message received with mediaId=${input.mediaId}. Starting transcription flow...`);
+      try {
+        const db = this.mongoClient.db();
+        let channelDoc;
+        if (input.channelId) {
+          channelDoc = await db.collection('channels').findOne({
+            _id: new ObjectId(input.channelId),
+          });
+        } else {
+          channelDoc = await db.collection('channels').findOne({
+            agentId: new ObjectId(input.agentId),
+            status: 'connected',
+          });
+        }
+
+        if (!channelDoc) {
+          throw new Error(`No active channel found for agent ${input.agentId} to retrieve audio.`);
+        }
+
+        const encryptionKey = process.env.ENCRYPTION_KEY;
+        if (!encryptionKey) {
+          throw new Error('ENCRYPTION_KEY no está configurada en las variables de entorno.');
+        }
+        const token = decryptToken(channelDoc.encryptedToken as any, encryptionKey);
+
+        let audioBuffer: Buffer;
+        let mimeType = input.mimeType || 'audio/ogg';
+
+        if (channelDoc.provider === 'whatsapp') {
+          this.logger.log(`Downloading audio from Meta for mediaId=${input.mediaId}...`);
+          const mediaUrlResponse = await fetch(`https://graph.facebook.com/v21.0/${input.mediaId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!mediaUrlResponse.ok) {
+            const errText = await mediaUrlResponse.text();
+            throw new Error(`Failed to get media URL from Meta: ${errText}`);
+          }
+          const mediaData = await mediaUrlResponse.json() as { url: string; mime_type?: string };
+          if (!mediaData.url) {
+            throw new Error(`Meta media metadata did not return a URL: ${JSON.stringify(mediaData)}`);
+          }
+          if (mediaData.mime_type) {
+            mimeType = mediaData.mime_type;
+          }
+
+          const audioDownloadResponse = await fetch(mediaData.url, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!audioDownloadResponse.ok) {
+            const errText = await audioDownloadResponse.text();
+            throw new Error(`Failed to download audio binary from Meta: ${errText}`);
+          }
+          audioBuffer = Buffer.from(await audioDownloadResponse.arrayBuffer());
+        } else if (channelDoc.provider === 'telegram') {
+          this.logger.log(`Downloading audio from Telegram for file_id=${input.mediaId}...`);
+          const fileUrlResponse = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${input.mediaId}`);
+          if (!fileUrlResponse.ok) {
+            const errText = await fileUrlResponse.text();
+            throw new Error(`Failed to get file path from Telegram: ${errText}`);
+          }
+          const fileData = await fileUrlResponse.json() as { ok: boolean; result?: { file_path?: string } };
+          if (!fileData.ok || !fileData.result?.file_path) {
+            throw new Error(`Telegram getFile did not return a path: ${JSON.stringify(fileData)}`);
+          }
+
+          const downloadUrl = `https://api.telegram.org/file/bot${token}/${fileData.result.file_path}`;
+          const audioDownloadResponse = await fetch(downloadUrl);
+          if (!audioDownloadResponse.ok) {
+            const errText = await audioDownloadResponse.text();
+            throw new Error(`Failed to download audio binary from Telegram: ${errText}`);
+          }
+          audioBuffer = Buffer.from(await audioDownloadResponse.arrayBuffer());
+        } else {
+          throw new Error(`Unsupported channel provider for audio download: ${channelDoc.provider}`);
+        }
+
+        this.logger.log(`Sending audio buffer to OpenAI Whisper for transcription...`);
+        const openaiApiKey = process.env.OPENAI_API_KEY;
+        if (!openaiApiKey) {
+          throw new Error('OPENAI_API_KEY no está configurada en las variables de entorno.');
+        }
+
+        const formData = new FormData();
+        const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
+        formData.append('file', blob, 'audio.ogg');
+        formData.append('model', 'whisper-1');
+        if (config.language) {
+          formData.append('language', config.language.substring(0, 2).toLowerCase());
+        }
+
+        const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${openaiApiKey}`,
+          },
+          body: formData,
+        });
+
+        if (!whisperResponse.ok) {
+          const errText = await whisperResponse.text();
+          throw new Error(`OpenAI Whisper API failed: ${errText}`);
+        }
+
+        const whisperData = await whisperResponse.json() as { text: string };
+        userMessage = whisperData.text || '';
+        this.logger.log(`Audio successfully transcribed to: "${userMessage}"`);
+      } catch (error: unknown) {
+        this.logger.error(`Error transcribing audio, falling back to default/empty message`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return {
+          conversationId: input.conversationId,
+          messages: [
+            {
+              type: ResponseType.TEXT,
+              content: config.errorMessage || 'Lo siento, no he podido procesar tu nota de voz en este momento.',
+            },
+          ],
+          escalated: false,
+        };
+      }
+    }
+
     // 2.5 Check if conversation is already escalated
     const activeEscalation = await this.escalatedRepo.findByUserIdAndStatus(
       config.companyId,
@@ -114,10 +242,12 @@ export class RagEngineService {
         escalationId: activeEscalation.id,
       });
 
+      const messageContent = input.messageType === 'audio' ? `[Nota de voz]: ${userMessage}` : userMessage;
+
       // Save user message to the escalated conversation log
       await this.escalatedRepo.addMessage(config.companyId, activeEscalation.id, {
         sender: 'user',
-        content: input.userMessage,
+        content: messageContent,
         timestamp: input.timestamp,
         type: 'text',
       });
@@ -127,14 +257,14 @@ export class RagEngineService {
         if (typeof this.memoryService.addMessage === 'function') {
           await this.memoryService.addMessage(input.conversationId, {
             type: 'human',
-            content: input.userMessage,
+            content: messageContent,
             timestamp: input.timestamp,
             isEscalated: true,
           });
         } else {
           await this.memoryService.saveMessage(input.conversationId, {
             role: MessageRole.USER,
-            content: input.userMessage,
+            content: messageContent,
             timestamp: input.timestamp,
           });
         }
@@ -160,8 +290,8 @@ export class RagEngineService {
     const isNewSession = await this.checkIsNewSession(input.conversationId);
 
     // 5. Vector search
-    this.logger.log(`Executing vector search for query: "${input.userMessage}" (topK: ${config.topK})`);
-    const searchResults = await this.vectorSearch.search(input.agentId, input.userMessage, config.topK);
+    this.logger.log(`Executing vector search for query: "${userMessage}" (topK: ${config.topK})`);
+    const searchResults = await this.vectorSearch.search(input.agentId, userMessage, config.topK);
     this.logger.log(`Vector search completed. Found ${searchResults.length} candidate fragments: ` + 
       JSON.stringify(searchResults.map(r => ({ id: r.fragmentId, score: r.score, snippet: r.content.substring(0, 60) + '...' }))));
 
@@ -185,13 +315,13 @@ export class RagEngineService {
         conversationId: input.conversationId,
         threshold: config.relevanceThreshold,
         scores: searchResults.map((r) => r.score),
-        userMessage: input.userMessage,
+        userMessage: userMessage,
         stage: 'threshold_filtering',
       });
     }
 
     // 9. Re-ranking (graceful degradation)
-    const validatedFragments = await this.performReRanking(filteredFragments, input.userMessage);
+    const validatedFragments = await this.performReRanking(filteredFragments, userMessage);
     this.logger.log(`Re-ranking completed. ${validatedFragments.length}/${filteredFragments.length} fragments validated for context.`);
 
     // 10. Handle re-ranking rejection
@@ -200,7 +330,7 @@ export class RagEngineService {
         agentId: input.agentId,
         conversationId: input.conversationId,
         originalCount: filteredFragments.length,
-        userMessage: input.userMessage,
+        userMessage: userMessage,
         stage: 're_ranking',
       });
     }
@@ -214,19 +344,19 @@ export class RagEngineService {
       config,
       fragments: validatedFragments,
       history,
-      userMessage: input.userMessage,
+      userMessage: userMessage,
     });
 
     // 11.5 Quick check for explicit human escalation (safety net for LLM disobedience)
-    const lowerMessage = input.userMessage.toLowerCase();
+    const lowerMessage = userMessage.toLowerCase();
     const escalationKeywords = ['asesor', 'humano', 'operador', 'representante', 'hablar con alguien', 'soporte'];
     if (escalationKeywords.some(kw => lowerMessage.includes(kw))) {
       this.logger.warn('Explicit human escalation keyword detected, bypassing LLM', {
         agentId: input.agentId,
         conversationId: input.conversationId,
-        userMessage: input.userMessage,
+        userMessage: userMessage,
       });
-      return this.buildNoInfoResponse(input, config, history, 'explicit');
+      return this.buildNoInfoResponse(input, config, history, 'explicit', userMessage);
     }
 
     // 12. Invoke LLM
@@ -248,7 +378,7 @@ export class RagEngineService {
           conversationId: input.conversationId,
           stage: 'llm_invocation',
         });
-        return this.buildErrorResponse(input, config, history);
+        return this.buildErrorResponse(input, config, history, userMessage);
       }
 
       const cleanContent = llmContent.trim().toUpperCase();
@@ -258,16 +388,16 @@ export class RagEngineService {
           conversationId: input.conversationId,
           stage: 'llm_invocation',
         });
-        return this.buildNoInfoResponse(input, config, history, 'explicit');
+        return this.buildNoInfoResponse(input, config, history, 'explicit', userMessage);
       }
 
       if (cleanContent === 'NO_INFO' || cleanContent.includes('NO_INFO')) {
         this.logger.warn('LLM determined no information was available, returning noInfoMessage', {
-          agentId: input.agentId,
+          agentId: config.agentId,
           conversationId: input.conversationId,
           stage: 'llm_invocation',
         });
-        return this.buildNoInfoResponse(input, config, history, 'agent_detected');
+        return this.buildNoInfoResponse(input, config, history, 'agent_detected', userMessage);
       }
 
       this.logger.debug('LLM response received');
@@ -279,14 +409,14 @@ export class RagEngineService {
         error: errorMessage,
         stage: 'llm_invocation',
       });
-      return this.buildErrorResponse(input, config, history);
+      return this.buildErrorResponse(input, config, history, userMessage);
     }
 
     // 14. Format response
     const responseMessages = this.responseFormatter.format(llmContent, config.maxResponseLength);
 
     // 15. Persist messages (graceful degradation)
-    await this.persistMessages(input, responseMessages);
+    await this.persistMessages(input, responseMessages, userMessage);
 
     // 16. Add welcome message if new session
     const messages = this.prependWelcomeMessage(responseMessages, isNewSession, config);
@@ -310,6 +440,12 @@ export class RagEngineService {
    * Throws InvalidInputException if userMessage is empty or whitespace.
    */
   private validateInput(input: RagProcessInput): void {
+    if (input.messageType === 'audio') {
+      if (!input.mediaId) {
+        throw new InvalidInputException('mediaId', 'Media ID is required for audio messages');
+      }
+      return;
+    }
     if (!input.userMessage || input.userMessage.trim().length === 0) {
       throw new InvalidInputException('userMessage', 'Message cannot be empty or whitespace');
     }
@@ -406,12 +542,13 @@ export class RagEngineService {
   private async persistMessages(
     input: RagProcessInput,
     responseMessages: ResponseMessage[],
+    userMessage: string,
   ): Promise<void> {
     try {
       // Save user message
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.USER,
-        content: input.userMessage,
+        content: userMessage,
         timestamp: input.timestamp,
       });
 
@@ -463,6 +600,7 @@ export class RagEngineService {
     config: AgentConfig,
     history: HistoryMessage[],
     escalationType: 'explicit' | 'agent_detected' = 'agent_detected',
+    userMessage: string = input.userMessage,
   ): Promise<RagProcessOutput> {
     const escalatedAt = new Date();
     const responseContent = escalationType === 'explicit'
@@ -481,7 +619,7 @@ export class RagEngineService {
       messages.push({
         _id: new ObjectId(),
         sender: 'user',
-        content: input.userMessage,
+        content: userMessage,
         timestamp: input.timestamp,
         type: 'text',
       });
@@ -529,7 +667,7 @@ export class RagEngineService {
       // Guardar también en la memoria general
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.USER,
-        content: input.userMessage,
+        content: userMessage,
         timestamp: input.timestamp,
       });
       await this.memoryService.saveMessage(input.conversationId, {
@@ -559,6 +697,7 @@ export class RagEngineService {
     input: RagProcessInput,
     config: AgentConfig,
     history: HistoryMessage[],
+    userMessage: string = input.userMessage,
   ): Promise<RagProcessOutput> {
     const escalatedAt = new Date();
     const responseContent = config.errorMessage;
@@ -575,7 +714,7 @@ export class RagEngineService {
       messages.push({
         _id: new ObjectId(),
         sender: 'user',
-        content: input.userMessage,
+        content: userMessage,
         timestamp: input.timestamp,
         type: 'text',
       });
@@ -619,7 +758,7 @@ export class RagEngineService {
       // Guardar también en la memoria general
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.USER,
-        content: input.userMessage,
+        content: userMessage,
         timestamp: input.timestamp,
       });
       await this.memoryService.saveMessage(input.conversationId, {
