@@ -65,7 +65,7 @@ export class RagProcessInputDto implements RagProcessInput {
 
   @IsString()
   @IsOptional()
-  messageType?: "text" | "audio";
+  messageType?: "text" | "audio" | "image";
 
   @IsString()
   @IsOptional()

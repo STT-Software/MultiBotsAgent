@@ -88,8 +88,12 @@ export function buildFullPrompt(params: {
   fragments: SearchResult[];
   history: HistoryMessage[];
   userMessage: string;
+  image?: {
+    base64: string;
+    mimeType: string;
+  };
 }): LlmPrompt {
-  const { config, fragments, history, userMessage } = params;
+  const { config, fragments, history, userMessage, image } = params;
 
   const baseSystemPrompt = buildSystemPrompt(config.personality, config.language);
   const maxLengthInstruction = `Limita tu respuesta a un máximo de ${config.maxResponseLength} caracteres.`;
@@ -103,5 +107,6 @@ export function buildFullPrompt(params: {
     history,
     userMessage,
     maxResponseLength: config.maxResponseLength,
+    image,
   };
 }

@@ -115,7 +115,24 @@ export class BedrockLlmProvider implements LlmProvider {
     }
 
     // User message
-    messages.push(new HumanMessage(prompt.userMessage));
+    if (prompt.image) {
+      messages.push(
+        new HumanMessage({
+          content: [
+            { type: 'text', text: prompt.userMessage || 'Analiza esta imagen.' },
+            {
+              type: 'image_url',
+              name: 'my_image_input',
+              image_url: {
+                url: `data:${prompt.image.mimeType};base64,${prompt.image.base64}`,
+              },
+            },
+          ] as any,
+        }),
+      );
+    } else {
+      messages.push(new HumanMessage(prompt.userMessage));
+    }
 
     return messages;
   }
