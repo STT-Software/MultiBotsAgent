@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ToolMessage } from '@langchain/core/messages';
+import { ToolMessage, HumanMessage } from '@langchain/core/messages';
 import { encryptToken } from '@multibotagents/core/whatsapp';
 import { RagEngineService } from '../rag-engine.service';
 import { PromptBuilderService } from '../services/prompt-builder.service';
@@ -830,6 +830,117 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
       expect(capturedPrompt!.image).toBeDefined();
       expect(capturedPrompt!.image!.mimeType).toBe('image/jpeg');
       expect(capturedPrompt!.image!.base64).toBe(Buffer.from('fake-image-bytes').toString('base64'));
+    });
+
+    it('debería soportar imágenes multimodales para agentes con herramientas (cotizador/agendamiento)', async () => {
+      const originalEncryptionKey = process.env.ENCRYPTION_KEY;
+      const originalFetch = global.fetch;
+
+      const testKey = '3df889d651544ae9f92097a0b67661b3df889d651544ae9f92097a0b67661b11';
+      process.env.ENCRYPTION_KEY = testKey;
+
+      const plainToken = 'whatsapp-secret-token-xyz';
+      const encToken = encryptToken(plainToken, testKey);
+
+      // Mock de fetch para simular API de WhatsApp Cloud
+      const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('graph.facebook.com')) {
+          return {
+            ok: true,
+            json: async () => ({
+              url: 'https://cdn.whatsapp.net/media-download/54321',
+            }),
+          };
+        } else if (url.includes('cdn.whatsapp.net')) {
+          return {
+            ok: true,
+            arrayBuffer: async () => {
+              const buffer = Buffer.from('fake-tool-image-bytes');
+              return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+            },
+          };
+        }
+        return { ok: false, status: 404 };
+      });
+      global.fetch = fetchMock;
+
+      // Mock de MongoDB para retornar el canal con token encriptado
+      const mockMongoClient = {
+        db: () => ({
+          collection: (name: string) => {
+            return {
+              findOne: async (_query: any) => {
+                if (name === 'channels') {
+                  return {
+                    _id: 'channel-123',
+                    agentId: 'agent-001',
+                    provider: 'whatsapp',
+                    encryptedToken: encToken,
+                  };
+                }
+                return null;
+              },
+            };
+          },
+        }),
+      } as any;
+
+      let capturedMessages: any[] | null = null;
+      const mockModelWithTools = {
+        invoke: async (messages: any[]) => {
+          capturedMessages = messages;
+          return {
+            content: 'He recibido tu imagen para cotizar.',
+            tool_calls: [],
+          };
+        },
+      };
+
+      const mockRawModel = {
+        bindTools: () => mockModelWithTools,
+      };
+
+      const deps = createMockDependencies({
+        mongoClient: mockMongoClient,
+        agentConfigProvider: {
+          getConfig: async () => ({
+            ...DEFAULT_CONFIG,
+            tipo: 'cotizador',
+          }),
+        },
+        llmProvider: {
+          generate: async () => ({ content: '', tokensUsed: 0, finishReason: 'stop' }),
+          getModel: () => mockRawModel,
+        },
+      });
+
+      const service = createService(deps);
+      const input: RagProcessInput = {
+        agentId: 'agent-001',
+        conversationId: 'conv-image-tool-001',
+        userMessage: '¿Cuánto cuesta este producto?',
+        timestamp: new Date('2024-01-15T10:00:00Z'),
+        messageType: 'image',
+        mediaId: 'media-whatsapp-jpeg',
+        mimeType: 'image/jpeg',
+      };
+
+      const result = await service.processQuery(input);
+
+      // Restaurar mocks
+      process.env.ENCRYPTION_KEY = originalEncryptionKey;
+      global.fetch = originalFetch;
+
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0].content).toBe('He recibido tu imagen para cotizar.');
+      expect(capturedMessages).toBeDefined();
+
+      const userMsg = capturedMessages!.find(m => m instanceof HumanMessage && Array.isArray(m.content));
+      expect(userMsg).toBeDefined();
+      expect(userMsg.content[0].type).toBe('text');
+      expect(userMsg.content[0].text).toBe('¿Cuánto cuesta este producto?');
+      expect(userMsg.content[1].type).toBe('image_url');
+      expect(userMsg.content[1].image_url.url).toBe(`data:image/jpeg;base64,${Buffer.from('fake-tool-image-bytes').toString('base64')}`);
     });
   });
 });

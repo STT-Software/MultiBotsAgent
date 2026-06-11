@@ -14,7 +14,7 @@ language: es
 
 # Especificación Técnica: Procesamiento Multimodal de Imágenes y Audio
 
-Esta especificación describe el diseño de la capacidad multimodal integrada en el **Motor de Agente RAG** (Solución 02) para permitir la recepción, descarga, transcripción y análisis nativo de mensajes de audio e imágenes sobre canales conversacionales (como WhatsApp).
+Esta especificación describe el diseño de la capacidad multimodal integrada en el **Motor de Agente RAG** (y extendida a todos los tipos de agentes en la plataforma: `rag`, `cotizador` y `agendamiento`) para permitir la recepción, descarga, transcripción y análisis nativo de mensajes de audio e imágenes sobre canales conversacionales (como WhatsApp).
 
 ---
 
@@ -126,6 +126,34 @@ Para procesar imágenes, los payloads enviados a Bedrock (`anthropic.claude-3-so
   ]
 }
 ```
+
+### 3.3 Soporte Multimodal en Agentes con Herramientas (Cotizador/Agendamiento)
+Para los agentes que ejecutan flujos estructurados con herramientas (`tipo: 'cotizador'` o `tipo: 'agendamiento'`), el sistema utiliza `executeAgentWithTools` para orquestar llamadas al modelo LangChain.
+Cuando se procesa una consulta que contiene una imagen base64 para estos agentes, el mensaje de usuario actual (`HumanMessage`) se inyecta con formato estructurado multipartes de manera idéntica al proveedor base:
+
+```typescript
+    if (prompt.image) {
+      messages.push(
+        new HumanMessage({
+          content: [
+            { type: 'text', text: prompt.userMessage || 'Analiza esta imagen.' },
+            {
+              type: 'image_url',
+              // @ts-expect-error - Bedrock Converse API requiere un campo 'name' para bloques multimedia
+              name: 'my_image_input',
+              image_url: {
+                url: `data:${prompt.image.mimeType};base64,${prompt.image.base64}`,
+              },
+            },
+          ] as any,
+        }),
+      );
+    } else {
+      messages.push(new HumanMessage(prompt.userMessage));
+    }
+```
+
+Esto asegura que tanto el Agente de RAG Estándar como los Agentes de Negocio con herramientas (como el cotizador de productos y agendamiento de citas) cuenten con acceso a los bloques visuales decodificados de forma nativa en AWS Bedrock.
 
 ---
 

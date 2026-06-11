@@ -979,7 +979,25 @@ export class RagEngineService {
     }
 
     // Mensaje de usuario actual
-    messages.push(new HumanMessage(prompt.userMessage));
+    if (prompt.image) {
+      messages.push(
+        new HumanMessage({
+          content: [
+            { type: 'text', text: prompt.userMessage || 'Analiza esta imagen.' },
+            {
+              type: 'image_url',
+              // @ts-expect-error - Bedrock Converse API requiere un campo 'name' para bloques multimedia
+              name: 'my_image_input',
+              image_url: {
+                url: `data:${prompt.image.mimeType};base64,${prompt.image.base64}`,
+              },
+            },
+          ] as any,
+        }),
+      );
+    } else {
+      messages.push(new HumanMessage(prompt.userMessage));
+    }
 
     this.logger.log(`Iniciando ejecución de agente de agendamiento. Mensaje usuario: "${prompt.userMessage}"`);
 
