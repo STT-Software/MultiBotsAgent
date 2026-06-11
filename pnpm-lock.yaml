@@ -23,6 +23,9 @@ importers:
       mongodb:
         specifier: ^6.21.0
         version: 6.21.0(socks@2.8.9)
+      sst:
+        specifier: ^3.19.3
+        version: 3.19.3
       turbo:
         specifier: ^2.9.12
         version: 2.9.12

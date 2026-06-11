@@ -14,6 +14,7 @@ import { AgentsModule } from "./modules/agents/agents.module";
 import { MetricasModule } from "./modules/metricas/metricas.module";
 import { BookingsModule } from "./modules/bookings/bookings.module";
 import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-verified.guard";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-ve
     AgentsModule,
     MetricasModule,
     BookingsModule,
+    NotificationsModule,
   ],
   providers: [
     {

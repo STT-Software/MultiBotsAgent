@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { NAV_ITEMS } from '../constants/navigation'
 import { NavItem } from './nav-item'
-import { FileText, HelpCircle, Plus, Bell, LogOut, Settings } from 'lucide-react'
+import { FileText, HelpCircle, Plus, LogOut, Settings } from 'lucide-react'
 import { BrandIcon } from '@/components/icons'
 import { useInboxBadge } from '@/features/inbox/hooks/use-inbox-badge'
 import { useSession } from '../hooks/use-session'
 import { logout } from '@/lib/auth'
+import { NotificationBell } from '@/features/notifications'
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -124,16 +125,7 @@ export function Sidebar() {
           </button>
 
           {/* Notifications Bell */}
-          <button
-            className="relative flex h-8 w-8 items-center justify-center rounded-lg text-[#bbcabe] opacity-80 hover:opacity-100 hover:bg-[#2f3731] hover:text-emerald-400 transition-all shrink-0"
-            aria-label="Notificaciones"
-          >
-            <Bell className="h-[18px] w-[18px]" strokeWidth={1.5} />
-            <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-          </button>
+          <NotificationBell />
 
           {/* Upwards Dropdown Menu */}
           {menuOpen && (

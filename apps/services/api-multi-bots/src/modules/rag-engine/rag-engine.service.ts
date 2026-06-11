@@ -29,6 +29,7 @@ import { PromptBuilderService } from './services/prompt-builder.service';
 import { ReRankingService } from './services/re-ranking.service';
 import { ResponseFormatterService } from './services/response-formatter.service';
 import { BookingsService } from '../bookings/bookings.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import type {
   AgentConfig,
@@ -66,6 +67,7 @@ export class RagEngineService {
     @Inject('ESCALATED_CONVERSATION_REPO') private readonly escalatedRepo: EscalatedConversationRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly bookingsService: BookingsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -249,7 +251,16 @@ export class RagEngineService {
         return this.buildErrorResponse(input, config, history);
       }
 
-      llmContent = llmContent;
+      const trimmedContent = llmContent.trim();
+      if (trimmedContent === 'TRANSFER') {
+        this.logger.log('LLM detected explicit transfer request');
+        return this.buildNoInfoResponse(input, config, history, 'explicit');
+      }
+
+      if (trimmedContent === 'NO_INFO') {
+        this.logger.log('LLM detected low relevance / no information available');
+        return this.buildNoInfoResponse(input, config, history, 'agent_detected');
+      }
 
       this.logger.debug('LLM response received');
     } catch (error: unknown) {
@@ -492,6 +503,16 @@ export class RagEngineService {
         updatedAt: escalatedAt,
       });
 
+      // Notificar a la empresa en tiempo real y encolar correos de alerta
+      await this.notificationsService.notificarEscalamiento({
+        companyId: config.companyId,
+        conversationId: input.conversationId,
+        agentName: config.personality?.name || 'Agente RAG',
+        reason: escalationType === 'explicit'
+          ? 'El usuario solicitó hablar con un humano directamente.'
+          : 'El agente no tiene información sobre el producto solicitado.',
+      });
+
       // Emitir métrica de escalamiento abierto (fire-and-forget)
       this.eventEmitter.emit('metric.event', {
         companyId: config.companyId,
@@ -582,6 +603,14 @@ export class RagEngineService {
         messages,
         createdAt: escalatedAt,
         updatedAt: escalatedAt,
+      });
+
+      // Notificar a la empresa en tiempo real y encolar correos de alerta
+      await this.notificationsService.notificarEscalamiento({
+        companyId: config.companyId,
+        conversationId: input.conversationId,
+        agentName: config.personality?.name || 'Agente RAG',
+        reason: 'Error al invocar o procesar el modelo de lenguaje.',
       });
 
       // Emitir métrica de escalamiento abierto por error de LLM (fire-and-forget)

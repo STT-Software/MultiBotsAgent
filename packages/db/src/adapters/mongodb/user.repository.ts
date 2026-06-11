@@ -135,4 +135,9 @@ export class UserRepository implements IUserRepository {
     const result = await this.collection.deleteOne({ _id: new ObjectId(id) });
     return result.deletedCount === 1;
   }
+
+  async findOperatorsByCompany(companyId: string): Promise<User[]> {
+    const docs = await this.collection.find({ companyId: new ObjectId(companyId) }).toArray();
+    return docs.map(toEntity);
+  }
 }

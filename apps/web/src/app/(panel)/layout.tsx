@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { useSession } from '@/components/layout/hooks/use-session'
 import { Shell } from '@/components/layout/components/shell'
+import { NotificationsProvider } from '@/features/notifications'
 
 export default function PanelLayout({ children }: { children: React.ReactNode }) {
   const { session, loading } = useSession()
@@ -26,12 +27,14 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <Shell
-      empresaNombre={session.empresa.nombre}
-      empresaLogo={session.empresa.logo}
-      usuarioNombre={session.usuario.nombre}
-    >
-      {children}
-    </Shell>
+    <NotificationsProvider>
+      <Shell
+        empresaNombre={session.empresa.nombre}
+        empresaLogo={session.empresa.logo}
+        usuarioNombre={session.usuario.nombre}
+      >
+        {children}
+      </Shell>
+    </NotificationsProvider>
   )
 }

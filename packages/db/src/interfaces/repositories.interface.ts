@@ -71,6 +71,7 @@ export interface IUserRepository extends Repository<User> {
   markEmailVerified(userId: string): Promise<void>;
   /** Actualiza el hash de contraseña de un usuario de forma atómica. Retorna true si se actualizó. */
   updatePasswordHash(userId: string, newHash: string): Promise<boolean>;
+  findOperatorsByCompany(companyId: string): Promise<User[]>;
 }
 
 // ─── RefreshToken ────────────────────────────────────────────────────────────

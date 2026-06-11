@@ -153,6 +153,18 @@ export class EmailWorkerCronService {
         };
       }
 
+      case 'escalation_alert': {
+        const conversationId = payload.conversationId as string || '';
+        const agentName = payload.agentName as string || 'Agente';
+        const reason = payload.reason as string || '';
+        const url = payload.url as string || '';
+        return {
+          subject: 'Alerta de Escalamiento - MultiBotAgents',
+          templateName: process.env.ELASTIC_EMAIL_ESCALATION_TEMPLATE_ID || 'MultibotAgents-escalation-alert',
+          merge: { username, conversationId, agentName, reason, url },
+        };
+      }
+
       case 'verification':
       default: {
         const token = payload.token as string;

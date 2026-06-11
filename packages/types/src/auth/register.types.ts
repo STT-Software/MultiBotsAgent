@@ -56,6 +56,7 @@ export enum VerifyTokenType {
 export enum EmailTemplate {
   VERIFICATION = 'verification',
   PASSWORD_RESET = 'password_reset',
+  ESCALATION_ALERT = 'escalation_alert',
 }
 
 /** Estado de un item en la cola de email. */

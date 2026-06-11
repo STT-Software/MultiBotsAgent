@@ -149,6 +149,9 @@ function createService(deps: MockDeps): RagEngineService {
     createBooking: async () => ({}),
   } as any;
   const mockEventEmitter = { emit: () => {} } as any;
+  const mockNotificationsService = {
+    notificarEscalamiento: async () => {},
+  } as any;
 
   return new RagEngineService(
     deps.llmProvider,
@@ -161,6 +164,7 @@ function createService(deps: MockDeps): RagEngineService {
     deps.escalatedRepo,
     mockEventEmitter,
     mockBookingsService,
+    mockNotificationsService,
   );
 }
 
