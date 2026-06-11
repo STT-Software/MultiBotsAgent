@@ -155,6 +155,14 @@ function createService(deps: MockDeps): RagEngineService {
     cancelOrder: async () => ({}),
   } as any;
 
+  const mockMongoClient = {
+    db: () => ({
+      collection: () => ({
+        findOne: async () => null,
+      }),
+    }),
+  } as any;
+
   return new RagEngineService(
     deps.llmProvider,
     deps.vectorSearch,
@@ -164,6 +172,7 @@ function createService(deps: MockDeps): RagEngineService {
     reRankingService,
     responseFormatter,
     deps.escalatedRepo,
+    mockMongoClient,
     mockEventEmitter,
     mockBookingsService,
     mockOrdersService,

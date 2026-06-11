@@ -16,6 +16,10 @@ export interface RagProcessInput {
   conversationId: string;
   userMessage: string;
   timestamp: Date;
+  channelId?: string;
+  messageType?: "text" | "audio";
+  mediaId?: string;
+  mimeType?: string;
 }
 
 /**
