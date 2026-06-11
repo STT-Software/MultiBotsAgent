@@ -88,10 +88,9 @@ export class EmailWorkerCronService {
       });
     }
   }
-
-  /**
+  /**
    * Sends an email via Elastic Email API v4.
-   * Supports multiple templates: verification and password recovery.
+   * Supports multiple templates: verification, password recovery, and direct HTML bodies.
    */
   private async sendEmail(item: EmailQueueItem): Promise<void> {
     if (!this.apiKey) {
@@ -99,16 +98,28 @@ export class EmailWorkerCronService {
     }
 
     const payload = item.payload as Record<string, unknown>;
-    const { subject, templateName, merge } = this.resolveTemplate(item.template, payload);
+    const { subject, templateName, merge, htmlBody } = this.resolveTemplate(item.template, payload);
+
+    const contentPayload: Record<string, any> = {
+      From: `${this.fromName} <${this.fromEmail}>`,
+      Subject: subject,
+    };
+
+    if (htmlBody) {
+      contentPayload.Body = [
+        {
+          ContentType: 'HTML',
+          Content: htmlBody,
+        },
+      ];
+    } else {
+      contentPayload.TemplateName = templateName;
+      contentPayload.Merge = merge;
+    }
 
     const body = {
       Recipients: { To: [item.to] },
-      Content: {
-        From: `${this.fromName} <${this.fromEmail}>`,
-        Subject: subject,
-        TemplateName: templateName,
-        Merge: merge,
-      },
+      Content: contentPayload,
     };
 
     const response = await fetch('https://api.elasticemail.com/v4/emails/transactional', {
@@ -139,7 +150,12 @@ export class EmailWorkerCronService {
   private resolveTemplate(
     template: string,
     payload: Record<string, unknown>,
-  ): { subject: string; templateName: string; merge: Record<string, string> } {
+  ): {
+    subject: string;
+    templateName?: string;
+    merge?: Record<string, string>;
+    htmlBody?: string;
+  } {
     const username = (payload.username as string) || 'Usuario';
 
     switch (template) {
@@ -158,10 +174,143 @@ export class EmailWorkerCronService {
         const agentName = payload.agentName as string || 'Agente';
         const reason = payload.reason as string || '';
         const url = payload.url as string || '';
+
+        const htmlBody = this.getHtmlEmailTemplate(
+          'Alerta de Escalamiento a Humano',
+          `Hola <strong>${username}</strong>, se ha derivado una conversación activa que requiere tu atención inmediata.`,
+          [
+            { label: 'Asistente', value: agentName },
+            { label: 'ID Conversación', value: conversationId },
+            { label: 'Motivo', value: reason || 'Solicitud de asesor humano' }
+          ],
+          url ? { label: 'Atender Conversación', url } : undefined
+        );
+
         return {
           subject: 'Alerta de Escalamiento - MultiBotAgents',
-          templateName: process.env.ELASTIC_EMAIL_ESCALATION_TEMPLATE_ID || 'MultibotAgents-escalation-alert',
-          merge: { username, conversationId, agentName, reason, url },
+          htmlBody,
+        };
+      }
+
+      case 'new_booking_alert': {
+        const customerName = payload.customerName as string || '';
+        const dateTimeVal = payload.dateTime as string || '';
+        const agentName = payload.agentName as string || 'Agente';
+        const url = payload.url as string || '';
+
+        const formattedDate = dateTimeVal ? new Date(dateTimeVal).toLocaleString('es-CO', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }) : '';
+
+        const htmlBody = this.getHtmlEmailTemplate(
+          'Nueva Reserva Recibida',
+          `Hola <strong>${username}</strong>, tu asistente ha coordinado una nueva reserva en tu calendario.`,
+          [
+            { label: 'Cliente', value: customerName },
+            { label: 'Fecha y Hora', value: formattedDate },
+            { label: 'Asistente', value: agentName }
+          ],
+          url ? { label: 'Ver Reservas', url } : undefined
+        );
+
+        return {
+          subject: 'Nueva Reserva Recibida - MultiBotAgents',
+          htmlBody,
+        };
+      }
+
+      case 'booking_confirmed': {
+        const customerName = payload.customerName as string || '';
+        const dateTimeVal = payload.dateTime as string || '';
+        const agentName = payload.agentName as string || 'Agente';
+
+        const formattedDate = dateTimeVal ? new Date(dateTimeVal).toLocaleString('es-CO', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }) : '';
+
+        const htmlBody = this.getHtmlEmailTemplate(
+          '¡Tu Cita está Confirmada!',
+          `Hola <strong>${customerName}</strong>, te confirmamos que tu cita ha sido agendada con éxito.`,
+          [
+            { label: 'Servicio / Asistente', value: agentName },
+            { label: 'Fecha y Hora', value: formattedDate },
+            { label: 'Estado', value: 'Confirmada' }
+          ]
+        );
+
+        return {
+          subject: 'Confirmación de tu Cita - MultiBotAgents',
+          htmlBody,
+        };
+      }
+
+      case 'booking_rescheduled': {
+        const customerName = payload.customerName as string || '';
+        const dateTimeVal = payload.dateTime as string || '';
+        const agentName = payload.agentName as string || 'Agente';
+
+        const formattedDate = dateTimeVal ? new Date(dateTimeVal).toLocaleString('es-CO', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }) : '';
+
+        const htmlBody = this.getHtmlEmailTemplate(
+          'Tu Cita ha sido Reprogramada',
+          `Hola <strong>${customerName}</strong>, te informamos que tu cita ha sido reprogramada con un nuevo horario.`,
+          [
+            { label: 'Servicio / Asistente', value: agentName },
+            { label: 'Nueva Fecha y Hora', value: formattedDate },
+            { label: 'Estado', value: 'Reprogramada' }
+          ]
+        );
+
+        return {
+          subject: 'Reprogramación de tu Cita - MultiBotAgents',
+          htmlBody,
+        };
+      }
+
+      case 'booking_cancelled': {
+        const customerName = payload.customerName as string || '';
+        const dateTimeVal = payload.dateTime as string || '';
+        const agentName = payload.agentName as string || 'Agente';
+
+        const formattedDate = dateTimeVal ? new Date(dateTimeVal).toLocaleString('es-CO', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }) : '';
+
+        const htmlBody = this.getHtmlEmailTemplate(
+          'Tu Cita ha sido Cancelada',
+          `Hola <strong>${customerName}</strong>, te informamos que tu cita con nosotros ha sido cancelada.`,
+          [
+            { label: 'Servicio / Asistente', value: agentName },
+            { label: 'Fecha y Hora Original', value: formattedDate },
+            { label: 'Estado', value: 'Cancelada' }
+          ]
+        );
+
+        return {
+          subject: 'Cancelación de tu Cita - MultiBotAgents',
+          htmlBody,
         };
       }
 
@@ -176,6 +325,90 @@ export class EmailWorkerCronService {
         };
       }
     }
+  }
+
+  /**
+   * Generates a responsive, modern HTML template for notifications.
+   */
+  private getHtmlEmailTemplate(
+    title: string,
+    message: string,
+    details: { label: string; value: string }[],
+    button?: { label: string; url: string }
+  ): string {
+    const detailsHtml = details.map(d => `
+      <tr style="border-bottom: 1px solid rgba(60, 74, 65, 0.3);">
+        <td style="padding: 10px 0; font-size: 13px; color: #869489; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">${d.label}</td>
+        <td style="padding: 10px 0; font-size: 14px; color: #dde5dc; text-align: right; font-weight: 600;">${d.value}</td>
+      </tr>
+    `).join('');
+
+    const buttonHtml = button ? `
+      <div style="text-align: center; margin: 30px 0 10px 0;">
+        <a href="${button.url}" target="_blank" style="display: inline-block; padding: 12px 28px; background-color: #00bb7a; color: #004329; font-size: 14px; font-weight: bold; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 187, 122, 0.25); transition: all 0.2s ease-in-out;">
+          ${button.label}
+        </a>
+      </div>
+    ` : '';
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #0c100e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+          <tr>
+            <td align="center" style="padding: 40px 10px;">
+              <!-- Tarjeta principal -->
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; background-color: #121814; border: 1px solid #2f3731; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);">
+                <!-- Header con branding -->
+                <tr>
+                  <td align="center" style="padding: 30px 30px 20px 30px; border-bottom: 1px solid rgba(60, 74, 65, 0.4);">
+                    <h2 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff;">
+                      MultiBot<span style="color: #00bb7a;">Agents</span>
+                    </h2>
+                  </td>
+                </tr>
+                <!-- Contenido -->
+                <tr>
+                  <td style="padding: 30px 30px 20px 30px;">
+                    <h1 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 700; color: #dde5dc; text-align: center;">
+                      ${title}
+                    </h1>
+                    <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #bbcabe; text-align: center;">
+                      ${message}
+                    </p>
+                    
+                    <!-- Ficha de detalles -->
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; margin-bottom: 20px;">
+                      ${detailsHtml}
+                    </table>
+
+                    ${buttonHtml}
+                  </td>
+                </tr>
+                <!-- Footer -->
+                <tr>
+                  <td align="center" style="padding: 20px 30px 30px 30px; border-top: 1px solid rgba(60, 74, 65, 0.3); background-color: #0d120f;">
+                    <p style="margin: 0; font-size: 11px; color: #5a6b5e; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">
+                      © 2026 MultiBotAgents
+                    </p>
+                    <p style="margin: 6px 0 0 0; font-size: 11px; color: #5a6b5e;">
+                      Notificaciones automáticas del sistema. Por favor no respondas a este correo.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
   }
 
   private calculateNextRetry(attempts: number): Date | null {

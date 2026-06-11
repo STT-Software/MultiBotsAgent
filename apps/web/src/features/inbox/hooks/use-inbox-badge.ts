@@ -18,6 +18,8 @@ export function useInboxBadge(): number {
 
   useEffect(() => {
     load();
+    window.addEventListener("inbox-updated", load);
+    return () => window.removeEventListener("inbox-updated", load);
   }, [load]);
 
   return count;

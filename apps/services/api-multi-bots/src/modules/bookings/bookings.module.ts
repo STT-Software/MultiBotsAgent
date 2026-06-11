@@ -10,8 +10,10 @@ import { GoogleCalendarController } from './google-calendar.controller';
 import { BookingsService } from './bookings.service';
 import { BOOKING_REPOSITORY } from './constants';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [BookingsController, GoogleCalendarController],
   providers: [
     // ─── MongoDB Client ────────────────────────────────────────────────────────

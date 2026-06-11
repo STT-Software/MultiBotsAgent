@@ -13,6 +13,9 @@ language: es
 changelog:
   - date: 2026-06-11
     author: jquinto
+    change: "Implementación completa de notificaciones de reservas — WebSocket en tiempo real para operadores y encolado de emails de estado (confirmación, reprogramación, cancelación) para clientes y alertas de nuevas citas para operadores."
+  - date: 2026-06-11
+    author: jquinto
     change: "Creación inicial — Diseño detallado de la solución de notificaciones transversales, WebSocket en tiempo real y encolado de correos."
 ---
 
@@ -20,16 +23,22 @@ changelog:
 
 ## 1. Overview
 
-El **Sistema de Notificaciones (SL10)** es la solución transversal encargada de alertar a las empresas (operadores) y usuarios finales sobre eventos críticos dentro de la plataforma conversacional. Su primer caso de uso crítico es notificar a los operadores cuando una conversación es **escalada a humano** por un agente de Inteligencia Artificial (debido a baja relevancia de información o solicitud explícita).
+El **Sistema de Notificaciones (SL10)** es la solución transversal encargada de alertar a las empresas (operadores) y usuarios finales sobre eventos críticos dentro de la plataforma conversacional.
 
-Esta solución abarca:
+Esta solución abarca dos casos de uso críticos:
+1. **Escalamiento a humano:** Notificar a los operadores de la empresa en tiempo real cuando una conversación activa requiere derivación por parte de un agente de IA.
+2. **Gestión de reservas (Bookings):** 
+   - Notificar en tiempo real (WebSocket) y por correo electrónico a los operadores de la empresa al crearse una nueva reserva.
+   - Notificar por correo electrónico al cliente final sobre la confirmación (`booking_confirmed`), reprogramación (`booking_rescheduled`) y cancelación (`booking_cancelled`) de su cita.
+
+Esta solución se compone de:
 - La transmisión en tiempo real de alertas visuales en el panel web de administración mediante **WebSockets** seguros.
 - El encolado asíncrono de alertas por correo electrónico en la base de datos (`emailQueue`) para su procesamiento a través del worker cron.
 - La abstracción del canal de notificaciones en el Core del negocio para garantizar un diseño desacoplado de transportes técnicos (Clean Architecture).
 
 **Relación con otras soluciones:**
 - Consumido por **[8] Sistema de Escalamiento a Humano** para disparar alertas cuando una conversación pasa a estado `escalated`.
-- Consumido por el **[2] Motor RAG** para reaccionar ante respuestas sin información o intenciones de transferencia explícitas.
+- Consumido por el **[4] Motor de Agendamiento (Bookings)** para disparar alertas de reservas ante creaciones, reprogramaciones y cancelaciones.
 - Depende de la base de datos centralizada (`emailQueue`) y del worker cron de correos para el despacho asíncrono de alertas de correo.
 
 ---
@@ -58,12 +67,24 @@ Esta solución abarca:
 
 ---
 
-### 2.3 Resiliencia y Degradación Silenciosa
+### 2.3 Notificaciones de Reservas (Bookings)
 
-- **Trigger:** Se intenta disparar una notificación de escalamiento, pero la base de datos o el servicio de correo no están disponibles.
+- **Trigger:** Creación, reprogramación o cancelación de una reserva en `BookingsService`.
 - **Comportamiento:**
-  La notificación es un servicio de apoyo ("nice-to-have") que no debe obstruir la acción principal de derivar la conversación. Si falla la búsqueda de operadores en base de datos o el encolado del correo, el servicio atrapa la excepción de manera segura, escribe un log de advertencia, y permite que el flujo de escalamiento del usuario continúe normalmente.
-- **Resultado:** La conversación es derivada con éxito y aparecerá en el inbox web del operador una vez restablecidos los servicios.
+  1. **Nueva Reserva:** El backend NestJS llama a `notificarNuevoBooking`, que emite un evento WebSocket de tipo `booking` al canal de la empresa (`company:<companyId>`) y encola correos de alerta (`new_booking_alert`) para los operadores. Asimismo, si el cliente posee correo electrónico, se encola la plantilla `booking_confirmed` dirigida al cliente.
+  2. **Reprogramación:** Cuando se modifica el horario de la cita, se encola automáticamente la plantilla `booking_rescheduled` al correo del cliente.
+  3. **Cancelación:** Al cancelar una reserva, se encola la plantilla `booking_cancelled` dirigida al cliente.
+  4. **Procesamiento:** El cron worker de correos (`EmailWorkerCronService`) procesa periódicamente la cola, resuelve dinámicamente los asuntos y variables de reserva (cliente, horario, agente, y URL de redirección) y despacha los emails.
+- **Resultado:** Los operadores son notificados visualmente en tiempo real en la UI mediante un icono de calendario y redirigidos al panel de `/pedidos` al hacer clic, mientras que los clientes y operadores reciben correos de estado correspondientes de forma automática.
+
+---
+
+### 2.4 Resiliencia y Degradación Silenciosa
+
+- **Trigger:** Se intenta disparar una notificación de escalamiento o reserva, pero la base de datos o el servicio de correo no están disponibles.
+- **Comportamiento:**
+  La notificación es un servicio de apoyo ("nice-to-have") que no debe obstruir la acción principal de derivar o registrar la reserva. Si falla la búsqueda de operadores en base de datos o el encolado del correo, el servicio atrapa la excepción de manera segura, escribe un log de advertencia, y permite que el flujo principal continúe normalmente.
+- **Resultado:** La reserva se procesa con éxito y los cambios se guardan.
 
 ---
 
@@ -71,7 +92,8 @@ Esta solución abarca:
 
 - Configuración o personalización dinámica de las plantillas de correo por parte del usuario final.
 - Notificaciones Push móviles nativas para dispositivos iOS/Android (restringido a navegador web).
-- Notificaciones a través de otros canales alternativos (como SMS o Telegram directos a operadores).
+- Notificaciones a través de otros canales alternativos (como SMS o WhatsApp directos para operadores).
+- Aprobación de plantillas transaccionales de WhatsApp de Meta para notificaciones automáticas a clientes (restringido a email en esta fase).
 
 ---
 
@@ -79,13 +101,18 @@ Esta solución abarca:
 
 ### Patrones de Arquitectura
 
-- **Clean Architecture (Core desacoplado)**: La lógica pura de encolado y emisión de alertas reside en `@multibotagents/core` mediante el puerto `INotificationsWsEmitter`. El backend NestJS actúa simplemente como adaptador de infraestructura inyectando el Gateway de sockets a través de este puerto.
-- **Screaming Architecture (Frontend modular)**: Todo el código reactivo, componentes de campana y hooks de comunicación por socket residen encapsulados en el feature `features/notifications/` del frontend Next.js.
+- **Clean Architecture (Core desacoplado)**: La lógica de encolado y emisión de alertas reside en `@multibotagents/core` mediante el puerto `INotificationsWsEmitter`. El backend NestJS actúa como adaptador inyectando el Gateway de sockets a través de este puerto.
+- **Screaming Architecture (Frontend modular)**: Componentes de campana, hooks y estado de comunicación por socket residen encapsulados en el feature `features/notifications/` del frontend Next.js.
 - **WebSocket Rooms**: Aislamiento seguro de mensajes por empresa mediante suscripción de sockets en namespaces delimitados por `companyId`.
 
 ### Modelo de Datos (Extensión)
 
-- **EmailQueue**: Se actualizó el validador a nivel de esquema en la base de datos de MongoDB (`EMAIL_QUEUE_VALIDATION`) para admitir la constante `'escalation_alert'` como plantilla de correo de negocio.
+- **EmailQueue**: Se actualizó el validador JSON schema en la base de datos de MongoDB (`EMAIL_QUEUE_VALIDATION`) para admitir los siguientes tipos de plantilla:
+  - `escalation_alert` (alertas de derivación)
+  - `new_booking_alert` (alerta de nueva cita a operadores)
+  - `booking_confirmed` (confirmación a cliente)
+  - `booking_rescheduled` (reprogramación a cliente)
+  - `booking_cancelled` (cancelación a cliente)
 
 ### Decisiones Técnicas
 
@@ -93,17 +120,18 @@ Esta solución abarca:
 |----------|----------|---------------|
 | Desacoplamiento de Sockets | Puertos e Interfaces en Core | Permite cambiar el transporte de sockets en el futuro sin modificar la lógica de negocio. |
 | Gestión de salas WebSocket | Aislamiento por `company:<id>` | Evita fugas de información entre operadores de distintas empresas. |
-| Envío de Emails | Encolado asíncrono diferido | No penaliza el tiempo de respuesta del chatbot con conexiones síncronas al servidor de correo externo. |
+| Envío de Emails | Encolado asíncrono diferido | No penaliza el tiempo de respuesta del chatbot ni de la API con conexiones síncronas al servidor de correo externo. |
 
 ---
 
 ## 5. Acceptance Criteria
 
-- [x] El sistema emite un evento WebSocket `notification.new` al derivar una conversación.
+- [x] El sistema emite un evento WebSocket `notification.new` al derivar una conversación o crear una reserva.
 - [x] Los clientes suscritos a la sala de la empresa reciben la alerta en tiempo real en la UI.
-- [x] La campana reactiva de notificaciones (`NotificationBell`) actualiza de forma visual su contador sin refrescar.
-- [x] Se consulta a los operadores de la empresa y se encola un correo en `emailQueue` con la plantilla `escalation_alert` y variables dinámicas correctas.
-- [x] Si falla la base de datos o el servidor de sockets, el escalamiento no se interrumpe y continúa su ejecución con degradación silenciosa.
+- [x] La campana reactiva de notificaciones (`NotificationBell`) actualiza de forma visual su contador sin refrescar, renderiza el icono correcto (`Calendar` para citas, `MessageSquare` para chats) y redirige a `/pedidos` o `/inbox` según corresponda.
+- [x] Se consulta a los operadores de la empresa y se encolan correos en `emailQueue` con las variables dinámicas de reservas correctas.
+- [x] El cron worker de correos procesa de manera asíncrona la cola y despacha los correos con plantillas resueltas.
+- [x] Si falla la base de datos o el servidor de sockets, la reserva o el escalamiento no se interrumpen y continúan su ejecución con degradación silenciosa.
 - [x] Todo el flujo compila exitosamente bajo TypeScript estricto.
 
 ---

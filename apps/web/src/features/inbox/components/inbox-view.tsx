@@ -50,6 +50,7 @@ export function InboxView() {
     setToast("Conversación resuelta. El control fue devuelto al agente.");
     setSelectedId(null);
     refresh();
+    window.dispatchEvent(new Event("inbox-updated"));
   }, [refresh]);
 
   const resolve = useResolveConversation(selectedId, handleResolved);

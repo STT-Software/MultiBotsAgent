@@ -8,9 +8,10 @@ import {
 import { google } from 'googleapis';
 import { decryptToken } from '@multibotagents/core';
 import type { IBookingRepository, IAgentRepository } from '@multibotagents/db';
-import type { Booking } from '@multibotagents/types';
+import { Booking, EmailTemplate } from '@multibotagents/types';
 import { BOOKING_REPOSITORY } from './constants';
 import { CreateBookingDto, UpdateBookingDto, QueryBookingDto } from './dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class BookingsService {
@@ -19,6 +20,7 @@ export class BookingsService {
     private readonly bookingRepository: IBookingRepository,
     @Inject('AGENT_REPO')
     private readonly agentRepository: IAgentRepository,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -270,7 +272,30 @@ export class BookingsService {
       updatedAt: new Date(),
     };
 
-    return this.bookingRepository.create(bookingData);
+    const createdBooking = await this.bookingRepository.create(bookingData);
+
+    // 5. Notificar a los operadores (WebSocket + Email) y al cliente (Email)
+    const agentName = agent.personality?.name || agent.nombre || 'Agente';
+
+    await this.notificationsService.notificarNuevoBooking({
+      companyId,
+      bookingId: createdBooking.id,
+      customerName: createdBooking.customerName,
+      dateTime: createdBooking.dateTime,
+      agentName,
+    });
+
+    if (createdBooking.customerEmail) {
+      await this.notificationsService.notificarClienteBooking({
+        template: EmailTemplate.BOOKING_CONFIRMED,
+        customerEmail: createdBooking.customerEmail,
+        customerName: createdBooking.customerName,
+        dateTime: createdBooking.dateTime,
+        agentName,
+      });
+    }
+
+    return createdBooking;
   }
 
   /**
@@ -406,7 +431,31 @@ export class BookingsService {
       }
     }
 
-    return this.bookingRepository.update(id, updateData);
+    const updatedBooking = await this.bookingRepository.update(id, updateData);
+
+    // Notificar al cliente si la reserva se reprogramó o canceló
+    if (updatedBooking.customerEmail) {
+      const agentName = agent?.personality?.name || agent?.nombre || 'Agente';
+      let template: EmailTemplate | null = null;
+
+      if (updateData.status === 'rescheduled') {
+        template = EmailTemplate.BOOKING_RESCHEDULED;
+      } else if (updateData.status === 'cancelled') {
+        template = EmailTemplate.BOOKING_CANCELLED;
+      }
+
+      if (template) {
+        await this.notificationsService.notificarClienteBooking({
+          template,
+          customerEmail: updatedBooking.customerEmail,
+          customerName: updatedBooking.customerName,
+          dateTime: updatedBooking.dateTime,
+          agentName,
+        });
+      }
+    }
+
+    return updatedBooking;
   }
 
   /**
@@ -439,6 +488,20 @@ export class BookingsService {
       }
     }
 
-    return this.bookingRepository.update(id, { status: 'cancelled' });
+    const cancelledBooking = await this.bookingRepository.update(id, { status: 'cancelled' });
+
+    // Notificar al cliente
+    if (cancelledBooking.customerEmail) {
+      const agentName = agent?.personality?.name || agent?.nombre || 'Agente';
+      await this.notificationsService.notificarClienteBooking({
+        template: EmailTemplate.BOOKING_CANCELLED,
+        customerEmail: cancelledBooking.customerEmail,
+        customerName: cancelledBooking.customerName,
+        dateTime: cancelledBooking.dateTime,
+        agentName,
+      });
+    }
+
+    return cancelledBooking;
   }
 }

@@ -92,4 +92,70 @@ describe('NotificationService', () => {
     expect(wsEmitter.emitirAlerta).toHaveBeenCalledTimes(1);
     expect(emailQueueRepository.enqueue).not.toHaveBeenCalled();
   });
+
+  it('debería emitir alerta por WebSocket y encolar correos para los operadores al notificar nuevo booking', async () => {
+    const params = {
+      companyId: 'company-123',
+      bookingId: 'booking-abc',
+      customerName: 'Juan Pérez',
+      dateTime: new Date('2026-06-15T10:00:00.000Z'),
+      agentName: 'Agente Agendador',
+    };
+
+    await service.notificarNuevoBooking(params);
+
+    // 1. Verificar WebSocket emit
+    expect(wsEmitter.emitirAlerta).toHaveBeenCalledWith(
+      'company-123',
+      'notification.new',
+      expect.objectContaining({
+        type: 'booking',
+        bookingId: 'booking-abc',
+        customerName: 'Juan Pérez',
+        dateTime: '2026-06-15T10:00:00.000Z',
+        agentName: 'Agente Agendador',
+        timestamp: expect.any(String),
+      })
+    );
+
+    // 2. Verificar encolado de emails de operadores
+    expect(emailQueueRepository.enqueue).toHaveBeenCalledTimes(2);
+    expect(emailQueueRepository.enqueue).toHaveBeenNthCalledWith(1, {
+      to: 'operador1@empresa.com',
+      template: EmailTemplate.NEW_BOOKING_ALERT,
+      payload: expect.objectContaining({
+        username: 'operador1',
+        bookingId: 'booking-abc',
+        customerName: 'Juan Pérez',
+        dateTime: '2026-06-15T10:00:00.000Z',
+        agentName: 'Agente Agendador',
+        url: 'http://localhost:3000/pedidos',
+      }),
+    });
+  });
+
+  it('debería encolar correo para el cliente al notificar cambio en su booking', async () => {
+    const params = {
+      template: EmailTemplate.BOOKING_CONFIRMED,
+      customerEmail: 'cliente@correo.com',
+      customerName: 'Juan Pérez',
+      dateTime: new Date('2026-06-15T10:00:00.000Z'),
+      agentName: 'Agente Agendador',
+    };
+
+    await service.notificarClienteBooking(params);
+
+    // Verificar encolado de email del cliente
+    expect(emailQueueRepository.enqueue).toHaveBeenCalledTimes(1);
+    expect(emailQueueRepository.enqueue).toHaveBeenCalledWith({
+      to: 'cliente@correo.com',
+      template: EmailTemplate.BOOKING_CONFIRMED,
+      payload: expect.objectContaining({
+        username: 'Juan Pérez',
+        customerName: 'Juan Pérez',
+        dateTime: '2026-06-15T10:00:00.000Z',
+        agentName: 'Agente Agendador',
+      }),
+    });
+  });
 });

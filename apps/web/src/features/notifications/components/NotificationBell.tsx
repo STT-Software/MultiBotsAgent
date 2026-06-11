@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Bell, X, Check, MessageSquare } from 'lucide-react';
+import { Bell, X, Check, MessageSquare, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useNotifications } from '../context/NotificationsContext';
+import type { NotificationItem } from '../hooks/use-notifications-ws';
 
 /**
  * Componente interactivo de campana de notificaciones.
  * Muestra las alertas de escalamiento en tiempo real, permite marcarlas como leídas o descartarlas,
  * y redirige al operador al inbox de la conversación específica.
  */
-export function NotificationBell() {
+export function NotificationBell({ align = 'top-right' }: { align?: 'bottom-left' | 'top-right' }) {
   const { unreadCount, notifications, markAllAsRead, removeNotification } = useNotifications();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,13 +30,17 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
-  const handleNotificationClick = (conversationId: string, id: string) => {
-    removeNotification(id);
+  const handleNotificationClick = (n: NotificationItem) => {
+    removeNotification(n.id);
     setOpen(false);
     
-    // Normalizar ID de conversación para URL de redirección
-    const cleanId = conversationId.replace('whatsapp_', '');
-    router.push(`/inbox?conversationId=${cleanId}`);
+    if (n.type === 'booking') {
+      router.push('/pedidos');
+    } else if (n.conversationId) {
+      // Normalizar ID de conversación para URL de redirección
+      const cleanId = n.conversationId.replace('whatsapp_', '');
+      router.push(`/inbox?conversationId=${cleanId}`);
+    }
   };
 
   return (
@@ -58,7 +63,9 @@ export function NotificationBell() {
 
       {/* Popover de notificaciones */}
       {open && (
-        <div className="absolute right-0 mt-2 w-80 rounded-lg border border-[#3c4a41] bg-[#1a2420] py-2 shadow-xl shadow-black/50 z-50">
+        <div className={`absolute w-80 rounded-lg border border-[#3c4a41] bg-[#1a2420] py-2 shadow-xl shadow-black/50 z-50 ${
+          align === 'bottom-left' ? 'left-0 bottom-full mb-2' : 'right-0 mt-2'
+        }`}>
           <div className="flex items-center justify-between border-b border-[#3c4a41]/60 px-4 pb-2 pt-1">
             <h3 className="text-xs font-semibold text-[#dde5dc]">Notificaciones</h3>
             {unreadCount > 0 && (
@@ -86,18 +93,30 @@ export function NotificationBell() {
                     className={`group relative flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-[#2f3731] ${
                       !n.read ? 'bg-[#242c27]/40' : ''
                     }`}
-                    onClick={() => handleNotificationClick(n.conversationId, n.id)}
+                    onClick={() => handleNotificationClick(n)}
                   >
                     <div className="mt-0.5 rounded-full bg-emerald-500/10 p-1.5 text-emerald-400 group-hover:bg-emerald-500/20">
-                      <MessageSquare className="h-3.5 w-3.5" />
+                      {n.type === 'booking' ? (
+                        <Calendar className="h-3.5 w-3.5" />
+                      ) : (
+                        <MessageSquare className="h-3.5 w-3.5" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0 pr-4">
                       <p className="text-xs font-medium text-[#dde5dc] truncate">
-                        Conversación Escalada
+                        {n.type === 'booking' ? 'Nueva Reserva' : 'Conversación Escalada'}
                       </p>
-                      <p className="mt-0.5 text-[11px] text-[#bbcabe] leading-normal line-clamp-2">
-                        El agente <strong className="text-emerald-400">{n.agentName}</strong> escaló una conversación. Motivo: {n.reason}
-                      </p>
+                      <div className="mt-0.5 text-[11px] text-[#bbcabe] leading-normal line-clamp-2">
+                        {n.type === 'booking' ? (
+                          <span>
+                            El cliente <strong className="text-emerald-400">{n.customerName || 'Cliente'}</strong> agendó con el agente <strong className="text-emerald-400">{n.agentName}</strong> para el {n.dateTime ? new Date(n.dateTime).toLocaleDateString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'horario acordado'}.
+                          </span>
+                        ) : (
+                          <span>
+                            El agente <strong className="text-emerald-400">{n.agentName}</strong> escaló una conversación. Motivo: {n.reason}
+                          </span>
+                        )}
+                      </div>
                       <span className="mt-1 block text-[10px] text-[#bbcabe]/50">
                         {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>

@@ -121,7 +121,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
             channelId: channel.id,
             conversationId: `whatsapp_${senderPhoneNumber}`,
             senderPhoneNumber,
-            phoneNumberId: channel.phoneNumberId,
+            phoneNumberId: channel.phoneNumberId || "",
             messageId: waMessageId,
             messageText,
             timestamp: new Date(parseInt(timestamp, 10) * 1000).toISOString(),

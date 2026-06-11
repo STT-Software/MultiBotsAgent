@@ -9,9 +9,13 @@ const MAX_RETRIES = 10;
 
 export interface NotificationItem {
   id: string;
-  conversationId: string;
+  type?: 'escalation' | 'booking';
+  conversationId?: string;
+  bookingId?: string;
+  customerName?: string;
   agentName: string;
-  reason: string;
+  reason?: string;
+  dateTime?: Date;
   timestamp: Date;
   read: boolean;
 }
@@ -91,12 +95,25 @@ export function useNotificationsWs() {
       setState((prev) => ({ ...prev, status: 'connected' }));
     });
 
-    socket.on('notification.new', (data: { conversationId: string; agentName: string; reason: string; timestamp: string }) => {
+    socket.on('notification.new', (data: {
+      type?: 'escalation' | 'booking';
+      conversationId?: string;
+      bookingId?: string;
+      customerName?: string;
+      agentName: string;
+      reason?: string;
+      dateTime?: string;
+      timestamp: string;
+    }) => {
       const newNotification: NotificationItem = {
         id: crypto.randomUUID(),
+        type: data.type || 'escalation',
         conversationId: data.conversationId,
+        bookingId: data.bookingId,
+        customerName: data.customerName,
         agentName: data.agentName,
         reason: data.reason,
+        dateTime: data.dateTime ? new Date(data.dateTime) : undefined,
         timestamp: new Date(data.timestamp),
         read: false,
       };

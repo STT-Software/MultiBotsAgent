@@ -41,4 +41,32 @@ export class NotificationsService {
     this.logger.log(`Notificando escalamiento para conversación: ${params.conversationId}`);
     return this.coreService.notificarEscalamiento(params);
   }
+
+  /**
+   * Envía una notificación de nueva reserva (WebSocket + Email para operadores).
+   */
+  async notificarNuevoBooking(params: {
+    companyId: string;
+    bookingId: string;
+    customerName: string;
+    dateTime: Date;
+    agentName: string;
+  }): Promise<void> {
+    this.logger.log(`Notificando nueva reserva ${params.bookingId} para la empresa ${params.companyId}`);
+    return this.coreService.notificarNuevoBooking(params);
+  }
+
+  /**
+   * Envía una notificación de reserva al cliente (Email).
+   */
+  async notificarClienteBooking(params: {
+    template: any;
+    customerEmail: string;
+    customerName: string;
+    dateTime: Date;
+    agentName: string;
+  }): Promise<void> {
+    this.logger.log(`Notificando al cliente ${params.customerEmail} sobre su reserva con plantilla ${params.template}`);
+    return this.coreService.notificarClienteBooking(params);
+  }
 }

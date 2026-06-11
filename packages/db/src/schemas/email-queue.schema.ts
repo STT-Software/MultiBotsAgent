@@ -69,7 +69,15 @@ export const EMAIL_QUEUE_VALIDATION = {
       },
       template: {
         bsonType: "string",
-        enum: ["verification", "password_reset", "escalation_alert"],
+        enum: [
+          "verification",
+          "password_reset",
+          "escalation_alert",
+          "new_booking_alert",
+          "booking_confirmed",
+          "booking_rescheduled",
+          "booking_cancelled"
+        ],
         description: "Template de email — requerido",
       },
       payload: {

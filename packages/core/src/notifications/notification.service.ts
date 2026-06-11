@@ -83,4 +83,88 @@ export class NotificationService {
       console.error("[NotificationService] Fallo al encolar correos de escalamiento:", error);
     }
   }
+
+  /**
+   * Notifica a la empresa sobre una nueva reserva realizada.
+   * Envía una alerta por WebSocket y encola correos para los operadores.
+   */
+  async notificarNuevoBooking(params: NotificarNuevoBookingParams): Promise<void> {
+    const { companyId, bookingId, customerName, dateTime, agentName } = params;
+
+    // 1. Emitir alerta por WebSocket
+    const wsPayload = {
+      type: "booking",
+      bookingId,
+      customerName,
+      dateTime: dateTime.toISOString(),
+      agentName,
+      timestamp: new Date().toISOString(),
+    };
+    this.wsEmitter.emitirAlerta(companyId, "notification.new", wsPayload);
+
+    // 2. Encolar correos para los operadores
+    try {
+      const operators = await this.userRepository.findOperatorsByCompany(companyId);
+      const url = `${this.frontendDomain}/pedidos`;
+
+      for (const op of operators) {
+        await this.emailQueueRepository.enqueue({
+          to: op.email,
+          template: EmailTemplate.NEW_BOOKING_ALERT,
+          payload: {
+            username: op.email.split("@")[0] || "Operador",
+            bookingId,
+            customerName,
+            dateTime: dateTime.toISOString(),
+            agentName,
+            url,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("[NotificationService] Fallo al encolar correos de alerta de reserva:", error);
+    }
+  }
+
+  /**
+   * Notifica al cliente sobre el estado de su reserva (confirmación, reprogramación o cancelación).
+   * Encola el correo correspondiente en la cola de correos.
+   */
+  async notificarClienteBooking(params: NotificarClienteBookingParams): Promise<void> {
+    const { template, customerEmail, customerName, dateTime, agentName } = params;
+
+    if (!customerEmail) return; // Si no hay email, no encolar
+
+    try {
+      await this.emailQueueRepository.enqueue({
+        to: customerEmail,
+        template,
+        payload: {
+          username: customerName,
+          customerName,
+          dateTime: dateTime.toISOString(),
+          agentName,
+        },
+      });
+    } catch (error) {
+      console.error("[NotificationService] Fallo al encolar correo para el cliente sobre su reserva:", error);
+    }
+  }
 }
+
+export interface NotificarNuevoBookingParams {
+  companyId: string;
+  bookingId: string;
+  customerName: string;
+  dateTime: Date;
+  agentName: string;
+}
+
+export interface NotificarClienteBookingParams {
+  template: EmailTemplate; // booking_confirmed | booking_rescheduled | booking_cancelled
+  customerEmail: string;
+  customerName: string;
+  dateTime: Date;
+  agentName: string;
+}
+

@@ -40,6 +40,7 @@ export function PlaceholderPage({ icon, title, message, children, primaryAction,
           {primaryAction && (
             <button
               type="button"
+              onClick={primaryAction.onClick}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
               style={{
                 backgroundColor: "#00bb7a",
@@ -54,6 +55,7 @@ export function PlaceholderPage({ icon, title, message, children, primaryAction,
           {secondaryAction && (
             <button
               type="button"
+              onClick={secondaryAction.onClick}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
               style={{
                 backgroundColor: "transparent",

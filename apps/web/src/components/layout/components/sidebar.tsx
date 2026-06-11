@@ -125,7 +125,7 @@ export function Sidebar() {
           </button>
 
           {/* Notifications Bell */}
-          <NotificationBell />
+          <NotificationBell align="bottom-left" />
 
           {/* Upwards Dropdown Menu */}
           {menuOpen && (
