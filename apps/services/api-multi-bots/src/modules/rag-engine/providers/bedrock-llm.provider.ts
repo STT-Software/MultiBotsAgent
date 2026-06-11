@@ -45,7 +45,19 @@ export class BedrockLlmProvider implements LlmProvider {
     );
   }
 
-  getModel(): ChatBedrockConverse {
+  getModel(hasImage?: boolean): ChatBedrockConverse {
+    if (hasImage) {
+      const region = this.model.region;
+      const multimodalModelId =
+        process.env.BEDROCK_MULTIMODAL_MODEL_ID ||
+        'us.amazon.nova-lite-v1:0';
+      this.logger.log(`Using multimodal model override: ${multimodalModelId}`);
+      return new ChatBedrockConverse({
+        model: multimodalModelId,
+        region,
+        maxRetries: 2,
+      });
+    }
     return this.model;
   }
 
@@ -59,7 +71,9 @@ export class BedrockLlmProvider implements LlmProvider {
         maxResponseLength: prompt.maxResponseLength,
       });
 
-      const response = await this.model.invoke(messages, {
+      const modelToUse = this.getModel(!!prompt.image);
+
+      const response = await modelToUse.invoke(messages, {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
 

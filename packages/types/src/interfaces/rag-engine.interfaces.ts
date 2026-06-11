@@ -18,7 +18,7 @@ import { ChatMessage } from "../memory/memory.types";
  */
 export interface LlmProvider {
   generate(prompt: LlmPrompt): Promise<LlmResponse>;
-  getModel?(): any;
+  getModel?(hasImage?: boolean): any;
 }
 
 /**
