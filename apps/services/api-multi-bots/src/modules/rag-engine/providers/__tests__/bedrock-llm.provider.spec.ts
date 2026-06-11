@@ -42,9 +42,9 @@ describe('BedrockLlmProvider - buildMessages and sanitizeMessages', () => {
       systemPrompt: 'System instructions',
       context: '',
       history: [
-        { role: 'assistant', content: 'Greeting from AI' },
-        { role: 'user', content: 'User reply' },
-        { role: 'assistant', content: 'AI reply' },
+        { role: 'assistant', content: 'Greeting from AI', timestamp: new Date() },
+        { role: 'user', content: 'User reply', timestamp: new Date() },
+        { role: 'assistant', content: 'AI reply', timestamp: new Date() },
       ],
       userMessage: 'Final user message',
       maxResponseLength: 1000,
@@ -68,8 +68,8 @@ describe('BedrockLlmProvider - buildMessages and sanitizeMessages', () => {
       systemPrompt: 'System instructions',
       context: '',
       history: [
-        { role: 'user', content: 'Hello' },
-        { role: 'user', content: 'Is anyone there?' },
+        { role: 'user', content: 'Hello', timestamp: new Date() },
+        { role: 'user', content: 'Is anyone there?', timestamp: new Date() },
       ],
       userMessage: 'Final message',
       maxResponseLength: 1000,
@@ -89,9 +89,9 @@ describe('BedrockLlmProvider - buildMessages and sanitizeMessages', () => {
       systemPrompt: 'System instructions',
       context: '',
       history: [
-        { role: 'user', content: 'User msg' },
-        { role: 'assistant', content: 'AI msg 1' },
-        { role: 'assistant', content: 'AI msg 2' },
+        { role: 'user', content: 'User msg', timestamp: new Date() },
+        { role: 'assistant', content: 'AI msg 1', timestamp: new Date() },
+        { role: 'assistant', content: 'AI msg 2', timestamp: new Date() },
       ],
       userMessage: 'Final user message',
       maxResponseLength: 1000,
@@ -113,7 +113,7 @@ describe('BedrockLlmProvider - buildMessages and sanitizeMessages', () => {
       systemPrompt: 'System instructions',
       context: '',
       history: [
-        { role: 'user', content: 'Hello' },
+        { role: 'user', content: 'Hello', timestamp: new Date() },
       ],
       userMessage: 'Check this image',
       image: {
