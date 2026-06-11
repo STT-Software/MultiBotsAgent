@@ -10,10 +10,12 @@ updated: 2026-06-11
 version: "1.0.0"
 status: drafting
 language: es
-changelog:
   - date: 2026-06-11
     author: Antigravity (IA)
     change: "Creación inicial — Diseño técnico de procesamiento y transcripción de notas de voz para WhatsApp y Telegram."
+  - date: 2026-06-11
+    author: Antigravity (IA)
+    change: "Soporte híbrido/transparente para Groq como alternativa de transcripción sin costo."
 ---
 
 # Procesamiento y Transcripción de Mensajes de Voz (STT)
@@ -64,7 +66,8 @@ Esto permite que cualquier agente de la plataforma (sea RAG, Cotizador o Agendam
   2. Desencripta el token de acceso usando la clave configurada.
   3. **Descarga desde WhatsApp:** Invoca `https://graph.facebook.com/v21.0/{mediaId}` para obtener la URL temporal de descarga del binario de audio de Meta, y luego descarga el archivo binario utilizando las cabeceras de autorización de Meta.
   4. **Descarga desde Telegram:** Invoca `https://api.telegram.org/bot{token}/getFile?file_id={mediaId}` para obtener la ruta relativa (`file_path`) y descarga el binario directamente desde `https://api.telegram.org/file/bot{token}/{file_path}`.
-  5. Una vez descargado el binario de audio (formato `.ogg`/Opus en ambas plataformas), se envía a la API de **OpenAI Whisper** (`/v1/audio/transcriptions`), la cual retorna el texto limpio correspondiente.
+  5. Una vez descargado el binario de audio (formato `.ogg`/Opus en ambas plataformas), se envía a la API de **OpenAI Whisper** o a la API de **Groq Whisper** (`/v1/audio/transcriptions`), la cual retorna el texto limpio correspondiente.
+     - *Detección automática:* El sistema analiza la clave `OPENAI_API_KEY`. Si comienza con el prefijo de Groq (`gsk_`), utiliza la API de Groq con el modelo `whisper-large-v3` de forma gratuita. De lo contrario, utiliza la API oficial de OpenAI con el modelo `whisper-1`.
   6. El texto transcrito se asigna a `userMessage` y se continúa con el flujo estándar de RAG de la misma manera que si se hubiese recibido un mensaje de texto.
 
 - **Resultado:** La transcripción se genera con éxito, y la consulta del usuario en texto plano ingresa al flujo de ejecución del agente.
@@ -93,7 +96,7 @@ Esto permite que cualquier agente de la plataforma (sea RAG, Cotizador o Agendam
 |-----------|----------|-------------------|
 | Consume → | [5] Conector de WhatsApp | Recepción y transmisión de payloads de mensajes de tipo audio |
 | Consumida por ← | [2] Motor RAG, [3] Cotizador, [4] Agendamiento | Pre-procesamiento de transcripción en el endpoint `/internal/agents/:agentId/process` |
-| Consume → | OpenAI Whisper API | Envío de buffer de audio para transcripción a texto a través de SDK oficial o HTTP REST |
+| Consume → | OpenAI / Groq Whisper API | Envío de buffer de audio para transcripción a texto a través de SDK oficial o HTTP REST (admite Groq con keys `gsk_`) |
 
 ### Decisiones técnicas
 
@@ -102,6 +105,7 @@ Esto permite que cualquier agente de la plataforma (sea RAG, Cotizador o Agendam
 | Formato de audio | OGG/Opus nativo | Es el formato nativo enviado por clientes móviles de WhatsApp y Telegram, y Whisper lo soporta directamente sin transcodificación intermedio. |
 | Lugar de transcripción | NestJS RAG Engine | Centraliza el acceso a bases de datos de configuración de canales, decodificación de secretos y llamadas a LLMs sin recargar las Lambdas ligeras. |
 | Almacenamiento | Descarga en Buffer temporal | Optimiza costos de infraestructura de almacenamiento y reduce riesgos relacionados con la privacidad de datos (PII). |
+| Proveedor de STT | OpenAI o Groq Whisper | Selección automática basada en el formato de la clave API (las que empiezan con `gsk_` se enrutan a Groq de forma gratuita y con modelo `whisper-large-v3`). |
 
 ---
 
@@ -119,7 +123,7 @@ Esto permite que cualquier agente de la plataforma (sea RAG, Cotizador o Agendam
 - [ ] El motor RAG lee los datos de configuración del canal usando el `channelId` y descifra su token con éxito.
 - [ ] Si es WhatsApp, descarga correctamente el binario de audio desde la API de Meta utilizando el token descifrado.
 - [ ] Si es Telegram, consulta `getFile` para resolver la ruta y descarga el binario del servidor de archivos de Telegram utilizando el token descifrado.
-- [ ] Se invoca a la API de OpenAI Whisper enviando el buffer del audio, retornando el texto plano correspondiente.
+- [ ] Se invoca a la API de OpenAI Whisper o Groq Whisper enviando el buffer del audio, retornando el texto plano correspondiente.
 - [ ] Si la descarga o la transcripción fallan, el flujo maneja el error notificando al usuario en texto que el audio no pudo ser procesado.
 
 ### Flujo Completo

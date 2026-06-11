@@ -236,7 +236,7 @@ Una plataforma plug & play donde una empresa pueda:
 | 12 | **Sistema de Métricas y Analíticas** | Tasa de éxito, consultas frecuentes, métricas específicas por tipo de agente | Transversal | Media | Métricas básicas, sin dashboards complejos. Status: `drafting` |
 | 13 | **Gestión de Integraciones Externas** | Conexión con Google Drive, Notion, Confluence, SharePoint, Dropbox, Google Calendar | Transversal | Alta | Credenciales simples, conexión automática |
 | 14 | **Gestión de Empresas y Acceso** | Multi-empresa, acceso sin roles, múltiples agentes por empresa | Transversal | Alta | Sin planes/tiers por ahora |
-| 15 | **Procesamiento y Transcripción de Mensajes de Voz (STT)** | Recepción y transcripción asíncrona de notas de voz de usuario para que el motor RAG de cualquier agente procese la consulta y responda en texto plano | Transversal | Alta | Soporte para WhatsApp y Telegram usando OpenAI Whisper. Status: drafting |
+| 15 | **Procesamiento y Transcripción de Mensajes de Voz (STT)** | Recepción y transcripción asíncrona de notas de voz de usuario para que el motor RAG de cualquier agente procese la consulta y responda en texto plano | Transversal | Alta | Soporte para WhatsApp y Telegram usando OpenAI Whisper o la alternativa gratuita de Groq Whisper. Status: drafting |
 
 ### Flujos Transversales Implícitos
 
