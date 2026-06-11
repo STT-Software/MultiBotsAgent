@@ -122,7 +122,6 @@ export class BedrockLlmProvider implements LlmProvider {
             { type: 'text', text: prompt.userMessage || 'Analiza esta imagen.' },
             {
               type: 'image_url',
-              // @ts-expect-error - Bedrock Converse API requiere un campo 'name' para bloques multimedia
               name: 'my_image_input',
               image_url: {
                 url: `data:${prompt.image.mimeType};base64,${prompt.image.base64}`,
