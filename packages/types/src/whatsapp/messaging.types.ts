@@ -13,7 +13,7 @@ export interface IncomingMessageEvent {
   messageId: string; // wamid de Meta
   messageText: string;
   timestamp: string; // ISO 8601
-  messageType?: "text" | "audio";
+  messageType?: "text" | "audio" | "image";
   mediaId?: string;
   mimeType?: string;
 }

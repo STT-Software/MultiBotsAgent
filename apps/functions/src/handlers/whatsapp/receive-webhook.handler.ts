@@ -87,8 +87,8 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
         for (const message of value.messages) {
           const waMessageId = message.id;
 
-          // Permitir mensajes del tipo texto o audio
-          if (message.type !== "text" && message.type !== "audio") {
+          // Permitir mensajes del tipo texto, audio o imagen
+          if (message.type !== "text" && message.type !== "audio" && message.type !== "image") {
             log("INFO", "Mensaje ignorado (tipo no soportado)", {
               waMessageId,
               type: message.type,
@@ -103,6 +103,11 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
 
           if (message.type === "audio" && !message.audio?.id) {
             log("INFO", "Mensaje de audio ignorado por falta de media id", { waMessageId });
+            continue;
+          }
+
+          if (message.type === "image" && !message.image?.id) {
+            log("INFO", "Mensaje de imagen ignorado por falta de media id", { waMessageId });
             continue;
           }
 
@@ -122,7 +127,10 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
 
           const senderPhoneNumber = message.from;
           const isAudio = message.type === "audio";
-          const messageText = isAudio ? "" : message.text.body;
+          const isImage = message.type === "image";
+          const messageText = isImage
+            ? (message.image?.caption || "")
+            : (isAudio ? "" : message.text?.body || "");
           const timestamp = message.timestamp; // Unix timestamp en segundos
 
           // Construir el evento de entrada para la cola
@@ -136,9 +144,9 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
             messageId: waMessageId,
             messageText,
             timestamp: new Date(parseInt(timestamp, 10) * 1000).toISOString(),
-            messageType: isAudio ? "audio" : "text",
-            mediaId: isAudio ? message.audio.id : undefined,
-            mimeType: isAudio ? message.audio.mime_type : undefined,
+            messageType: isAudio ? "audio" : (isImage ? "image" : "text"),
+            mediaId: isAudio ? message.audio.id : (isImage ? message.image.id : undefined),
+            mimeType: isAudio ? message.audio.mime_type : (isImage ? message.image.mime_type : undefined),
           };
 
           // 3. Encolar el evento en SQS
