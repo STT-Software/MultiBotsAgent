@@ -41,8 +41,12 @@ export class PromptBuilderService {
     fragments: SearchResult[];
     history: HistoryMessage[];
     userMessage: string;
+    image?: {
+      base64: string;
+      mimeType: string;
+    };
   }): LlmPrompt {
-    const { config, fragments, history, userMessage } = params;
+    const { config, fragments, history, userMessage, image } = params;
 
     // 1. Truncar historial basado en el límite de tokens
     const truncatedHistory = truncateHistory(history, DEFAULT_MAX_HISTORY_TOKENS);
@@ -53,6 +57,7 @@ export class PromptBuilderService {
       fragments,
       history: truncatedHistory,
       userMessage,
+      image,
     });
   }
 }

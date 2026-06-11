@@ -30,6 +30,10 @@ export interface LlmPrompt {
   history: HistoryMessage[];
   userMessage: string;
   maxResponseLength: number;
+  image?: {
+    base64: string;
+    mimeType: string;
+  };
 }
 
 /**

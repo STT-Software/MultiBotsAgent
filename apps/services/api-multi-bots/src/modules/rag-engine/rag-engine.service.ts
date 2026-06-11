@@ -102,26 +102,30 @@ export class RagEngineService {
     }
     this.logger.debug('Agent config retrieved', { agentId: config.agentId });
 
-    // -- AUDIO TRANSCRIPTION FLOW --
+    // -- MEDIA FLOW (AUDIO / IMAGE) --
     let userMessage = input.userMessage || '';
-    if (input.messageType === 'audio' && input.mediaId) {
-      this.logger.log(`Audio message received with mediaId=${input.mediaId}. Starting transcription flow...`);
+    let imageInfo: { base64: string; mimeType: string } | undefined = undefined;
+
+    if ((input.messageType === 'audio' || input.messageType === 'image') && input.mediaId) {
+      this.logger.log(`Media message (${input.messageType}) received with mediaId=${input.mediaId}. Starting media retrieval flow...`);
       try {
         const db = this.mongoClient.db();
         let channelDoc;
+        const agentIdQuery = ObjectId.isValid(input.agentId) ? new ObjectId(input.agentId) : input.agentId;
         if (input.channelId) {
+          const channelIdQuery = ObjectId.isValid(input.channelId) ? new ObjectId(input.channelId) : input.channelId;
           channelDoc = await db.collection('channels').findOne({
-            _id: new ObjectId(input.channelId),
+            _id: channelIdQuery as any,
           });
         } else {
           channelDoc = await db.collection('channels').findOne({
-            agentId: new ObjectId(input.agentId),
+            agentId: agentIdQuery as any,
             status: 'connected',
           });
         }
 
         if (!channelDoc) {
-          throw new Error(`No active channel found for agent ${input.agentId} to retrieve audio.`);
+          throw new Error(`No active channel found for agent ${input.agentId} to retrieve media.`);
         }
 
         const encryptionKey = process.env.ENCRYPTION_KEY;
@@ -130,104 +134,78 @@ export class RagEngineService {
         }
         const token = decryptToken(channelDoc.encryptedToken as any, encryptionKey);
 
-        let audioBuffer: Buffer;
-        let mimeType = input.mimeType || 'audio/ogg';
+        if (input.messageType === 'audio') {
+          const { buffer: audioBuffer, mimeType } = await this.downloadMedia(
+            channelDoc,
+            input.mediaId,
+            token,
+            input.mimeType || 'audio/ogg',
+          );
 
-        if (channelDoc.provider === 'whatsapp') {
-          this.logger.log(`Downloading audio from Meta for mediaId=${input.mediaId}...`);
-          const mediaUrlResponse = await fetch(`https://graph.facebook.com/v21.0/${input.mediaId}`, {
-            headers: { Authorization: `Bearer ${token}` },
+          const openaiApiKey = process.env.OPENAI_API_KEY;
+          if (!openaiApiKey) {
+            throw new Error('OPENAI_API_KEY no está configurada en las variables de entorno.');
+          }
+
+          const isGroq = openaiApiKey.startsWith('gsk_');
+          const transcriptionUrl = isGroq 
+            ? 'https://api.groq.com/openai/v1/audio/transcriptions'
+            : 'https://api.openai.com/v1/audio/transcriptions';
+          const modelName = isGroq ? 'whisper-large-v3' : 'whisper-1';
+
+          this.logger.log(`Sending audio buffer to ${isGroq ? 'Groq' : 'OpenAI'} Whisper for transcription...`);
+
+          const formData = new FormData();
+          const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
+          formData.append('file', blob, 'audio.ogg');
+          formData.append('model', modelName);
+          if (config.language) {
+            formData.append('language', config.language.substring(0, 2).toLowerCase());
+          }
+
+          const whisperResponse = await fetch(transcriptionUrl, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${openaiApiKey}`,
+            },
+            body: formData,
           });
-          if (!mediaUrlResponse.ok) {
-            const errText = await mediaUrlResponse.text();
-            throw new Error(`Failed to get media URL from Meta: ${errText}`);
-          }
-          const mediaData = await mediaUrlResponse.json() as { url: string; mime_type?: string };
-          if (!mediaData.url) {
-            throw new Error(`Meta media metadata did not return a URL: ${JSON.stringify(mediaData)}`);
-          }
-          if (mediaData.mime_type) {
-            mimeType = mediaData.mime_type;
+
+          if (!whisperResponse.ok) {
+            const errText = await whisperResponse.text();
+            throw new Error(`${isGroq ? 'Groq' : 'OpenAI'} Whisper API failed: ${errText}`);
           }
 
-          const audioDownloadResponse = await fetch(mediaData.url, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!audioDownloadResponse.ok) {
-            const errText = await audioDownloadResponse.text();
-            throw new Error(`Failed to download audio binary from Meta: ${errText}`);
-          }
-          audioBuffer = Buffer.from(await audioDownloadResponse.arrayBuffer());
-        } else if (channelDoc.provider === 'telegram') {
-          this.logger.log(`Downloading audio from Telegram for file_id=${input.mediaId}...`);
-          const fileUrlResponse = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${input.mediaId}`);
-          if (!fileUrlResponse.ok) {
-            const errText = await fileUrlResponse.text();
-            throw new Error(`Failed to get file path from Telegram: ${errText}`);
-          }
-          const fileData = await fileUrlResponse.json() as { ok: boolean; result?: { file_path?: string } };
-          if (!fileData.ok || !fileData.result?.file_path) {
-            throw new Error(`Telegram getFile did not return a path: ${JSON.stringify(fileData)}`);
-          }
+          const whisperData = await whisperResponse.json() as { text: string };
+          userMessage = whisperData.text || '';
+          this.logger.log(`Audio successfully transcribed to: "${userMessage}"`);
+        } else if (input.messageType === 'image') {
+          const { buffer: imageBuffer, mimeType } = await this.downloadMedia(
+            channelDoc,
+            input.mediaId,
+            token,
+            input.mimeType || 'image/jpeg',
+          );
 
-          const downloadUrl = `https://api.telegram.org/file/bot${token}/${fileData.result.file_path}`;
-          const audioDownloadResponse = await fetch(downloadUrl);
-          if (!audioDownloadResponse.ok) {
-            const errText = await audioDownloadResponse.text();
-            throw new Error(`Failed to download audio binary from Telegram: ${errText}`);
-          }
-          audioBuffer = Buffer.from(await audioDownloadResponse.arrayBuffer());
-        } else {
-          throw new Error(`Unsupported channel provider for audio download: ${channelDoc.provider}`);
+          imageInfo = {
+            base64: imageBuffer.toString('base64'),
+            mimeType,
+          };
+          this.logger.log(`Image successfully downloaded and encoded to base64. MimeType: ${mimeType}`);
         }
-
-        const openaiApiKey = process.env.OPENAI_API_KEY;
-        if (!openaiApiKey) {
-          throw new Error('OPENAI_API_KEY no está configurada en las variables de entorno.');
-        }
-
-        const isGroq = openaiApiKey.startsWith('gsk_');
-        const transcriptionUrl = isGroq 
-          ? 'https://api.groq.com/openai/v1/audio/transcriptions'
-          : 'https://api.openai.com/v1/audio/transcriptions';
-        const modelName = isGroq ? 'whisper-large-v3' : 'whisper-1';
-
-        this.logger.log(`Sending audio buffer to ${isGroq ? 'Groq' : 'OpenAI'} Whisper for transcription...`);
-
-        const formData = new FormData();
-        const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
-        formData.append('file', blob, 'audio.ogg');
-        formData.append('model', modelName);
-        if (config.language) {
-          formData.append('language', config.language.substring(0, 2).toLowerCase());
-        }
-
-        const whisperResponse = await fetch(transcriptionUrl, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${openaiApiKey}`,
-          },
-          body: formData,
-        });
-
-        if (!whisperResponse.ok) {
-          const errText = await whisperResponse.text();
-          throw new Error(`${isGroq ? 'Groq' : 'OpenAI'} Whisper API failed: ${errText}`);
-        }
-
-        const whisperData = await whisperResponse.json() as { text: string };
-        userMessage = whisperData.text || '';
-        this.logger.log(`Audio successfully transcribed to: "${userMessage}"`);
       } catch (error: unknown) {
-        this.logger.error(`Error transcribing audio, falling back to default/empty message`, {
+        this.logger.error(`Error processing media message (${input.messageType})`, {
           error: error instanceof Error ? error.message : String(error),
         });
+        const errorContent = input.messageType === 'audio'
+          ? (config.errorMessage || 'Lo siento, no he podido procesar tu nota de voz en este momento.')
+          : 'Lo siento, no he podido procesar tu imagen en este momento.';
         return {
           conversationId: input.conversationId,
           messages: [
             {
               type: ResponseType.TEXT,
-              content: config.errorMessage || 'Lo siento, no he podido procesar tu nota de voz en este momento.',
+              content: errorContent,
             },
           ],
           escalated: false,
@@ -352,6 +330,7 @@ export class RagEngineService {
       fragments: validatedFragments,
       history,
       userMessage: userMessage,
+      image: imageInfo,
     });
 
     // 11.5 Quick check for explicit human escalation (safety net for LLM disobedience)
@@ -1054,5 +1033,65 @@ export class RagEngineService {
           : '';
 
     return finalContent;
+  }
+
+  private async downloadMedia(
+    channelDoc: any,
+    mediaId: string,
+    token: string,
+    defaultMimeType: string,
+  ): Promise<{ buffer: Buffer; mimeType: string }> {
+    let buffer: Buffer;
+    let mimeType = defaultMimeType;
+
+    if (channelDoc.provider === 'whatsapp') {
+      this.logger.log(`Downloading media from Meta for mediaId=${mediaId}...`);
+      const mediaUrlResponse = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!mediaUrlResponse.ok) {
+        const errText = await mediaUrlResponse.text();
+        throw new Error(`Failed to get media URL from Meta: ${errText}`);
+      }
+      const mediaData = await mediaUrlResponse.json() as { url: string; mime_type?: string };
+      if (!mediaData.url) {
+        throw new Error(`Meta media metadata did not return a URL: ${JSON.stringify(mediaData)}`);
+      }
+      if (mediaData.mime_type) {
+        mimeType = mediaData.mime_type;
+      }
+
+      const mediaDownloadResponse = await fetch(mediaData.url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!mediaDownloadResponse.ok) {
+        const errText = await mediaDownloadResponse.text();
+        throw new Error(`Failed to download media binary from Meta: ${errText}`);
+      }
+      buffer = Buffer.from(await mediaDownloadResponse.arrayBuffer());
+    } else if (channelDoc.provider === 'telegram') {
+      this.logger.log(`Downloading media from Telegram for file_id=${mediaId}...`);
+      const fileUrlResponse = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${mediaId}`);
+      if (!fileUrlResponse.ok) {
+        const errText = await fileUrlResponse.text();
+        throw new Error(`Failed to get file path from Telegram: ${errText}`);
+      }
+      const fileData = await fileUrlResponse.json() as { ok: boolean; result?: { file_path?: string } };
+      if (!fileData.ok || !fileData.result?.file_path) {
+        throw new Error(`Telegram getFile did not return a path: ${JSON.stringify(fileData)}`);
+      }
+
+      const downloadUrl = `https://api.telegram.org/file/bot${token}/${fileData.result.file_path}`;
+      const mediaDownloadResponse = await fetch(downloadUrl);
+      if (!mediaDownloadResponse.ok) {
+        const errText = await mediaDownloadResponse.text();
+        throw new Error(`Failed to download media binary from Telegram: ${errText}`);
+      }
+      buffer = Buffer.from(await mediaDownloadResponse.arrayBuffer());
+    } else {
+      throw new Error(`Unsupported channel provider for media download: ${channelDoc.provider}`);
+    }
+
+    return { buffer, mimeType };
   }
 }

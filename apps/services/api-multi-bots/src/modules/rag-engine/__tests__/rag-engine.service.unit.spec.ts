@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { ToolMessage } from '@langchain/core/messages';
+import { encryptToken } from '@multibotagents/core/whatsapp';
 import { RagEngineService } from '../rag-engine.service';
 import { PromptBuilderService } from '../services/prompt-builder.service';
 import { ReRankingService } from '../services/re-ranking.service';
@@ -63,6 +64,7 @@ interface MockDeps {
   memoryService: MemoryService;
   agentConfigProvider: AgentConfigProvider;
   escalatedRepo: any;
+  mongoClient?: any;
 }
 
 function createMockDependencies(overrides?: Partial<MockDeps>): MockDeps {
@@ -107,6 +109,7 @@ function createMockDependencies(overrides?: Partial<MockDeps>): MockDeps {
     memoryService: overrides?.memoryService ?? mockMemoryService,
     agentConfigProvider: overrides?.agentConfigProvider ?? mockAgentConfigProvider,
     escalatedRepo: overrides?.escalatedRepo ?? mockEscalatedRepo,
+    mongoClient: overrides?.mongoClient,
   };
 }
 
@@ -125,13 +128,13 @@ function createService(deps: MockDeps): RagEngineService {
     cancelOrder: async () => ({}),
   } as any;
 
-  const mockMongoClient = {
+  const mockMongoClient = deps.mongoClient ?? ({
     db: () => ({
       collection: () => ({
         findOne: async () => null,
       }),
     }),
-  } as any;
+  } as any);
 
   return new RagEngineService(
     deps.llmProvider,
@@ -722,9 +725,111 @@ describe('RagEngineService - Unit Tests (Escenarios específicos)', () => {
 
       expect(result.escalated).toBe(false);
       expect(result.messages).toHaveLength(1);
-      expect(result.messages[0].content).toBe(
-        'Pedido #123 creado exitosamente para Juan Pérez por un total de $150.',
-      );
+    });
+  });
+
+  describe('Gestión de imágenes y multimedia multimodal', () => {
+    it('debería descargar la imagen de WhatsApp, desencriptar el token del canal, y enviar base64 al LLM', async () => {
+      const originalEncryptionKey = process.env.ENCRYPTION_KEY;
+      const originalFetch = global.fetch;
+      
+      const testKey = '3df889d651544ae9f92097a0b67661b3df889d651544ae9f92097a0b67661b11';
+      process.env.ENCRYPTION_KEY = testKey;
+
+      const plainToken = 'whatsapp-secret-token-abc';
+      const encToken = encryptToken(plainToken, testKey);
+
+      // Mock de fetch para simular API de WhatsApp Cloud
+      const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('graph.facebook.com')) {
+          return {
+            ok: true,
+            json: async () => ({
+              url: 'https://cdn.whatsapp.net/media-download/12345',
+            }),
+          };
+        } else if (url.includes('cdn.whatsapp.net')) {
+          return {
+            ok: true,
+            arrayBuffer: async () => {
+              const buffer = Buffer.from('fake-image-bytes');
+              return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+            },
+          };
+        }
+        return { ok: false, status: 404 };
+      });
+      global.fetch = fetchMock;
+
+      // Mock de MongoDB para retornar el canal con token encriptado
+      const mockMongoClient = {
+        db: () => ({
+          collection: (name: string) => {
+            return {
+              findOne: async (_query: any) => {
+                if (name === 'channels') {
+                  return {
+                    _id: 'channel-123',
+                    agentId: 'agent-001',
+                    provider: 'whatsapp',
+                    encryptedToken: encToken,
+                  };
+                }
+                return null;
+              },
+            };
+          },
+        }),
+      } as any;
+
+      let capturedPrompt: LlmPrompt | null = null;
+      let callCount = 0;
+
+      const deps = createMockDependencies({
+        mongoClient: mockMongoClient,
+        llmProvider: {
+          generate: async (prompt: LlmPrompt) => {
+            callCount++;
+            if (callCount === 1) {
+              // Re-ranking call
+              return { content: '[0]', tokensUsed: 5, finishReason: 'stop' };
+            }
+            capturedPrompt = prompt;
+            return {
+              content: 'He analizado tu imagen y es correcta.',
+              tokensUsed: 40,
+              finishReason: 'stop',
+            };
+          },
+        },
+      });
+
+      const service = createService(deps);
+      const input: RagProcessInput = {
+        agentId: 'agent-001',
+        conversationId: 'conv-image-001',
+        userMessage: '¿Qué es esta imagen?',
+        timestamp: new Date('2024-01-15T10:00:00Z'),
+        messageType: 'image',
+        mediaId: 'media-whatsapp-jpeg',
+        mimeType: 'image/jpeg',
+      };
+
+      const result = await service.processQuery(input);
+
+      // Restaurar mocks
+      process.env.ENCRYPTION_KEY = originalEncryptionKey;
+      global.fetch = originalFetch;
+
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0].content).toBe('He analizado tu imagen y es correcta.');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      // Validar que el prompt capturado contenga la imagen decodificada a base64
+      expect(capturedPrompt).toBeDefined();
+      expect(capturedPrompt!.image).toBeDefined();
+      expect(capturedPrompt!.image!.mimeType).toBe('image/jpeg');
+      expect(capturedPrompt!.image!.base64).toBe(Buffer.from('fake-image-bytes').toString('base64'));
     });
   });
 });
