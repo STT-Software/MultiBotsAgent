@@ -775,7 +775,7 @@ export class RagEngineService {
     prompt: LlmPrompt,
     _input: RagProcessInput,
   ): Promise<string> {
-    const rawModel = typeof this.llmProvider.getModel === 'function' ? this.llmProvider.getModel() : null;
+    const rawModel = typeof this.llmProvider.getModel === 'function' ? this.llmProvider.getModel(!!prompt.image) : null;
     if (!rawModel) {
       this.logger.error('El proveedor de LLM no expone el modelo LangChain crudo');
       throw new Error('Soporte de herramientas no configurado en el LLM');
