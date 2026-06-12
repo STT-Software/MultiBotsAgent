@@ -446,7 +446,6 @@ export class RagEngineService {
         });
         return this.buildNoInfoResponse(input, config, history, 'agent_detected', userMessage, fileType, s3FileUrl);
       }
-      }
 
       this.logger.debug('LLM response received');
     } catch (error: unknown) {
