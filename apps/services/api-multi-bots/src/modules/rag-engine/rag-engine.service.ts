@@ -3,7 +3,8 @@ import { MongoClient, ObjectId } from 'mongodb';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { decryptToken } from '@multibotagents/core/whatsapp';
 import { filterByThreshold } from '@multibotagents/core';
-import { EscalatedConversationRepository } from '@multibotagents/db';
+import { EscalatedConversationRepository, S3StorageService } from '@multibotagents/db';
+import { randomUUID } from 'crypto';
 import {
   EscalationReason,
   MessageRole,
@@ -67,6 +68,7 @@ export class RagEngineService {
     @Inject(ResponseFormatterService) private readonly responseFormatter: ResponseFormatterService,
     @Inject('ESCALATED_CONVERSATION_REPO') private readonly escalatedRepo: EscalatedConversationRepository,
     @Inject('MONGO_CLIENT') private readonly mongoClient: MongoClient,
+    @Inject('RAG_STORAGE') private readonly storageService: S3StorageService,
     private readonly eventEmitter: EventEmitter2,
     private readonly bookingsService: BookingsService,
     private readonly ordersService: OrdersService,
@@ -104,44 +106,98 @@ export class RagEngineService {
 
     // -- MEDIA FLOW (AUDIO / IMAGE) --
     let userMessage = input.userMessage || '';
+    if (input.messageType === 'image' && userMessage.trim().length === 0) {
+      userMessage = 'Analiza esta imagen';
+    }
     let imageInfo: { base64: string; mimeType: string } | undefined = undefined;
+    let s3FileUrl: string | undefined = undefined;
+    let fileType: 'text' | 'image' | 'file' = 'text';
 
-    if ((input.messageType === 'audio' || input.messageType === 'image') && input.mediaId) {
-      this.logger.log(`Media message (${input.messageType}) received with mediaId=${input.mediaId}. Starting media retrieval flow...`);
+    if ((input.messageType === 'audio' || input.messageType === 'image') && (input.mediaId || input.fileUrl)) {
+      this.logger.log(`Media message (${input.messageType}) received. fileUrl=${input.fileUrl || 'none'}, mediaId=${input.mediaId || 'none'}. Starting media retrieval flow...`);
       try {
-        const db = this.mongoClient.db();
-        let channelDoc;
-        const agentIdQuery = ObjectId.isValid(input.agentId) ? new ObjectId(input.agentId) : input.agentId;
-        if (input.channelId) {
-          const channelIdQuery = ObjectId.isValid(input.channelId) ? new ObjectId(input.channelId) : input.channelId;
-          channelDoc = await db.collection('channels').findOne({
-            _id: channelIdQuery as any,
-          });
-        } else {
-          channelDoc = await db.collection('channels').findOne({
-            agentId: agentIdQuery as any,
-            status: 'connected',
-          });
+        let mediaBuffer: Buffer | undefined;
+        let resolvedMimeType = input.mimeType || (input.messageType === 'audio' ? 'audio/ogg' : 'image/jpeg');
+
+        if (input.fileUrl) {
+          try {
+            this.logger.log(`Downloading pre-uploaded media directly from S3 URL: ${input.fileUrl}`);
+            const response = await fetch(input.fileUrl);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch pre-uploaded file from S3: ${response.statusText}`);
+            }
+            mediaBuffer = Buffer.from(await response.arrayBuffer());
+            s3FileUrl = input.fileUrl;
+            fileType = input.messageType === 'audio' ? 'file' : 'image';
+            const contentType = response.headers.get('content-type');
+            if (contentType) {
+              resolvedMimeType = contentType;
+            }
+          } catch (fetchErr) {
+            this.logger.warn(`Failed to retrieve pre-uploaded media from S3 URL (${input.fileUrl}). Falling back to provider API download.`, {
+              error: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
+            });
+          }
         }
 
-        if (!channelDoc) {
-          throw new Error(`No active channel found for agent ${input.agentId} to retrieve media.`);
-        }
+        // Si no se pudo obtener el buffer (o no había fileUrl), usamos el flujo clásico con mediaId
+        if (!mediaBuffer && input.mediaId) {
+          const db = this.mongoClient.db();
+          let channelDoc;
+          const agentIdQuery = ObjectId.isValid(input.agentId) ? new ObjectId(input.agentId) : input.agentId;
+          if (input.channelId) {
+            const channelIdQuery = ObjectId.isValid(input.channelId) ? new ObjectId(input.channelId) : input.channelId;
+            channelDoc = await db.collection('channels').findOne({
+              _id: channelIdQuery as any,
+            });
+          } else {
+            channelDoc = await db.collection('channels').findOne({
+              agentId: agentIdQuery as any,
+              status: 'connected',
+            });
+          }
 
-        const encryptionKey = process.env.ENCRYPTION_KEY;
-        if (!encryptionKey) {
-          throw new Error('ENCRYPTION_KEY no está configurada en las variables de entorno.');
-        }
-        const token = decryptToken(channelDoc.encryptedToken as any, encryptionKey);
+          if (!channelDoc) {
+            throw new Error(`No active channel found for agent ${input.agentId} to retrieve media.`);
+          }
 
-        if (input.messageType === 'audio') {
-          const { buffer: audioBuffer, mimeType } = await this.downloadMedia(
+          const encryptionKey = process.env.ENCRYPTION_KEY;
+          if (!encryptionKey) {
+            throw new Error('ENCRYPTION_KEY no está configurada en las variables de entorno.');
+          }
+          const token = decryptToken(channelDoc.encryptedToken as any, encryptionKey);
+
+          const downloaded = await this.downloadMedia(
             channelDoc,
             input.mediaId,
             token,
-            input.mimeType || 'audio/ogg',
+            input.mimeType || (input.messageType === 'audio' ? 'audio/ogg' : 'image/jpeg'),
           );
+          mediaBuffer = downloaded.buffer;
+          resolvedMimeType = downloaded.mimeType;
 
+          // Subir a S3
+          try {
+            const uuid = randomUUID();
+            const ext = this.getExtensionFromMimeType(resolvedMimeType);
+            const key = `escalamiento/${config.companyId}/${input.conversationId}/${uuid}-${input.mediaId}.${ext}`;
+            this.logger.log(`Uploading user media to S3 with key: ${key}`);
+            await this.storageService.uploadObject(key, mediaBuffer, resolvedMimeType);
+            s3FileUrl = this.storageService.getPublicUrl(key);
+            fileType = input.messageType === 'audio' ? 'file' : 'image';
+          } catch (uploadErr) {
+            this.logger.error(`Failed to upload media to S3`, {
+              error: uploadErr instanceof Error ? uploadErr.message : String(uploadErr),
+            });
+          }
+        }
+
+        if (!mediaBuffer) {
+          throw new Error('No media buffer could be retrieved from either S3 or provider API.');
+        }
+
+        // Ahora procesar según el tipo de mensaje
+        if (input.messageType === 'audio') {
           const openaiApiKey = process.env.OPENAI_API_KEY;
           if (!openaiApiKey) {
             throw new Error('OPENAI_API_KEY no está configurada en las variables de entorno.');
@@ -156,7 +212,7 @@ export class RagEngineService {
           this.logger.log(`Sending audio buffer to ${isGroq ? 'Groq' : 'OpenAI'} Whisper for transcription...`);
 
           const formData = new FormData();
-          const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
+          const blob = new Blob([new Uint8Array(mediaBuffer)], { type: resolvedMimeType });
           formData.append('file', blob, 'audio.ogg');
           formData.append('model', modelName);
           if (config.language) {
@@ -180,18 +236,11 @@ export class RagEngineService {
           userMessage = whisperData.text || '';
           this.logger.log(`Audio successfully transcribed to: "${userMessage}"`);
         } else if (input.messageType === 'image') {
-          const { buffer: imageBuffer, mimeType } = await this.downloadMedia(
-            channelDoc,
-            input.mediaId,
-            token,
-            input.mimeType || 'image/jpeg',
-          );
-
           imageInfo = {
-            base64: imageBuffer.toString('base64'),
-            mimeType,
+            base64: mediaBuffer.toString('base64'),
+            mimeType: resolvedMimeType,
           };
-          this.logger.log(`Image successfully downloaded and encoded to base64. MimeType: ${mimeType}`);
+          this.logger.log(`Image successfully processed and encoded to base64. MimeType: ${resolvedMimeType}`);
         }
       } catch (error: unknown) {
         this.logger.error(`Error processing media message (${input.messageType})`, {
@@ -234,7 +283,8 @@ export class RagEngineService {
         sender: 'user',
         content: messageContent,
         timestamp: input.timestamp,
-        type: 'text',
+        type: fileType,
+        fileUrl: s3FileUrl,
       });
 
       // Also persist to history memory
@@ -245,12 +295,16 @@ export class RagEngineService {
             content: messageContent,
             timestamp: input.timestamp,
             isEscalated: true,
+            fileUrl: s3FileUrl,
+            messageType: fileType,
           });
         } else {
           await this.memoryService.saveMessage(input.conversationId, {
             role: MessageRole.USER,
             content: messageContent,
             timestamp: input.timestamp,
+            fileUrl: s3FileUrl,
+            messageType: fileType,
           });
         }
       } catch (err: unknown) {
@@ -342,7 +396,7 @@ export class RagEngineService {
         conversationId: input.conversationId,
         userMessage: userMessage,
       });
-      return this.buildNoInfoResponse(input, config, history, 'explicit', userMessage);
+      return this.buildNoInfoResponse(input, config, history, 'explicit', userMessage, fileType, s3FileUrl);
     }
 
     // 12. Invoke LLM
@@ -357,6 +411,11 @@ export class RagEngineService {
         llmContent = llmResponse.content;
       }
 
+      // Clean thinking blocks from response content
+      if (llmContent) {
+        llmContent = llmContent.replace(/<(thinking|thought)>[\s\S]*?(?:<\/\1>|$)/gi, '').trim();
+      }
+
       // 13. Handle empty LLM response
       if (!llmContent || llmContent.trim().length === 0) {
         this.logger.error('LLM returned empty response', {
@@ -364,7 +423,7 @@ export class RagEngineService {
           conversationId: input.conversationId,
           stage: 'llm_invocation',
         });
-        return this.buildErrorResponse(input, config, history, userMessage);
+        return this.buildErrorResponse(input, config, history, userMessage, fileType, s3FileUrl);
       }
 
       const cleanContent = llmContent.trim().toUpperCase();
@@ -374,7 +433,7 @@ export class RagEngineService {
           conversationId: input.conversationId,
           stage: 'llm_invocation',
         });
-        return this.buildNoInfoResponse(input, config, history, 'explicit', userMessage);
+        return this.buildNoInfoResponse(input, config, history, 'explicit', userMessage, fileType, s3FileUrl);
       }
 
       if (cleanContent === 'NO_INFO' || cleanContent.includes('NO_INFO')) {
@@ -383,7 +442,7 @@ export class RagEngineService {
           conversationId: input.conversationId,
           stage: 'llm_invocation',
         });
-        return this.buildNoInfoResponse(input, config, history, 'agent_detected', userMessage);
+        return this.buildNoInfoResponse(input, config, history, 'agent_detected', userMessage, fileType, s3FileUrl);
       }
 
       this.logger.debug('LLM response received');
@@ -395,14 +454,14 @@ export class RagEngineService {
         error: errorMessage,
         stage: 'llm_invocation',
       });
-      return this.buildErrorResponse(input, config, history, userMessage);
+      return this.buildErrorResponse(input, config, history, userMessage, fileType, s3FileUrl);
     }
 
     // 14. Format response
     const responseMessages = this.responseFormatter.format(llmContent, config.maxResponseLength);
 
     // 15. Persist messages (graceful degradation)
-    await this.persistMessages(input, responseMessages, userMessage);
+    await this.persistMessages(input, responseMessages, userMessage, s3FileUrl, fileType);
 
     // 16. Add welcome message if new session
     const messages = this.prependWelcomeMessage(responseMessages, isNewSession, config);
@@ -430,6 +489,9 @@ export class RagEngineService {
       if (!input.mediaId) {
         throw new InvalidInputException('mediaId', 'Media ID is required for audio messages');
       }
+      return;
+    }
+    if (input.messageType === 'image') {
       return;
     }
     if (!input.userMessage || input.userMessage.trim().length === 0) {
@@ -529,6 +591,8 @@ export class RagEngineService {
     input: RagProcessInput,
     responseMessages: ResponseMessage[],
     userMessage: string,
+    fileUrl?: string,
+    messageType?: 'text' | 'image' | 'file',
   ): Promise<void> {
     try {
       // Save user message
@@ -536,6 +600,8 @@ export class RagEngineService {
         role: MessageRole.USER,
         content: userMessage,
         timestamp: input.timestamp,
+        fileUrl,
+        messageType,
       });
 
       // Save assistant response
@@ -587,6 +653,8 @@ export class RagEngineService {
     history: HistoryMessage[],
     escalationType: 'explicit' | 'agent_detected' = 'agent_detected',
     userMessage: string = input.userMessage,
+    fileType: 'text' | 'image' | 'file' = 'text',
+    fileUrl?: string,
   ): Promise<RagProcessOutput> {
     const escalatedAt = new Date();
     const responseContent = escalationType === 'explicit'
@@ -607,7 +675,8 @@ export class RagEngineService {
         sender: 'user',
         content: userMessage,
         timestamp: input.timestamp,
-        type: 'text',
+        type: fileType,
+        fileUrl,
       });
 
       messages.push({
@@ -655,6 +724,8 @@ export class RagEngineService {
         role: MessageRole.USER,
         content: userMessage,
         timestamp: input.timestamp,
+        fileUrl,
+        messageType: fileType,
       });
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.ASSISTANT,
@@ -684,6 +755,8 @@ export class RagEngineService {
     config: AgentConfig,
     history: HistoryMessage[],
     userMessage: string = input.userMessage,
+    fileType: 'text' | 'image' | 'file' = 'text',
+    fileUrl?: string,
   ): Promise<RagProcessOutput> {
     const escalatedAt = new Date();
     const responseContent = config.errorMessage;
@@ -702,7 +775,8 @@ export class RagEngineService {
         sender: 'user',
         content: userMessage,
         timestamp: input.timestamp,
-        type: 'text',
+        type: fileType,
+        fileUrl,
       });
 
       messages.push({
@@ -746,6 +820,8 @@ export class RagEngineService {
         role: MessageRole.USER,
         content: userMessage,
         timestamp: input.timestamp,
+        fileUrl,
+        messageType: fileType,
       });
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.ASSISTANT,
@@ -954,7 +1030,13 @@ export class RagEngineService {
     if (prompt.context) {
       systemPromptParts.push(`\n\n--- CONTEXTO ---\n${prompt.context}`);
     }
-    systemPromptParts.push(`\n\nRestriction: Your response must not exceed ${prompt.maxResponseLength} characters.`);
+
+    const isEnglish = prompt.language?.trim().toLowerCase() === 'en';
+    if (isEnglish) {
+      systemPromptParts.push(`\n\nRestriction: Your response must not exceed ${prompt.maxResponseLength} characters.`);
+    } else {
+      systemPromptParts.push(`\n\nRestricción: Tu respuesta no debe exceder de ${prompt.maxResponseLength} caracteres.`);
+    }
 
     // Inyectar contexto temporal local del agente
     const timezone = config.timezone || 'America/Bogota';
@@ -1110,5 +1192,15 @@ export class RagEngineService {
     }
 
     return { buffer, mimeType };
+  }
+
+  private getExtensionFromMimeType(mimeType: string): string {
+    if (!mimeType) return 'bin';
+    const parts = mimeType.split('/');
+    if (parts.length < 2) return 'bin';
+    const sub = parts[1].toLowerCase();
+    if (sub === 'jpeg') return 'jpg';
+    if (sub.includes('svg')) return 'svg';
+    return sub;
   }
 }

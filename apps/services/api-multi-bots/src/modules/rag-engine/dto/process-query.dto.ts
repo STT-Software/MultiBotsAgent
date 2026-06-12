@@ -59,4 +59,12 @@ export class ProcessQueryDto {
   @IsOptional()
   @IsString()
   mimeType?: string;
+
+  @ApiProperty({
+    description: "URL del archivo subido a S3 (opcional)",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  fileUrl?: string;
 }

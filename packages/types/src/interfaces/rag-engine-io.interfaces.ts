@@ -20,6 +20,7 @@ export interface RagProcessInput {
   messageType?: "text" | "audio" | "image";
   mediaId?: string;
   mimeType?: string;
+  fileUrl?: string;
 }
 
 /**

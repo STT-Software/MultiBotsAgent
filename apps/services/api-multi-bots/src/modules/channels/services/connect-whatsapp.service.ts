@@ -91,10 +91,11 @@ export class ConnectWhatsAppService {
     } catch (error) {
       const errorMsg = (error as Error).message || '';
       const isPinMismatch = errorMsg.includes('PIN') || errorMsg.includes('verification');
+      const isRateLimited = errorMsg.includes('133016') || errorMsg.toLowerCase().includes('too many attempts');
       
-      if (uniquenessResult.action === 'update' || isPinMismatch) {
+      if (uniquenessResult.action === 'update' || isPinMismatch || isRateLimited) {
         this.logger.warn(
-          `Phone number registration failed (PIN Mismatch or during update): ${errorMsg}. Proceeding anyway since token is valid.`
+          `Phone number registration failed (PIN Mismatch, rate-limited or during update): ${errorMsg}. Proceeding anyway since token is valid.`
         );
       } else {
         throw error;

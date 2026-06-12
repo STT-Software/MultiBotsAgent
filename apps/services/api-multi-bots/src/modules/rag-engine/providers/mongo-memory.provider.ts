@@ -81,6 +81,8 @@ export class MongoMemoryProvider implements IRagMemoryService, OnModuleDestroy {
           : MessageRole.ASSISTANT,
         content: msg.content,
         timestamp: msg.timestamp,
+        fileUrl: msg.fileUrl,
+        messageType: msg.messageType as 'text' | 'image' | 'file' | undefined,
       }));
 
       this.logger.debug('History retrieved successfully', {
@@ -122,6 +124,8 @@ export class MongoMemoryProvider implements IRagMemoryService, OnModuleDestroy {
         content: message.content,
         timestamp: message.timestamp,
         source: message.role === MessageRole.ASSISTANT ? 'agent' as const : undefined,
+        fileUrl: message.fileUrl,
+        messageType: message.messageType,
       };
 
       await this.coreMemoryService.addMessage(conversationId, chatMessage);

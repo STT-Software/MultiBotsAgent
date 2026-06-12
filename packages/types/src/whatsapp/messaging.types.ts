@@ -16,6 +16,7 @@ export interface IncomingMessageEvent {
   messageType?: "text" | "audio" | "image";
   mediaId?: string;
   mimeType?: string;
+  fileUrl?: string;
 }
 
 /**

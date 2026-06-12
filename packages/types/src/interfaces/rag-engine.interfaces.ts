@@ -34,6 +34,7 @@ export interface LlmPrompt {
     base64: string;
     mimeType: string;
   };
+  language?: string;
 }
 
 /**
@@ -101,6 +102,8 @@ export interface HistoryMessage {
   role: MessageRole;
   content: string;
   timestamp: Date;
+  fileUrl?: string;
+  messageType?: 'text' | 'image' | 'file';
 }
 
 /**
@@ -111,6 +114,8 @@ export interface PersistMessage {
   content: string;
   timestamp: Date;
   metadata?: Record<string, unknown>;
+  fileUrl?: string;
+  messageType?: 'text' | 'image' | 'file';
 }
 
 // ─── Agent Config Provider ───────────────────────────────────────────────────

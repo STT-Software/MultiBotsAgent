@@ -77,7 +77,7 @@ export class BedrockLlmProvider implements LlmProvider {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
 
-      const content =
+      const rawContent =
         typeof response.content === 'string'
           ? response.content
           : Array.isArray(response.content)
@@ -92,6 +92,8 @@ export class BedrockLlmProvider implements LlmProvider {
                 .map((block) => block.text)
                 .join('')
             : '';
+
+      const content = rawContent.replace(/<(thinking|thought)>[\s\S]*?(?:<\/\1>|$)/gi, '').trim();
 
       const tokensUsed = this.extractTokenUsage(response);
       const finishReason = this.extractFinishReason(response);
@@ -247,9 +249,16 @@ export class BedrockLlmProvider implements LlmProvider {
       parts.push(`\n\n--- CONTEXTO ---\n${prompt.context}`);
     }
 
-    parts.push(
-      `\n\nRestriction: Your response must not exceed ${prompt.maxResponseLength} characters.`,
-    );
+    const isEnglish = prompt.language?.trim().toLowerCase() === 'en';
+    if (isEnglish) {
+      parts.push(
+        `\n\nRestriction: Your response must not exceed ${prompt.maxResponseLength} characters.`,
+      );
+    } else {
+      parts.push(
+        `\n\nRestricción: Tu respuesta no debe exceder de ${prompt.maxResponseLength} caracteres.`,
+      );
+    }
 
     return parts.join('');
   }

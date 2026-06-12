@@ -34,7 +34,17 @@ export function buildSystemPrompt(personality: PersonalityConfig, language: stri
     sections.push(`Instrucciones: ${personality.instructions}`);
   }
 
-  sections.push(`Idioma de respuesta: ${language}.`);
+  const code = language.trim().toLowerCase();
+  let languageName = language;
+  if (code === 'es') {
+    languageName = 'español';
+  } else if (code === 'en') {
+    languageName = 'inglés';
+  } else if (code === 'pt') {
+    languageName = 'portugués';
+  }
+
+  sections.push(`Idioma de respuesta: Debes responder ÚNICAMENTE en el idioma ${languageName}. Toda tu respuesta final debe estar completamente escrita en este idioma.`);
   sections.push('<instrucciones_criticas>');
   sections.push('1. SALUDOS: Si el mensaje del usuario es un saludo, despedida o cortesía, responde de forma amigable siguiendo tu personalidad.');
   sections.push('2. ESCALAMIENTO A HUMANO (MUY IMPORTANTE): Analiza la intención del usuario. Si el usuario pide explícitamente "hablar con un asesor", "hablar con un humano", "operador", "soporte técnico", o pide ser transferido, o de alguna manera expresa el deseo de ser atendido por una persona de soporte, DEBES responder ÚNICAMENTE con la palabra exacta: TRANSFER. No des explicaciones ni uses la información del contexto.');
@@ -109,5 +119,6 @@ export function buildFullPrompt(params: {
     userMessage,
     maxResponseLength: config.maxResponseLength,
     image,
+    language: config.language,
   };
 }

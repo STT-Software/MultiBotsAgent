@@ -24,6 +24,7 @@ import type { Request } from 'express';
 import { MongoClient, ObjectId } from 'mongodb';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { decryptToken } from '@multibotagents/core/whatsapp';
+import { S3StorageService } from '@multibotagents/db';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ConnectTelegramService } from './services/connect-telegram.service';
 
@@ -121,7 +122,7 @@ export class TelegramChannelsController {
       agentId: channel.agentId,
       companyId: channel.companyId,
       channelId: channel._id.toString(),
-      conversationId: `telegram_${senderUsername}`,
+      conversationId: `telegram_${channel._id.toString()}_${senderUsername}`,
       senderUsername,
       messageId: tgMessageId,
       messageText: dto.messageText,
@@ -285,18 +286,45 @@ export class TelegramChannelsController {
   ) {
     this.logger.log(`Recibida petición webhook de Telegram para el canal ${channelId}`);
 
-    if (!body || !body.message || !body.message.chat || (!body.message.text && !body.message.voice)) {
-      this.logger.warn('Petición webhook de Telegram sin campos requeridos (texto o voz). Omitiendo.');
+    if (!body || !body.message || !body.message.chat || (!body.message.text && !body.message.voice && !body.message.photo && !body.message.document)) {
+      this.logger.warn('Petición webhook de Telegram sin campos requeridos (texto, voz, foto o documento). Omitiendo.');
       return { ok: true };
     }
 
     const { message } = body;
     const chatId = message.chat.id;
     const isVoice = !!message.voice;
-    const messageText = isVoice ? '' : message.text;
-    const mediaId = isVoice ? message.voice.file_id : undefined;
-    const mimeType = isVoice ? (message.voice.mime_type || 'audio/ogg') : undefined;
-    const messageType = isVoice ? 'audio' : 'text';
+    const isPhoto = !!message.photo;
+    const isDocument = !!message.document;
+    const messageText = isVoice ? '' : (message.caption || message.text || '');
+
+    let mediaId: string | undefined = undefined;
+    let mimeType: string | undefined = undefined;
+
+    if (isVoice) {
+      mediaId = message.voice.file_id;
+      mimeType = message.voice.mime_type || 'audio/ogg';
+    } else if (isPhoto && message.photo.length > 0) {
+      mediaId = message.photo[message.photo.length - 1].file_id;
+      mimeType = 'image/jpeg';
+    } else if (isDocument) {
+      mediaId = message.document.file_id;
+      mimeType = message.document.mime_type || 'application/octet-stream';
+    }
+
+    let messageType: 'text' | 'audio' | 'image' | 'file' = 'text';
+    if (isVoice) {
+      messageType = 'audio';
+    } else if (isPhoto) {
+      messageType = 'image';
+    } else if (isDocument) {
+      if (mimeType && mimeType.startsWith('image/')) {
+        messageType = 'image';
+      } else {
+        messageType = 'file';
+      }
+    }
+
     const senderUsername = message.from?.username || message.from?.first_name || 'telegram_user';
 
     const db = this.mongoClient.db();
@@ -317,6 +345,64 @@ export class TelegramChannelsController {
       throw new BadRequestException('Canal no encontrado.');
     }
 
+    const conversationId = `telegram_${channelId}_${chatId}`;
+    let fileUrl: string | undefined = undefined;
+
+    if ((isVoice || isPhoto || isDocument) && mediaId) {
+      try {
+        const encryptionKey = process.env.ENCRYPTION_KEY;
+        if (!encryptionKey) {
+          throw new Error('ENCRYPTION_KEY no está configurada.');
+        }
+        const decryptedToken = decryptToken(channel.encryptedToken as any, encryptionKey);
+
+        this.logger.log(`Descargando multimedia desde Telegram API para file_id=${mediaId}...`);
+        const fileUrlResponse = await fetch(`https://api.telegram.org/bot${decryptedToken}/getFile?file_id=${mediaId}`);
+        if (!fileUrlResponse.ok) {
+          throw new Error(`Error en getFile de Telegram: ${fileUrlResponse.statusText}`);
+        }
+        const fileData = await fileUrlResponse.json() as { ok: boolean; result?: { file_path?: string } };
+        if (!fileData.ok || !fileData.result?.file_path) {
+          throw new Error(`Telegram getFile no devolvió ruta de archivo: ${JSON.stringify(fileData)}`);
+        }
+
+        const downloadUrl = `https://api.telegram.org/file/bot${decryptedToken}/${fileData.result.file_path}`;
+        const mediaDownloadResponse = await fetch(downloadUrl);
+        if (!mediaDownloadResponse.ok) {
+          throw new Error(`Error descargando archivo de Telegram: ${mediaDownloadResponse.statusText}`);
+        }
+        const buffer = Buffer.from(await mediaDownloadResponse.arrayBuffer());
+
+        // Instanciar S3StorageService
+        const storageService = this.getStorageService();
+        const uuid = new ObjectId().toHexString();
+        
+        let ext = 'bin';
+        if (isVoice) {
+          ext = 'ogg';
+        } else if (isPhoto) {
+          ext = 'jpg';
+        } else if (isDocument) {
+          const fileName = message.document.file_name || '';
+          const dotIdx = fileName.lastIndexOf('.');
+          if (dotIdx !== -1) {
+            ext = fileName.substring(dotIdx + 1).toLowerCase();
+          } else {
+            ext = mimeType ? mimeType.split('/')[1] : 'bin';
+          }
+        }
+        
+        const key = `escalamiento/${channel.companyId.toString()}/${conversationId}/${uuid}-${mediaId}.${ext}`;
+
+        this.logger.log(`Subiendo archivo de Telegram a S3 con key: ${key}`);
+        await storageService.uploadObject(key, buffer, mimeType || (isVoice ? 'audio/ogg' : 'image/jpeg'));
+        fileUrl = storageService.getPublicUrl(key);
+        this.logger.log(`Archivo de Telegram subido exitosamente. URL: ${fileUrl}`);
+      } catch (err) {
+        this.logger.error(`Error procesando multimedia de Telegram en webhook: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
     const tgMessageId = `tg-${message.message_id}`;
     const timestamp = message.date
       ? new Date(message.date * 1000).toISOString()
@@ -326,7 +412,7 @@ export class TelegramChannelsController {
       agentId: channel.agentId.toString(),
       companyId: channel.companyId.toString(),
       channelId: channel._id.toString(),
-      conversationId: `telegram_${chatId}`,
+      conversationId,
       senderUsername,
       messageId: tgMessageId,
       messageText,
@@ -335,6 +421,7 @@ export class TelegramChannelsController {
       messageType,
       mediaId,
       mimeType,
+      fileUrl,
     };
 
     const queueUrl = process.env.TELEGRAM_INCOMING_QUEUE_URL;
@@ -358,6 +445,13 @@ export class TelegramChannelsController {
 
     this.logger.log(`Mensaje real del bot @${channel.telegramBotUsername} encolado a SQS exitosamente.`);
     return { ok: true };
+  }
+
+  private getStorageService(): S3StorageService {
+    const bucket = process.env.ESCALAMIENTO_FILES_BUCKET || process.env.COMPANY_LOGOS_BUCKET;
+    const region = process.env.ESCALAMIENTO_FILES_REGION || process.env.COMPANY_LOGOS_REGION || 'us-east-1';
+    if (!bucket) throw new Error('ESCALAMIENTO_FILES_BUCKET or COMPANY_LOGOS_BUCKET is required');
+    return new S3StorageService({ bucket, region });
   }
 
   private async verifyAgentOwnership(

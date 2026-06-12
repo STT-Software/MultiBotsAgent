@@ -32,7 +32,7 @@ export async function handler(event: SQSEvent): Promise<void> {
 
 async function processRecord(record: SQSRecord): Promise<void> {
   const incoming: IncomingMessageEvent = JSON.parse(record.body);
-  const { agentId, conversationId, messageText, timestamp, channelId, phoneNumberId, senderPhoneNumber, messageType, mediaId, mimeType } = incoming;
+  const { agentId, conversationId, messageText, timestamp, channelId, phoneNumberId, senderPhoneNumber, messageType, mediaId, mimeType, fileUrl } = incoming;
 
   log("INFO", "Iniciando procesamiento de consulta RAG vía NestJS Fargate", {
     agentId,
@@ -61,6 +61,7 @@ async function processRecord(record: SQSRecord): Promise<void> {
       messageType,
       mediaId,
       mimeType,
+      fileUrl,
     }),
   });
 

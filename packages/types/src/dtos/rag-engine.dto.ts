@@ -74,4 +74,8 @@ export class RagProcessInputDto implements RagProcessInput {
   @IsString()
   @IsOptional()
   mimeType?: string;
+
+  @IsString()
+  @IsOptional()
+  fileUrl?: string;
 }

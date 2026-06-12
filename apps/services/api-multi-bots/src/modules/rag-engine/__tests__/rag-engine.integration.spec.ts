@@ -163,6 +163,13 @@ describe('RagEngineModule Integration', () => {
             }),
           },
         },
+        {
+          provide: 'RAG_STORAGE',
+          useValue: {
+            uploadObject: async () => {},
+            getPublicUrl: (key: string) => `https://s3.amazonaws.com/bucket/${key}`,
+          },
+        },
       ],
     }).compile();
 
