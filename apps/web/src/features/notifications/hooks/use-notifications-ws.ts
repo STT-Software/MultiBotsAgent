@@ -72,9 +72,12 @@ export function useNotificationsWs() {
       socketRef.current = null;
     }
 
+    const isLocal = apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
+    const transports = isLocal ? ['polling', 'websocket'] : ['polling'];
+
     const socket = io(`${apiUrl}/notifications`, {
       query: { token },
-      transports: ['websocket'],
+      transports,
       autoConnect: false,
       reconnection: false, // Control manual
     });

@@ -49,9 +49,12 @@ export function useMetricasWs(): MetricasLiveState {
       socketRef.current = null;
     }
 
+    const isLocal = apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
+    const transports = isLocal ? ['polling', 'websocket'] : ['polling'];
+
     const socket = io(`${apiUrl}/metricas`, {
       query:       { token },
-      transports:  ['polling', 'websocket'],
+      transports,
       autoConnect: false,
       reconnection: false, // gestionamos reconexión manualmente con backoff
     });
