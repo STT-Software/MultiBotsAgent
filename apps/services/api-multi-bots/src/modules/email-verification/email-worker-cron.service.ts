@@ -22,6 +22,15 @@ export class EmailWorkerCronService {
   private readonly templateId: string;
   private readonly frontendDomain: string;
 
+  private readonly passwordResetTemplateId: string;
+  private readonly orderClientTemplateId: string;
+  private readonly orderOperatorTemplateId: string;
+  private readonly escalationAlertTemplateId: string;
+  private readonly newBookingAlertTemplateId: string;
+  private readonly bookingConfirmedTemplateId: string;
+  private readonly bookingRescheduledTemplateId: string;
+  private readonly bookingCancelledTemplateId: string;
+
   constructor(private readonly mongoClient: MongoClient) {
     const db = this.mongoClient.db();
     this.emailQueueRepository = new EmailQueueRepository(db);
@@ -31,6 +40,15 @@ export class EmailWorkerCronService {
     this.fromName = process.env.ELASTIC_EMAIL_FROM_NAME ?? 'MultiBotAgents';
     this.templateId = process.env.ELASTIC_EMAIL_TEMPLATE_ID ?? '';
     this.frontendDomain = process.env.FRONTEND_DOMAIN ?? 'http://localhost:3000';
+
+    this.passwordResetTemplateId = process.env.ELASTIC_EMAIL_PASSWORD_RESET_TEMPLATE_ID ?? '';
+    this.orderClientTemplateId = process.env.ELASTIC_EMAIL_ORDER_CLIENT_TEMPLATE_ID ?? '';
+    this.orderOperatorTemplateId = process.env.ELASTIC_EMAIL_ORDER_OPERATOR_TEMPLATE_ID ?? '';
+    this.escalationAlertTemplateId = process.env.ELASTIC_EMAIL_ESCALATION_ALERT_TEMPLATE_ID ?? '';
+    this.newBookingAlertTemplateId = process.env.ELASTIC_EMAIL_NEW_BOOKING_ALERT_TEMPLATE_ID ?? '';
+    this.bookingConfirmedTemplateId = process.env.ELASTIC_EMAIL_BOOKING_CONFIRMED_TEMPLATE_ID ?? '';
+    this.bookingRescheduledTemplateId = process.env.ELASTIC_EMAIL_BOOKING_RESCHEDULED_TEMPLATE_ID ?? '';
+    this.bookingCancelledTemplateId = process.env.ELASTIC_EMAIL_BOOKING_CANCELLED_TEMPLATE_ID ?? '';
   }
 
   @Interval(10_000)
@@ -165,7 +183,7 @@ export class EmailWorkerCronService {
         const resetLink = payload.resetLink as string;
         return {
           subject: 'Restablece tu contraseña - MultiBotAgents',
-          templateName: process.env.ELASTIC_EMAIL_PASSWORD_RESET_TEMPLATE_ID || 'MultibotAgents-password-recover',
+          templateName: this.passwordResetTemplateId || 'MultibotAgents-password-recover',
           merge: { username, resetLink: resetLink || '' },
         };
       }
@@ -176,7 +194,7 @@ export class EmailWorkerCronService {
         const itemsSummary = payload.itemsSummary as string || '';
         return {
           subject: 'Confirmación de tu pedido - MultiBotAgents',
-          templateName: process.env.ELASTIC_EMAIL_ORDER_CLIENT_TEMPLATE_ID || this.templateId,
+          templateName: this.orderClientTemplateId || this.templateId,
           merge: { username, orderId, total, itemsSummary },
         };
       }
@@ -189,7 +207,7 @@ export class EmailWorkerCronService {
         const itemsSummary = payload.itemsSummary as string || '';
         return {
           subject: '¡Nuevo pedido registrado! - MultiBotAgents',
-          templateName: process.env.ELASTIC_EMAIL_ORDER_OPERATOR_TEMPLATE_ID || this.templateId,
+          templateName: this.orderOperatorTemplateId || this.templateId,
           merge: { username, orderId, clientName, clientPhone, total, itemsSummary },
         };
       }
@@ -199,6 +217,14 @@ export class EmailWorkerCronService {
         const agentName = payload.agentName as string || 'Agente';
         const reason = payload.reason as string || '';
         const url = payload.url as string || '';
+
+        if (this.escalationAlertTemplateId) {
+          return {
+            subject: 'Alerta de Escalamiento - MultiBotAgents',
+            templateName: this.escalationAlertTemplateId,
+            merge: { username, agentName, conversationId, reason: reason || 'Solicitud de asesor humano', url },
+          };
+        }
 
         const htmlBody = this.getHtmlEmailTemplate(
           'Alerta de Escalamiento a Humano',
@@ -232,6 +258,14 @@ export class EmailWorkerCronService {
           hour12: true
         }) : '';
 
+        if (this.newBookingAlertTemplateId) {
+          return {
+            subject: 'Nueva Reserva Recibida - MultiBotAgents',
+            templateName: this.newBookingAlertTemplateId,
+            merge: { username, customerName, dateTime: formattedDate, agentName, url },
+          };
+        }
+
         const htmlBody = this.getHtmlEmailTemplate(
           'Nueva Reserva Recibida',
           `Hola <strong>${username}</strong>, tu asistente ha coordinado una nueva reserva en tu calendario.`,
@@ -263,6 +297,14 @@ export class EmailWorkerCronService {
           hour12: true
         }) : '';
 
+        if (this.bookingConfirmedTemplateId) {
+          return {
+            subject: 'Confirmación de tu Cita - MultiBotAgents',
+            templateName: this.bookingConfirmedTemplateId,
+            merge: { customerName, dateTime: formattedDate, agentName },
+          };
+        }
+
         const htmlBody = this.getHtmlEmailTemplate(
           '¡Tu Cita está Confirmada!',
           `Hola <strong>${customerName}</strong>, te confirmamos que tu cita ha sido agendada con éxito.`,
@@ -293,6 +335,14 @@ export class EmailWorkerCronService {
           hour12: true
         }) : '';
 
+        if (this.bookingRescheduledTemplateId) {
+          return {
+            subject: 'Reprogramación de tu Cita - MultiBotAgents',
+            templateName: this.bookingRescheduledTemplateId,
+            merge: { customerName, dateTime: formattedDate, agentName },
+          };
+        }
+
         const htmlBody = this.getHtmlEmailTemplate(
           'Tu Cita ha sido Reprogramada',
           `Hola <strong>${customerName}</strong>, te informamos que tu cita ha sido reprogramada con un nuevo horario.`,
@@ -322,6 +372,14 @@ export class EmailWorkerCronService {
           minute: '2-digit',
           hour12: true
         }) : '';
+
+        if (this.bookingCancelledTemplateId) {
+          return {
+            subject: 'Cancelación de tu Cita - MultiBotAgents',
+            templateName: this.bookingCancelledTemplateId,
+            merge: { customerName, dateTime: formattedDate, agentName },
+          };
+        }
 
         const htmlBody = this.getHtmlEmailTemplate(
           'Tu Cita ha sido Cancelada',
