@@ -31,7 +31,7 @@ export async function handler(event: SQSEvent): Promise<void> {
 
 async function processRecord(record: SQSRecord): Promise<void> {
   const incoming: TelegramIncomingMessageEvent = JSON.parse(record.body);
-  const { agentId, conversationId, messageText, timestamp, channelId } = incoming;
+  const { agentId, conversationId, messageText, timestamp, channelId, messageType, mediaId, mimeType, fileUrl } = incoming;
 
   log("INFO", "Iniciando procesamiento de consulta RAG vía NestJS Fargate", {
     agentId,
@@ -56,6 +56,11 @@ async function processRecord(record: SQSRecord): Promise<void> {
       conversationId,
       userMessage: messageText,
       timestamp,
+      channelId,
+      messageType,
+      mediaId,
+      mimeType,
+      fileUrl,
     }),
   });
 

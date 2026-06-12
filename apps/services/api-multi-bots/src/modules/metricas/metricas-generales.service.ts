@@ -64,4 +64,21 @@ export class MetricasGeneralesService {
 
     return dto;
   }
+
+  /**
+   * Obtiene los eventos más recientes de una empresa.
+   */
+  async getRecentEvents(companyId: string, limit = 10) {
+    const companyOid = new ObjectId(companyId);
+    const events = await this.repo.findRecent(companyOid, limit);
+    return events.map((e) => ({
+      id: e._id.toHexString(),
+      agentId: e.agentId,
+      agentType: e.agentType,
+      eventType: e.eventType,
+      timestamp: e.timestamp.toISOString(),
+      metadata: e.metadata,
+      createdAt: e.createdAt.toISOString(),
+    }));
+  }
 }

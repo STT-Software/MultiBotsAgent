@@ -41,3 +41,7 @@ export const encryptionKey = new sst.Secret("ENCRYPTION_KEY");
 export const googleClientId = new sst.Secret("GOOGLE_CLIENT_ID");
 export const googleClientSecret = new sst.Secret("GOOGLE_CLIENT_SECRET");
 export const googleRedirectUri = new sst.Secret("GOOGLE_REDIRECT_URI");
+
+// OpenAI
+export const openaiApiKey = new sst.Secret("OPENAI_API_KEY");
+

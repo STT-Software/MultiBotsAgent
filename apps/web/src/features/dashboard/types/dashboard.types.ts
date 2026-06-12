@@ -16,4 +16,14 @@ export interface AgentesSummary {
   total: number
   activos: number
   borradores: number
+  totalChangePct: number
+  activosPct: number
+  borradoresPct: number
+}
+export interface ActivityItem {
+  id: string
+  time: string
+  type: 'chat' | 'order' | 'escalate' | 'system'
+  message: string
+  agent: string
 }

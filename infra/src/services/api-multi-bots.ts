@@ -33,6 +33,7 @@ import {
   googleClientId,
   googleClientSecret,
   googleRedirectUri,
+  openaiApiKey,
 } from "../shared/secrets";
 
 /**
@@ -110,6 +111,7 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     GOOGLE_CLIENT_ID: googleClientId.value,
     GOOGLE_CLIENT_SECRET: googleClientSecret.value,
     GOOGLE_REDIRECT_URI: googleRedirectUri.value,
+    OPENAI_API_KEY: openaiApiKey.value,
     MONGODB_VECTOR_INDEX: "knowledge_vector_index",
     BEDROCK_MODEL_ID: "minimax.minimax-m2.5",
     WEBHOOK_URL: process.env.WEBHOOK_URL || "",

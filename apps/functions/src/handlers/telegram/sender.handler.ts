@@ -75,13 +75,19 @@ async function processRecord(record: SQSRecord): Promise<void> {
     throw new Error(`Error descifrando el token del bot: ${error instanceof Error ? error.message : String(error)}`);
   }
 
-  const chatId = conversationId.replace('telegram_', '');
+  const parts = conversationId.split('_');
+  const chatId = parts[parts.length - 1];
   const isNumericChatId = /^\d+$/.test(chatId);
   const isSimulated = !isNumericChatId || botToken.includes('fake') || botToken.includes('mock') || botToken === 'simulated-token';
 
   // 3. Enviar cada mensaje individual
   for (const msg of messages) {
-    if (msg.type !== "text" || !msg.content) {
+    if (!msg.content) {
+      log("WARN", "Mensaje sin contenido", { type: msg.type });
+      continue;
+    }
+
+    if (msg.type !== "text" && msg.type !== "image" && msg.type !== "document") {
       log("WARN", "Tipo de mensaje no soportado para envío a Telegram", { type: msg.type });
       continue;
     }
@@ -92,17 +98,37 @@ async function processRecord(record: SQSRecord): Promise<void> {
     let errorMessage: string | undefined;
 
     if (!isSimulated) {
-      const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+      let method = "sendMessage";
+      let bodyData: any;
+
+      if (msg.type === "text") {
+        method = "sendMessage";
+        bodyData = {
+          chat_id: parseInt(chatId, 10),
+          text: msg.content,
+        };
+      } else if (msg.type === "image") {
+        method = "sendPhoto";
+        bodyData = {
+          chat_id: parseInt(chatId, 10),
+          photo: msg.content,
+        };
+      } else if (msg.type === "document") {
+        method = "sendDocument";
+        bodyData = {
+          chat_id: parseInt(chatId, 10),
+          document: msg.content,
+        };
+      }
+
+      const url = `https://api.telegram.org/bot${botToken}/${method}`;
       try {
         const response = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            chat_id: parseInt(chatId, 10),
-            text: msg.content,
-          }),
+          body: JSON.stringify(bodyData),
         });
 
         interface TelegramResponse {

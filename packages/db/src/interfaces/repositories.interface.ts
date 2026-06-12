@@ -24,6 +24,8 @@ import type {
   MessageLog,
   Agent,
   Booking,
+  Order,
+  OrderStatus,
 } from '@multibotagents/types';
 import type { Repository } from './repository.interface';
 
@@ -359,6 +361,12 @@ export interface IMetricEventRepository {
     dateMetaField: string,
     since: Date,
   ): Promise<{ hour: number; count: number }[]>;
+
+  /** Obtiene los eventos más recientes de una empresa ordenados por timestamp desc. */
+  findRecent(
+    companyId: ObjectId,
+    limit: number,
+  ): Promise<MetricEventDocument[]>;
 }
 
 
@@ -382,4 +390,49 @@ export interface IBookingRepository extends Repository<Booking> {
   findByCustomerPhone(customerPhone: string): Promise<Booking[]>;
   findActiveByCustomerPhone(customerPhone: string): Promise<Booking[]>;
   findByDateRange(companyId: string, startDate: Date, endDate: Date): Promise<Booking[]>;
+}
+
+// ─── Audit Log (Auditoría Administrativa) ───────────────────────────────────
+
+import type { AuditLogDocument } from "../schemas/audit-log.schema";
+import type { AuditLogPayload } from "@multibotagents/types";
+
+export interface IAuditLogRepository {
+  create(payload: AuditLogPayload): Promise<AuditLogDocument>;
+  findPaginated(
+    companyId: string,
+    limit: number,
+    skip: number,
+  ): Promise<AuditLogDocument[]>;
+  countByCompany(companyId: string): Promise<number>;
+}
+
+
+// ─── Order (Pedidos) ─────────────────────────────────────────────────────────
+
+export interface CreateOrderData {
+  companyId: string;
+  agentId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  customerAddress: string;
+  items: {
+    nombre: string;
+    precioUnitario: number;
+    cantidad: number;
+    subtotal: number;
+  }[];
+  total: number;
+  status: OrderStatus;
+  notes?: string;
+}
+
+export interface IOrderRepository extends Repository<Order> {
+  findByCompanyId(companyId: string): Promise<Order[]>;
+  findByAgentId(agentId: string): Promise<Order[]>;
+  findByCustomerPhone(customerPhone: string): Promise<Order[]>;
+  findActiveByCustomerPhone(customerPhone: string): Promise<Order[]>;
+  createWithSession(data: CreateOrderData, session: ClientSession): Promise<Order>;
+  updateStatus(orderId: string, status: OrderStatus, session?: ClientSession): Promise<Order | null>;
 }

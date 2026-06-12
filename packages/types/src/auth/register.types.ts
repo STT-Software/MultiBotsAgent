@@ -61,6 +61,8 @@ export enum EmailTemplate {
   BOOKING_CONFIRMED = 'booking_confirmed',
   BOOKING_RESCHEDULED = 'booking_rescheduled',
   BOOKING_CANCELLED = 'booking_cancelled',
+  ORDER_CLIENT = 'order_client',
+  ORDER_OPERATOR = 'order_operator',
 }
 
 /** Estado de un item en la cola de email. */

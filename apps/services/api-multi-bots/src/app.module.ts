@@ -13,6 +13,8 @@ import { EscalamientoModule } from "./modules/escalamiento/escalamiento.module";
 import { AgentsModule } from "./modules/agents/agents.module";
 import { MetricasModule } from "./modules/metricas/metricas.module";
 import { BookingsModule } from "./modules/bookings/bookings.module";
+import { AuditModule } from "./modules/audit/audit.module";
+import { OrdersModule } from "./modules/orders/orders.module";
 import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-verified.guard";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 
@@ -32,6 +34,8 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
     MetricasModule,
     BookingsModule,
     NotificationsModule,
+    AuditModule,
+    OrdersModule,
   ],
   providers: [
     {

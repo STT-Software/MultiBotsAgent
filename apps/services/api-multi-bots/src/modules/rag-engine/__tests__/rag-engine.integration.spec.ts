@@ -153,6 +153,23 @@ describe('RagEngineModule Integration', () => {
           provide: 'ESCALATED_CONVERSATION_REPO',
           useValue: mockEscalatedRepo,
         },
+        {
+          provide: 'MONGO_CLIENT',
+          useValue: {
+            db: () => ({
+              collection: () => ({
+                findOne: async () => null,
+              }),
+            }),
+          },
+        },
+        {
+          provide: 'RAG_STORAGE',
+          useValue: {
+            uploadObject: async () => {},
+            getPublicUrl: (key: string) => `https://s3.amazonaws.com/bucket/${key}`,
+          },
+        },
       ],
     }).compile();
 

@@ -12,6 +12,10 @@ export interface TelegramIncomingMessageEvent {
   messageId: string;
   messageText: string;
   timestamp: string; // ISO 8601
+  messageType?: "text" | "audio" | "image";
+  mediaId?: string;
+  mimeType?: string;
+  fileUrl?: string;
 }
 
 /**

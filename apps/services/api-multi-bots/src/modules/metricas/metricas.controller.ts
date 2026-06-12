@@ -114,6 +114,26 @@ export class MetricasController {
   }
 
   /**
+   * GET /api/metricas/recientes?limit=10
+   *
+   * Retorna los eventos recientes de la empresa del usuario autenticado.
+   */
+  @Get('recientes')
+  @ApiOperation({
+    summary: 'Obtener eventos recientes de la empresa',
+    description:
+      'Retorna los últimos eventos registrados para la empresa del JWT.',
+  })
+  async getRecentEvents(
+    @Query('limit') limit: string = '10',
+    @Req() req: Request,
+  ) {
+    const { companyId } = (req as any).user;
+    const limitNum = parseInt(limit, 10) || 10;
+    return this.metricasGeneralesService.getRecentEvents(companyId, limitNum);
+  }
+
+  /**
    * GET /api/metricas/agente/:agentId?period=7d
    *
    * Retorna las métricas del agente específico identificado por agentId.

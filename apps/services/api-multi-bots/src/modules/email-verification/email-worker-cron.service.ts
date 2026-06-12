@@ -88,9 +88,10 @@ export class EmailWorkerCronService {
       });
     }
   }
-  /**
+
+  /**
    * Sends an email via Elastic Email API v4.
-   * Supports multiple templates: verification, password recovery, and direct HTML bodies.
+   * Supports multiple templates: verification, password recovery, orders, and direct HTML bodies.
    */
   private async sendEmail(item: EmailQueueItem): Promise<void> {
     if (!this.apiKey) {
@@ -166,6 +167,30 @@ export class EmailWorkerCronService {
           subject: 'Restablece tu contraseña - MultiBotAgents',
           templateName: process.env.ELASTIC_EMAIL_PASSWORD_RESET_TEMPLATE_ID || 'MultibotAgents-password-recover',
           merge: { username, resetLink: resetLink || '' },
+        };
+      }
+
+      case 'order_client': {
+        const orderId = payload.orderId as string || '';
+        const total = payload.total as string || '';
+        const itemsSummary = payload.itemsSummary as string || '';
+        return {
+          subject: 'Confirmación de tu pedido - MultiBotAgents',
+          templateName: process.env.ELASTIC_EMAIL_ORDER_CLIENT_TEMPLATE_ID || this.templateId,
+          merge: { username, orderId, total, itemsSummary },
+        };
+      }
+
+      case 'order_operator': {
+        const orderId = payload.orderId as string || '';
+        const clientName = payload.clientName as string || '';
+        const clientPhone = payload.clientPhone as string || '';
+        const total = payload.total as string || '';
+        const itemsSummary = payload.itemsSummary as string || '';
+        return {
+          subject: '¡Nuevo pedido registrado! - MultiBotAgents',
+          templateName: process.env.ELASTIC_EMAIL_ORDER_OPERATOR_TEMPLATE_ID || this.templateId,
+          merge: { username, orderId, clientName, clientPhone, total, itemsSummary },
         };
       }
 

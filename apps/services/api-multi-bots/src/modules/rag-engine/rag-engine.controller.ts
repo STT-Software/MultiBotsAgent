@@ -76,8 +76,13 @@ genera la respuesta con el LLM y la devuelve.
       return await this.ragEngineService.processQuery({
         agentId,
         conversationId: dto.conversationId,
-        userMessage: dto.userMessage,
+        userMessage: dto.userMessage || "",
         timestamp: dto.timestamp ? new Date(dto.timestamp) : new Date(),
+        channelId: dto.channelId,
+        messageType: dto.messageType as any,
+        mediaId: dto.mediaId,
+        mimeType: dto.mimeType,
+        fileUrl: dto.fileUrl,
       });
     } catch (error: unknown) {
       this.logger.error(`Error processing RAG query for agentId=${agentId}`, {

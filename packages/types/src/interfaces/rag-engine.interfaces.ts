@@ -18,7 +18,7 @@ import { ChatMessage } from "../memory/memory.types";
  */
 export interface LlmProvider {
   generate(prompt: LlmPrompt): Promise<LlmResponse>;
-  getModel?(): any;
+  getModel?(hasImage?: boolean): any;
 }
 
 /**
@@ -30,6 +30,11 @@ export interface LlmPrompt {
   history: HistoryMessage[];
   userMessage: string;
   maxResponseLength: number;
+  image?: {
+    base64: string;
+    mimeType: string;
+  };
+  language?: string;
 }
 
 /**
@@ -97,6 +102,8 @@ export interface HistoryMessage {
   role: MessageRole;
   content: string;
   timestamp: Date;
+  fileUrl?: string;
+  messageType?: 'text' | 'image' | 'file';
 }
 
 /**
@@ -107,6 +114,8 @@ export interface PersistMessage {
   content: string;
   timestamp: Date;
   metadata?: Record<string, unknown>;
+  fileUrl?: string;
+  messageType?: 'text' | 'image' | 'file';
 }
 
 // ─── Agent Config Provider ───────────────────────────────────────────────────

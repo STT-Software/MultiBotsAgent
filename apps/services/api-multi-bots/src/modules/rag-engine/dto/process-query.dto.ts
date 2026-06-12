@@ -13,10 +13,11 @@ export class ProcessQueryDto {
   @ApiProperty({
     description: "Mensaje enviado por el usuario para procesar con RAG",
     example: "Hola, ¿cuáles son los precios de los planes?",
+    required: false,
   })
-  @IsNotEmpty({ message: "userMessage es obligatorio" })
+  @IsOptional()
   @IsString({ message: "userMessage debe ser un string" })
-  userMessage!: string;
+  userMessage?: string;
 
   @ApiProperty({
     description: "Fecha y hora del mensaje original (opcional)",
@@ -26,4 +27,44 @@ export class ProcessQueryDto {
   @IsOptional()
   @IsString()
   timestamp?: string;
+
+  @ApiProperty({
+    description: "ID del canal (opcional)",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  channelId?: string;
+
+  @ApiProperty({
+    description: "Tipo de mensaje ('text' o 'audio') (opcional)",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  messageType?: string;
+
+  @ApiProperty({
+    description: "ID de media (opcional)",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  mediaId?: string;
+
+  @ApiProperty({
+    description: "MimeType del archivo de audio (opcional)",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  mimeType?: string;
+
+  @ApiProperty({
+    description: "URL del archivo subido a S3 (opcional)",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  fileUrl?: string;
 }

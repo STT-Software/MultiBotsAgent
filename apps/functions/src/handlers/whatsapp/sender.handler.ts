@@ -82,8 +82,12 @@ async function processRecord(record: SQSRecord): Promise<void> {
 
   // 3. Enviar cada mensaje individual
   for (const msg of messages) {
-    // Solo enviamos mensajes del tipo texto
-    if (msg.type !== "text" || !msg.content) {
+    if (!msg.content) {
+      log("WARN", "Mensaje sin contenido", { type: msg.type });
+      continue;
+    }
+
+    if (msg.type !== "text" && msg.type !== "image" && msg.type !== "document") {
       log("WARN", "Tipo de mensaje no soportado para envío a Meta", { type: msg.type });
       continue;
     }
@@ -94,6 +98,41 @@ async function processRecord(record: SQSRecord): Promise<void> {
     let errorMessage: string | undefined;
 
     const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
+    
+    let bodyData: any;
+    if (msg.type === "text") {
+      bodyData = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: recipientPhone,
+        type: "text",
+        text: {
+          preview_url: false,
+          body: msg.content,
+        },
+      };
+    } else if (msg.type === "image") {
+      bodyData = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: recipientPhone,
+        type: "image",
+        image: {
+          link: msg.content,
+        },
+      };
+    } else if (msg.type === "document") {
+      bodyData = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: recipientPhone,
+        type: "document",
+        document: {
+          link: msg.content,
+        },
+      };
+    }
+
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -101,16 +140,7 @@ async function processRecord(record: SQSRecord): Promise<void> {
           "Authorization": `Bearer ${businessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: recipientPhone,
-          type: "text",
-          text: {
-            preview_url: false,
-            body: msg.content,
-          },
-        }),
+        body: JSON.stringify(bodyData),
       });
 
       interface MetaResponse {

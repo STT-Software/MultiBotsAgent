@@ -1,9 +1,11 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { MongoClient } from "mongodb";
-import { validateMetaSignature } from "@multibotagents/core";
+import { validateMetaSignature, decryptToken } from "@multibotagents/core";
 import { ChannelRepository, ProcessedMessageRepository } from "@multibotagents/db";
 import type { IncomingMessageEvent } from "@multibotagents/types";
+import { randomUUID } from "crypto";
 
 // --- Logger estructurado ---
 function log(level: "INFO" | "ERROR" | "WARN", message: string, data?: Record<string, unknown>) {
@@ -87,12 +89,27 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
         for (const message of value.messages) {
           const waMessageId = message.id;
 
-          // Ignorar mensajes que no sean del tipo texto
-          if (message.type !== "text" || !message.text?.body) {
-            log("INFO", "Mensaje ignorado (tipo no soportado o cuerpo vacío)", {
+          // Permitir mensajes del tipo texto, audio o imagen
+          if (message.type !== "text" && message.type !== "audio" && message.type !== "image") {
+            log("INFO", "Mensaje ignorado (tipo no soportado)", {
               waMessageId,
               type: message.type,
             });
+            continue;
+          }
+
+          if (message.type === "text" && !message.text?.body) {
+            log("INFO", "Mensaje de texto ignorado por cuerpo vacío", { waMessageId });
+            continue;
+          }
+
+          if (message.type === "audio" && !message.audio?.id) {
+            log("INFO", "Mensaje de audio ignorado por falta de media id", { waMessageId });
+            continue;
+          }
+
+          if (message.type === "image" && !message.image?.id) {
+            log("INFO", "Mensaje de imagen ignorado por falta de media id", { waMessageId });
             continue;
           }
 
@@ -111,8 +128,38 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
           });
 
           const senderPhoneNumber = message.from;
-          const messageText = message.text.body;
+          const isAudio = message.type === "audio";
+          const isImage = message.type === "image";
+          const messageText = isImage
+            ? (message.image?.caption || "")
+            : (isAudio ? "" : message.text?.body || "");
           const timestamp = message.timestamp; // Unix timestamp en segundos
+
+          let fileUrl: string | undefined = undefined;
+          if ((isAudio || isImage) && (message.audio?.id || message.image?.id)) {
+            const mediaId = isAudio ? message.audio.id : message.image.id;
+            const mimeType = isAudio ? message.audio.mime_type : message.image.mime_type;
+            const encryptionKey = process.env.ENCRYPTION_KEY;
+            if (encryptionKey && channel.encryptedToken) {
+              try {
+                const accessToken = decryptToken(channel.encryptedToken as any, encryptionKey);
+                fileUrl = await downloadAndUploadWhatsAppMedia(
+                  mediaId,
+                  accessToken,
+                  channel.companyId.toString(),
+                  `whatsapp_${senderPhoneNumber}`,
+                  isAudio ? "audio" : "image",
+                  mimeType || (isAudio ? "audio/ogg" : "image/jpeg"),
+                );
+              } catch (err) {
+                log("ERROR", "Error descifrando token para descargar multimedia", {
+                  error: err instanceof Error ? err.message : String(err),
+                });
+              }
+            } else {
+              log("WARN", "No se pudo obtener access token o ENCRYPTION_KEY para descargar multimedia");
+            }
+          }
 
           // Construir el evento de entrada para la cola
           const eventPayload: IncomingMessageEvent = {
@@ -121,10 +168,14 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
             channelId: channel.id,
             conversationId: `whatsapp_${senderPhoneNumber}`,
             senderPhoneNumber,
-            phoneNumberId: channel.phoneNumberId || "",
+            phoneNumberId: channel.phoneNumberId || phone_number_id,
             messageId: waMessageId,
             messageText,
             timestamp: new Date(parseInt(timestamp, 10) * 1000).toISOString(),
+            messageType: isAudio ? "audio" : (isImage ? "image" : "text"),
+            mediaId: isAudio ? message.audio.id : (isImage ? message.image.id : undefined),
+            mimeType: isAudio ? message.audio.mime_type : (isImage ? message.image.mime_type : undefined),
+            fileUrl,
           };
 
           // 3. Encolar el evento en SQS
@@ -164,5 +215,73 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Internal server error" }),
     };
+  }
+}
+
+async function downloadAndUploadWhatsAppMedia(
+  mediaId: string,
+  accessToken: string,
+  companyId: string,
+  conversationId: string,
+  messageType: "audio" | "image",
+  mimeType: string,
+): Promise<string | undefined> {
+  try {
+    log("INFO", `Downloading media from Meta for mediaId=${mediaId}...`);
+    const mediaUrlResponse = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!mediaUrlResponse.ok) {
+      const errText = await mediaUrlResponse.text();
+      log("ERROR", `Failed to get media URL from Meta: ${errText}`);
+      return undefined;
+    }
+    const mediaData = await mediaUrlResponse.json() as { url: string; mime_type?: string };
+    if (!mediaData.url) {
+      log("ERROR", `Meta media metadata did not return a URL: ${JSON.stringify(mediaData)}`);
+      return undefined;
+    }
+    const resolvedMimeType = mediaData.mime_type || mimeType;
+
+    const mediaDownloadResponse = await fetch(mediaData.url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!mediaDownloadResponse.ok) {
+      const errText = await mediaDownloadResponse.text();
+      log("ERROR", `Failed to download media binary from Meta: ${errText}`);
+      return undefined;
+    }
+    const buffer = Buffer.from(await mediaDownloadResponse.arrayBuffer());
+
+    const bucket = process.env.COMPANY_LOGOS_BUCKET;
+    const region = process.env.COMPANY_LOGOS_REGION || "us-east-1";
+    if (!bucket) {
+      log("ERROR", "COMPANY_LOGOS_BUCKET environment variable is not defined");
+      return undefined;
+    }
+
+    const s3Client = new S3Client({ region });
+    const uuid = randomUUID();
+    const ext = messageType === "audio"
+      ? (resolvedMimeType.includes("ogg") ? "ogg" : "mp3")
+      : (resolvedMimeType.includes("png") ? "png" : "jpg");
+    const key = `escalamiento/${companyId}/${conversationId}/${uuid}-${mediaId}.${ext}`;
+
+    log("INFO", `Uploading WhatsApp media to S3 with key: ${key}`);
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: resolvedMimeType,
+      }),
+    );
+
+    const fileUrl = `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+    log("INFO", `WhatsApp media uploaded successfully to S3: ${fileUrl}`);
+    return fileUrl;
+  } catch (err) {
+    log("ERROR", `Error downloading or uploading WhatsApp media: ${err instanceof Error ? err.message : String(err)}`);
+    return undefined;
   }
 }

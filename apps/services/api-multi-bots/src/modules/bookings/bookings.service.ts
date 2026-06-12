@@ -153,7 +153,7 @@ export class BookingsService {
     // 3. Generar slots de disponibilidad comercial
     // Lunes a Viernes: 9:00 AM - 6:00 PM (18:00). Sábado: 9:00 AM - 1:00 PM (13:00). Domingo: Cerrado.
     const dayOfWeek = startOfDay.getDay(); // 0 = Domingo, 6 = Sábado, 1-5 = Lunes-Viernes
-    let startHour = 9;
+    const startHour = 9;
     let endHour = 18;
 
     if (dayOfWeek === 0) {

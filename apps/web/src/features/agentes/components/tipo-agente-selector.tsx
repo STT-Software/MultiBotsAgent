@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Calendar } from "lucide-react";
+import { BookOpen, Calendar, ShoppingBag } from "lucide-react";
 import { TipoAgenteOption } from "../types/agentes.types";
 import { motion } from "motion/react";
 
@@ -16,6 +16,11 @@ const TIPO_COLORS: Record<string, { icon: string; bg: string; border: string }> 
     bg: "rgba(179, 102, 255, 0.1)",
     border: "rgba(179, 102, 255, 0.2)",
   },
+  ShoppingBag: {
+    icon: "#f59e0b",      // ámbar
+    bg: "rgba(245, 158, 11, 0.1)",
+    border: "rgba(245, 158, 11, 0.2)",
+  },
 };
 
 const TIPOS_AGENTE: TipoAgenteOption[] = [
@@ -24,6 +29,12 @@ const TIPOS_AGENTE: TipoAgenteOption[] = [
     label: "RAG",
     description: "Respuestas inteligentes basadas en tus documentos y base de conocimiento.",
     icon: "BookOpen",
+  },
+  {
+    value: "cotizador",
+    label: "Cotizador",
+    description: "Consultar catálogo, armar cotizaciones y gestionar pedidos en tiempo real.",
+    icon: "ShoppingBag",
   },
   {
     value: "agendamiento",
@@ -36,6 +47,7 @@ const TIPOS_AGENTE: TipoAgenteOption[] = [
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
   BookOpen,
   Calendar,
+  ShoppingBag,
 };
 
 interface TipoAgenteSelectorProps {
@@ -50,7 +62,7 @@ export function TipoAgenteSelector({ value, onChange, error }: TipoAgenteSelecto
       <div
         role="radiogroup"
         aria-label="Tipo de agente"
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
       >
         {TIPOS_AGENTE.map((option) => {
           const Icon = ICON_MAP[option.icon];
