@@ -1,5 +1,37 @@
 # Propuesta de Estrategia de QA y Automatización — MultiBotAgents
 
+## Introducción
+
+### ¿De qué trata este documento?
+
+MultiBotAgents es una plataforma que permite a empresas configurar y desplegar agentes de inteligencia artificial (RAG, cotizador, agendamiento) sobre canales de mensajería como WhatsApp. Este documento propone una **estrategia de aseguramiento de calidad (QA) y automatización de pruebas** para el proyecto.
+
+### ¿Qué problema resuelve?
+
+Hoy el proyecto tiene ~50 tests automatizados y 25 reportes de QA manual de excelente calidad, pero tiene tres problemas críticos:
+
+1. **El pipeline de integración continua (CI) está roto** — las verificaciones automáticas nunca se ejecutan porque el archivo de configuración referencia un backend que ya no existe
+2. **No hay tests que verifiquen las APIs del backend de verdad** — si alguien rompe el login o el CRUD de agentes, nadie se entera hasta que un humano lo prueba manualmente
+3. **Los bugs corregidos pueden volver a aparecer** — no hay nada que "vigile" automáticamente que un bug ya corregido no se reintroduzca
+
+### ¿Para quién es este documento?
+
+Para el equipo de desarrollo y liderazgo técnico de MultiBotAgents. No se asume conocimiento previo de las herramientas de testing — cada concepto técnico se explica la primera vez que aparece.
+
+### Guía de lectura
+
+| Sección | ¿Qué encontrará? |
+|---|---|
+| **1. Situación actual** | Qué herramientas de QA ya tenemos funcionando en el proyecto y qué está roto o falta |
+| **2. Tipos de pruebas** | Explicación detallada de cada tipo de prueba: qué es, cómo funciona paso a paso, qué herramientas intervienen, cómo interactúan entre sí, y cómo se integra todo en un flujo único con el QA manual |
+| **3. Herramientas** | Lista completa de herramientas: cuáles ya están instaladas, cuáles hay que agregar, y para qué sirve cada una |
+| **4. Mapa de cobertura** | Tabla que cruza las 15 soluciones del Solution Map de la iniciativa con cada tipo de prueba, mostrando qué ya existe, qué falta, y en qué orden se implementa |
+| **5. Pruebas manuales** | Qué tipos de pruebas nunca se automatizan y por qué el QA manual sigue siendo esencial |
+| **6. Plan de implementación** | Fases concretas con semanas, qué se hace en cada una, qué se instala, y qué gana el equipo |
+| **7. Resumen ejecutivo** | Tabla resumen para toma de decisiones: herramientas, costos y beneficios por fase |
+
+---
+
 ## 1. Situación actual
 
 ### Lo que YA tenemos funcionando
