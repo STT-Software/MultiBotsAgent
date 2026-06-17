@@ -15,6 +15,7 @@ import { mongoDbUri } from "../databases/mongodb";
 import { metaAppSecret, encryptionKey } from "../shared/secrets";
 import { whatsAppIncomingQueue, whatsAppOutgoingQueue } from "../queues/whatsapp-queues";
 import { servicesApiUrl } from "./services-api";
+import { companyLogosBucket } from "../storage/company-logos";
 
 // --- Secret ---
 
@@ -45,11 +46,18 @@ const receiveWebhookHandler = {
     MONGODB_URI: mongoDbUri.value,
     META_APP_SECRET: metaAppSecret.value,
     WHATSAPP_INCOMING_QUEUE_URL: whatsAppIncomingQueue.url,
+    COMPANY_LOGOS_BUCKET: companyLogosBucket.name,
+    COMPANY_LOGOS_REGION: "us-east-1",
+    ENCRYPTION_KEY: encryptionKey.value,
   },
   permissions: [
     {
       actions: ["sqs:SendMessage"],
       resources: [whatsAppIncomingQueue.arn],
+    },
+    {
+      actions: ["s3:PutObject", "s3:PutObjectAcl", "s3:GetObject"],
+      resources: [$interpolate`arn:aws:s3:::${companyLogosBucket.name}/*`],
     },
   ],
 };

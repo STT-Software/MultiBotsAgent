@@ -1,0 +1,1 @@
+export { HistorialContainer } from "./HistorialContainer";

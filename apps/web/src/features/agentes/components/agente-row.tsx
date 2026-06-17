@@ -46,7 +46,7 @@ export function AgenteRow({ agente, onEliminar }: AgenteRowProps) {
             className="text-[11px]"
             style={{ color: "#869489", fontFamily: "JetBrains Mono, monospace" }}
           >
-            ID: {agente.codigoId}
+            ID: {agente.codigoId || agente.id}
           </span>
         </div>
       </div>

@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reporte Premortem - Motor de Agente de Agendamiento (SOL-04)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0f172a; /* Slate 900 */
+      color: #f1f5f9; /* Slate 100 */
+    }
+  </style>
+</head>
+<body class="font-sans antialiased min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <header class="text-center mb-12">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+        </svg>
+        Análisis de Simulación de Fallo
+      </div>
+      <h1 class="font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-white mb-3">
+        Reporte Premortem
+      </h1>
+      <p class="text-xl text-slate-400 max-w-3xl mx-auto">
+        Simulación: "Estamos en diciembre de 2026. El Motor de Agendamiento de Citas (SOL-04) ha fallado por completo en producción. Analizamos las causas desde el futuro para blindar el presente."
+      </p>
+      <div class="mt-6 text-sm text-slate-500">
+        Fecha de simulación: 2026-06-02 &bull; Huso de ejecución: UTC
+      </div>
+    </header>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      <!-- Left Column: Synthesis (Takes 1 Col on LG, 3 on SM) -->
+      <div class="lg:col-span-1 space-y-6">
+        <!-- Card 1: El Fallo Más Probable -->
+        <div class="bg-slate-800/60 backdrop-blur border border-slate-700/60 p-6 rounded-2xl">
+          <h3 class="font-display text-lg font-bold text-amber-400 mb-2">
+            El Fallo Más Probable
+          </h3>
+          <p class="text-slate-300 text-sm leading-relaxed">
+            <strong>Expiración silenciosa de Refresh Tokens</strong> combinado con la <strong>ausencia de Webhooks de Google</strong>. Son problemas garantizados al cabo de una semana si no se implementa una renovación automatizada proactiva o si el comercio edita su agenda de forma externa.
+          </p>
+        </div>
+
+        <!-- Card 2: El Fallo Más Peligroso -->
+        <div class="bg-slate-800/60 backdrop-blur border border-slate-700/60 p-6 rounded-2xl">
+          <h3 class="font-display text-lg font-bold text-rose-500 mb-2">
+            El Fallo Más Peligroso
+          </h3>
+          <p class="text-slate-300 text-sm leading-relaxed">
+            <strong>Desincronización de Disponibilidad (Overbooking).</strong> Si el bot reserva citas encima de compromisos preexistentes o personales del comerciante, destruye de inmediato la confianza del negocio en la plataforma, gatillando cancelaciones masivas de suscripción.
+          </p>
+        </div>
+
+        <!-- Card 3: El Supuesto Oculto -->
+        <div class="bg-slate-800/60 backdrop-blur border border-slate-700/60 p-6 rounded-2xl">
+          <h3 class="font-display text-lg font-bold text-purple-400 mb-2">
+            El Supuesto Oculto
+          </h3>
+          <p class="text-slate-300 text-sm leading-relaxed">
+            Asumir que las empresas utilizarán exclusivamente nuestro bot para mover su agenda y que las llamadas directas en tiempo real a la API de Google soportarán la escala de múltiples conversaciones concurrentes por WhatsApp.
+          </p>
+        </div>
+
+        <!-- Card 4: Checklist Pre-Lanzamiento -->
+        <div class="bg-slate-800/90 border border-slate-700 p-6 rounded-2xl">
+          <h3 class="font-display text-lg font-bold text-teal-400 mb-4 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M6.267 3.455a.75.75 0 00-.708.522L4.05 9.052a.75.75 0 00.327.872l3.75 2.25a.75.75 0 00.802 0l3.75-2.25a.75.75 0 00.327-.872l-1.509-5.075a.75.75 0 00-.708-.522H6.267zm2.406 3.03a.75.75 0 111.06 1.06L8.56 8.78a.75.75 0 01-1.06 0L6.44 7.72a.75.75 0 111.06-1.06l.53.53.7-.7z" clip-rule="evenodd" />
+            </svg>
+            Checklist Pre-Lanzamiento
+          </h3>
+          <ul class="space-y-3 text-sm text-slate-300">
+            <li class="flex items-start gap-2">
+              <input type="checkbox" disabled class="mt-1 accent-teal-500 rounded">
+              <span><strong>Timezone:</strong> Validar conversión a huso horario configurado del agente en el prompt y calendarios.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" disabled class="mt-1 accent-teal-500 rounded">
+              <span><strong>Consola Google OAuth:</strong> Pasar de Testing a Producción para evitar expiración del Refresh Token a los 7 días.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" disabled class="mt-1 accent-teal-500 rounded">
+              <span><strong>Manejo de API Error:</strong> Si Google Calendar falla, abortar la creación del Booking local y derivar el chat a un asesor.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" disabled class="mt-1 accent-teal-500 rounded">
+              <span><strong>Doble Confirmación:</strong> Testear que el bot envíe siempre un mensaje final estructurado solicitando la confirmación de fecha/hora antes de guardar.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Right Column: Failure Cards and Revised Plan (Takes 2 Cols on LG, 3 on SM) -->
+      <div class="lg:col-span-2 space-y-8">
+        
+        <!-- Section: Razones del Fallo (Tarjetas) -->
+        <div>
+          <h2 class="font-display text-2xl font-bold text-white mb-6 flex items-center gap-2">
+            <span class="w-2 h-6 bg-red-500 rounded-full"></span>
+            ¿Cómo falló la solución? (Análisis Profundo)
+          </h2>
+
+          <div class="space-y-6">
+            
+            <!-- Razón 1 -->
+            <div class="bg-slate-800/40 border border-slate-700/80 p-6 rounded-2xl hover:border-slate-600 transition-colors">
+              <div class="flex justify-between items-start gap-4 mb-3">
+                <span class="px-2.5 py-0.5 rounded text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
+                  Desincronización Externa
+                </span>
+                <span class="text-xs text-slate-500 font-mono">01 / RAG-COLLISION</span>
+              </div>
+              <h3 class="font-display text-xl font-bold text-white mb-3">
+                Cambios manuales externos no rastreados en Google Calendar
+              </h3>
+              <div class="space-y-4 text-sm text-slate-300">
+                <p>
+                  <strong>La Historia del Fallo:</strong> Los comercios reajustaron sus agendas y movieron citas directamente desde la app móvil de Google Calendar. Como no implementamos webhooks en tiempo real para el MVP, el bot seguía considerando esos slots libres y agendaba clientes de WhatsApp sobre horas ya bloqueadas.
+                </p>
+                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                  <p class="text-xs text-slate-400"><strong>Supuesto Subyacente:</strong> El comercio solo modificaría la agenda desde nuestra plataforma, o los conflictos manuales serían despreciables.</p>
+                </div>
+                <div class="text-xs text-amber-400/90 flex gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span><strong>Señales de Alerta Temprana:</strong> Quejas sobre reservas encabalgadas y discrepancias numéricas entre MongoDB y Google Calendar.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Razón 2 -->
+            <div class="bg-slate-800/40 border border-slate-700/80 p-6 rounded-2xl hover:border-slate-600 transition-colors">
+              <div class="flex justify-between items-start gap-4 mb-3">
+                <span class="px-2.5 py-0.5 rounded text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
+                  Rate Limits &amp; Cuotas
+                </span>
+                <span class="text-xs text-slate-500 font-mono">02 / API-THROTTLING</span>
+              </div>
+              <h3 class="font-display text-xl font-bold text-white mb-3">
+                Estrangulamiento de la cuota de la API de Google Calendar
+              </h3>
+              <div class="space-y-4 text-sm text-slate-300">
+                <p>
+                  <strong>La Historia del Fallo:</strong> Al crecer la cantidad de usuarios concurrentes en WhatsApp, la consulta de slots libres en cada turno del chat saturó las llamadas a la API de Google. Google respondió con errores HTTP 429, interrumpiendo el flujo del LLM que optó por alucinar la disponibilidad o colgarse.
+                </p>
+                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                  <p class="text-xs text-slate-400"><strong>Supuesto Subyacente:</strong> Las cuotas de la API de Google Calendar soportarían consultas repetidas y consecutivas en tiempo real dentro del chat.</p>
+                </div>
+                <div class="text-xs text-amber-400/90 flex gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span><strong>Señales de Alerta Temprana:</strong> Incremento súbito de errores HTTP 429 y picos de latencia en el procesamiento de respuestas.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Razón 3 -->
+            <div class="bg-slate-800/40 border border-slate-700/80 p-6 rounded-2xl hover:border-slate-600 transition-colors">
+              <div class="flex justify-between items-start gap-4 mb-3">
+                <span class="px-2.5 py-0.5 rounded text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
+                  Timezones
+                </span>
+                <span class="text-xs text-slate-500 font-mono">03 / TIME-MISMATCH</span>
+              </div>
+              <h3 class="font-display text-xl font-bold text-white mb-3">
+                Desalineación horaria caótica entre cliente y servidor
+              </h3>
+              <div class="space-y-4 text-sm text-slate-300">
+                <p>
+                  <strong>La Historia del Fallo:</strong> Al carecer de un huso horario explícito por agente, la aplicación calculaba la fecha/hora en UTC o en el huso horario por defecto del servidor. Clientes agendaron citas que se desplazaban entre 1 y 3 horas en la agenda real del comercio, causando inasistencias.
+                </p>
+                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                  <p class="text-xs text-slate-400"><strong>Supuesto Subyacente:</strong> El manejo implícito de UTC en base de datos y la hora local del navegador/servidor no chocarían al programar citas locales.</p>
+                </div>
+                <div class="text-xs text-amber-400/90 flex gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span><strong>Señales de Alerta Temprana:</strong> Clientes quejándose de recordatorios con horas incorrectas y registros dispares en el campo `dateTime` de MongoDB.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Razón 4 -->
+            <div class="bg-slate-800/40 border border-slate-700/80 p-6 rounded-2xl hover:border-slate-600 transition-colors">
+              <div class="flex justify-between items-start gap-4 mb-3">
+                <span class="px-2.5 py-0.5 rounded text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
+                  LLM Alucinaciones
+                </span>
+                <span class="text-xs text-slate-500 font-mono">04 / INTENT-ERROR</span>
+              </div>
+              <h3 class="font-display text-xl font-bold text-white mb-3">
+                Fechas incorrectas interpretadas por el LLM sin confirmación explícita
+              </h3>
+              <div class="space-y-4 text-sm text-slate-300">
+                <p>
+                  <strong>La Historia del Fallo:</strong> Expresiones como "el próximo lunes" dichas un domingo confundieron al LLM, que agendaba la cita en la semana equivocada. El sistema insertaba la reserva de forma inmediata tras el primer cálculo, sin pedir confirmación explícita de los datos calculados.
+                </p>
+                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                  <p class="text-xs text-slate-400"><strong>Supuesto Subyacente:</strong> La interpretación de fechas en lenguaje natural sería infalible al inyectar el timestamp del sistema en el System Prompt.</p>
+                </div>
+                <div class="text-xs text-amber-400/90 flex gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span><strong>Señales de Alerta Temprana:</strong> Intentos de corrección inmediata de los usuarios en los chats y citas fantasmas creadas en el pasado.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Razón 5 -->
+            <div class="bg-slate-800/40 border border-slate-700/80 p-6 rounded-2xl hover:border-slate-600 transition-colors">
+              <div class="flex justify-between items-start gap-4 mb-3">
+                <span class="px-2.5 py-0.5 rounded text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
+                  Integraciones / OAuth
+                </span>
+                <span class="text-xs text-slate-500 font-mono">05 / AUTH-REVOCATION</span>
+              </div>
+              <h3 class="font-display text-xl font-bold text-white mb-3">
+                Expiración y desconexión silenciosa del Refresh Token de Google
+              </h3>
+              <div class="space-y-4 text-sm text-slate-300">
+                <p>
+                  <strong>La Historia del Fallo:</strong> Los tokens expiran cada 60 minutos, y la renovación automática con refresh tokens falló tras vencer a los 7 días (por modo Testing en la consola). Las reservas se creaban localmente en MongoDB pero no en Google Calendar, confirmando falsamente citas a los clientes mientras la agenda real del local estaba vacía.
+                </p>
+                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                  <p class="text-xs text-slate-400"><strong>Supuesto Subyacente:</strong> La vinculación de OAuth duraría de forma indefinida y no requeriría validaciones activas diarias del estado de los tokens.</p>
+                </div>
+                <div class="text-xs text-amber-400/90 flex gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span><strong>Señales de Alerta Temprana:</strong> Errores `invalid_grant` constantes en los logs y citas en base de datos sin ID de Google equivalente en el calendario.</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Section: Plan de Acción Revisado -->
+        <div class="bg-slate-800/80 border border-slate-700 p-8 rounded-2xl">
+          <h2 class="font-display text-2xl font-bold text-teal-400 mb-6 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Plan Revisado y Mitigaciones Implementadas
+          </h2>
+
+          <div class="space-y-6 text-sm text-slate-300">
+            <div>
+              <h4 class="font-semibold text-white mb-2">1. Caché de Disponibilidad con Validación Optimista</h4>
+              <p>Las consultas frecuentes en los chats leerán la disponibilidad desde una caché con TTL de 2 minutos para evitar la saturación de cuota de la API de Google. Solo al momento de ejecutar la herramienta `book_appointment` se consultará y bloqueará en tiempo real contra Google Calendar mediante un bloqueo atómico.</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-white mb-2">2. Confirmación en Dos Pasos Conversacional</h4>
+              <p>Se rediseñó la lógica conversacional del agente para exigir que el bot confirme de forma explícita la fecha, hora y detalles en un formato numérico y estructurado (ej. <em>"Cita confirmada para el Martes 9 de Junio a las 3:00 PM. ¿Es correcto?"</em>) antes de ejecutar el Tool Call de inserción en el calendario.</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-white mb-2">3. Health Check Diario de OAuth y Desconexión Preventiva</h4>
+              <p>Un servicio en segundo plano (cron job) intentará refrescar silenciosamente los tokens de todos los agentes conectados una vez al día. Si un token falla, se marcará la integración como `disconnected` en MongoDB, alertando preventivamente al operador del comercio en el panel administrativo y suspendiendo temporalmente el agendamiento del bot para evitar la confirmación de citas falsas.</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-white mb-2">4. Huso Horario Obligatorio (Timezone) por Agente</h4>
+              <p>Se añade la propiedad obligatoria `timezone` a los esquemas de configuración de cada agente. Toda conversión y validación de slots en Google Calendar cruzará la fecha con el huso horario local de la empresa, evitando desfases por diferencia de servidores.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

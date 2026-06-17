@@ -10,6 +10,7 @@
 
 import { vpc } from "../networking/vpc";
 import { apiMultiBots } from "../services/api-multi-bots";
+import { frontendDomain } from "../shared/secrets";
 
 /**
  * URL pública de la API de servicios.
@@ -21,9 +22,16 @@ export let servicesApiUrl: string = "http://localhost:3001";
 if (!$dev) {
   const servicesApi = new sst.aws.ApiGatewayV2("ServicesApi", {
     vpc,
+    cors: {
+      allowOrigins: [frontendDomain.value],
+      allowCredentials: true,
+      allowHeaders: ["content-type", "authorization", "cookie"],
+      allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    },
   });
 
   servicesApi.routePrivate("$default", apiMultiBots.nodes.cloudmapService.arn);
 
   servicesApiUrl = servicesApi.url;
 }
+

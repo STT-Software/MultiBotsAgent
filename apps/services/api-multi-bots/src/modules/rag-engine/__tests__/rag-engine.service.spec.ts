@@ -84,6 +84,7 @@ interface MockDeps {
   memoryService: MemoryService;
   agentConfigProvider: AgentConfigProvider;
   escalatedRepo: any;
+  storageService?: any;
 }
 
 function createMockDependencies(overrides?: Partial<MockDeps>): MockDeps {
@@ -130,12 +131,18 @@ function createMockDependencies(overrides?: Partial<MockDeps>): MockDeps {
     addMessage: async () => {},
   };
 
+  const mockStorageService = {
+    uploadObject: async () => {},
+    getPublicUrl: (key: string) => `https://s3.amazonaws.com/bucket/${key}`,
+  };
+
   return {
     llmProvider: overrides?.llmProvider ?? mockLlmProvider,
     vectorSearch: overrides?.vectorSearch ?? mockVectorSearch,
     memoryService: overrides?.memoryService ?? mockMemoryService,
     agentConfigProvider: overrides?.agentConfigProvider ?? mockAgentConfigProvider,
     escalatedRepo: overrides?.escalatedRepo ?? mockEscalatedRepo,
+    storageService: overrides?.storageService ?? mockStorageService,
   };
 }
 
@@ -144,6 +151,28 @@ function createService(deps: MockDeps): RagEngineService {
   const promptBuilder = new PromptBuilderService();
   const reRankingService = new ReRankingService(deps.llmProvider);
   const responseFormatter = new ResponseFormatterService();
+  const mockBookingsService = {
+    checkAvailability: async () => [],
+    createBooking: async () => ({}),
+  } as any;
+  const mockEventEmitter = { emit: () => {} } as any;
+  const mockNotificationsService = {
+    notificarEscalamiento: async () => {},
+  } as any;
+
+  const mockOrdersService = {
+    createOrder: async () => ({}),
+    getOrder: async () => ({}),
+    cancelOrder: async () => ({}),
+  } as any;
+
+  const mockMongoClient = {
+    db: () => ({
+      collection: () => ({
+        findOne: async () => null,
+      }),
+    }),
+  } as any;
 
   return new RagEngineService(
     deps.llmProvider,
@@ -154,6 +183,12 @@ function createService(deps: MockDeps): RagEngineService {
     reRankingService,
     responseFormatter,
     deps.escalatedRepo,
+    mockMongoClient,
+    deps.storageService,
+    mockEventEmitter,
+    mockBookingsService,
+    mockNotificationsService,
+    mockOrdersService,
   );
 }
 

@@ -50,6 +50,7 @@ export function InboxView() {
     setToast("Conversación resuelta. El control fue devuelto al agente.");
     setSelectedId(null);
     refresh();
+    window.dispatchEvent(new Event("inbox-updated"));
   }, [refresh]);
 
   const resolve = useResolveConversation(selectedId, handleResolved);
@@ -115,7 +116,7 @@ export function InboxView() {
   const isResolved = conversation?.status === "resolved";
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-[calc(100vh-48px)] relative overflow-hidden">
       {/* Resumen de eventos */}
       <InboxEventsSummary />
 

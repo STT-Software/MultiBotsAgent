@@ -34,12 +34,26 @@ export function buildSystemPrompt(personality: PersonalityConfig, language: stri
     sections.push(`Instrucciones: ${personality.instructions}`);
   }
 
-  sections.push(`Idioma de respuesta: ${language}.`);
+  const code = language.trim().toLowerCase();
+  let languageName = language;
+  if (code === 'es') {
+    languageName = 'español';
+  } else if (code === 'en') {
+    languageName = 'inglés';
+  } else if (code === 'pt') {
+    languageName = 'portugués';
+  }
+
+  sections.push(`Idioma de respuesta: Debes responder ÚNICAMENTE en el idioma ${languageName}. Toda tu respuesta final debe estar completamente escrita en este idioma.`);
   sections.push('<instrucciones_criticas>');
   sections.push('1. SALUDOS: Si el mensaje del usuario es un saludo, despedida o cortesía, responde de forma amigable siguiendo tu personalidad.');
   sections.push('2. ESCALAMIENTO A HUMANO (MUY IMPORTANTE): Analiza la intención del usuario. Si el usuario pide explícitamente "hablar con un asesor", "hablar con un humano", "operador", "soporte técnico", o pide ser transferido, o de alguna manera expresa el deseo de ser atendido por una persona de soporte, DEBES responder ÚNICAMENTE con la palabra exacta: TRANSFER. No des explicaciones ni uses la información del contexto.');
   sections.push('3. INFORMACIÓN FALTANTE: Si te piden precios, horarios, o datos específicos y esa información NO está en el contexto proporcionado, responde ÚNICAMENTE con la palabra exacta: NO_INFO.');
-  sections.push('4. NO INVENTES: No generes información, datos, enlaces o teléfonos que no estén en el contexto.');
+  sections.push('4. NO INVENTES: No generes información que no esté respaldada por el contexto proporcionado. No inventes datos, enlaces o teléfonos.');
+  sections.push('5. ESTILO CONVERSACIONAL (WHATSAPP): Responde de forma muy natural, humana, directa y amigable. Evita bloques de texto largos o densos. Estructura tus respuestas en párrafos breves (máximo 2 líneas por párrafo) o listas muy cortas con viñetas si es necesario. No envíes mensajes largos estilo correo electrónico.');
+  sections.push('6. AJUSTE DE LONGITUD: Sé conciso y sintetiza la información. Tu respuesta debe terminar de manera natural y estar completa dentro del límite de caracteres, sin ideas truncadas o cortadas.');
+  sections.push('7. TEMAS FUERA DE CONTEXTO Y SOLICITUDES IRRELEVANTES: Si el usuario realiza consultas sobre temas generales, chistes, favores personales, política, manualidades (por ejemplo, cómo hacer un avioncito de papel), preguntas de cultura general, o cualquier otro asunto que sea tonto o no esté relacionado directamente con la empresa, sus productos o sus servicios, y dicha información no se encuentre en el contexto proporcionado, responde amigablemente indicando de forma concisa que tu rol se limita a dar soporte sobre la empresa y sus servicios. En estos casos, NO respondas bajo ningún motivo con NO_INFO ni TRANSFER, simplemente manifiesta la restricción de manera cortés.');
+  sections.push('8. MULTIMODALIDAD (AUDIO E IMÁGENES): Tienes la capacidad de recibir y procesar mensajes de audio e imágenes que el usuario envíe. El audio se transcribe automáticamente a texto antes de llegar a ti. En el caso de imágenes, se inyectan directamente en tu contexto visual. Puedes responder basándote en lo que se visualiza en las imágenes o lo que se dice en los audios de forma natural, haciendo referencia a ellos si es relevante (ej. "En la imagen que me enviaste...").');
   sections.push('</instrucciones_criticas>');
 
   return sections.join('\n\n');
@@ -85,8 +99,12 @@ export function buildFullPrompt(params: {
   fragments: SearchResult[];
   history: HistoryMessage[];
   userMessage: string;
+  image?: {
+    base64: string;
+    mimeType: string;
+  };
 }): LlmPrompt {
-  const { config, fragments, history, userMessage } = params;
+  const { config, fragments, history, userMessage, image } = params;
 
   const baseSystemPrompt = buildSystemPrompt(config.personality, config.language);
   const maxLengthInstruction = `Limita tu respuesta a un máximo de ${config.maxResponseLength} caracteres.`;
@@ -100,5 +118,7 @@ export function buildFullPrompt(params: {
     history,
     userMessage,
     maxResponseLength: config.maxResponseLength,
+    image,
+    language: config.language,
   };
 }

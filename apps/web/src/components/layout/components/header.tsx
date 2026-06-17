@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, Bell, Search, Settings } from 'lucide-react'
+import { LogOut, Search, Settings } from 'lucide-react'
 import { logout } from '@/lib/auth'
+import { NotificationBell } from '@/features/notifications'
 
 interface HeaderProps {
   empresaNombre: string
@@ -55,12 +56,7 @@ export function Header({ empresaNombre, empresaLogo, usuarioNombre }: HeaderProp
       {/* Right side */}
       <div className="flex items-center gap-4">
         {/* Notifications */}
-        <button
-          className="text-[#bbcabe] opacity-80 transition-colors hover:opacity-100 hover:text-[#00bb7a]"
-          aria-label="Notificaciones"
-        >
-          <Bell className="h-5 w-5" strokeWidth={1.5} />
-        </button>
+        <NotificationBell />
 
         {/* User menu */}
         <div className="relative" ref={menuRef}>

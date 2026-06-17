@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongoClient } from 'mongodb';
-import { EscalatedConversationRepository } from '@multibotagents/db';
+import { EscalatedConversationRepository, S3StorageService } from '@multibotagents/db';
 
 import {
   RAG_AGENT_CONFIG_SERVICE,
@@ -17,6 +17,9 @@ import { PromptBuilderService } from './services/prompt-builder.service';
 import { ReRankingService } from './services/re-ranking.service';
 import { ResponseFormatterService } from './services/response-formatter.service';
 import { RagEngineController } from './rag-engine.controller';
+import { BookingsModule } from '../bookings/bookings.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { OrdersModule } from '../orders/orders.module';
 
 /**
  * Módulo NestJS del Motor de Agente RAG.
@@ -25,6 +28,7 @@ import { RagEngineController } from './rag-engine.controller';
  * Valida: Requisito 10.5
  */
 @Module({
+  imports: [BookingsModule, NotificationsModule, OrdersModule],
   controllers: [RagEngineController],
   providers: [
     RagEngineService,
@@ -59,6 +63,15 @@ import { RagEngineController } from './rag-engine.controller';
       provide: 'ESCALATED_CONVERSATION_REPO',
       useFactory: (client: MongoClient) => new EscalatedConversationRepository(client.db()),
       inject: ['MONGO_CLIENT'],
+    },
+    {
+      provide: 'RAG_STORAGE',
+      useFactory: () => {
+        const bucket = process.env.ESCALAMIENTO_FILES_BUCKET || process.env.COMPANY_LOGOS_BUCKET;
+        const region = process.env.ESCALAMIENTO_FILES_REGION || process.env.COMPANY_LOGOS_REGION || 'us-east-1';
+        if (!bucket) throw new Error('ESCALAMIENTO_FILES_BUCKET or COMPANY_LOGOS_BUCKET is required');
+        return new S3StorageService({ bucket, region });
+      },
     },
   ],
   exports: [RagEngineService, RAG_MEMORY_SERVICE],

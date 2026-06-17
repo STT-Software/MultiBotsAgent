@@ -37,7 +37,7 @@ Esta solución cubre las capacidades del Agente RAG Informativo definidas en la 
 
 ### Resumen ejecutivo técnico
 
-Motor de procesamiento conversacional que implementa el patrón Retrieval-Augmented Generation (RAG). Recibe texto normalizado del usuario, busca fragmentos relevantes en la base de conocimiento vectorizada del agente, construye un prompt contextualizado con personalidad + contexto + historial, invoca un LLM via AWS Bedrock, y retorna la respuesta completa para envío por WhatsApp.
+Motor de procesamiento conversacional que implementa el patrón Retrieval-Augmented Generation (RAG) con soporte multimodal. Recibe mensajes de texto, audios o imágenes del usuario. En el caso de audios, los transcribe utilizando la API de Whisper (OpenAI/Groq); para imágenes, descarga y decodifica la imagen en formato base64 para inyectarla directamente al LLM (vía modelos multimodales en AWS Bedrock). El motor busca fragmentos relevantes en la base de conocimiento vectorizada del agente, construye un prompt contextualizado con personalidad + contexto + historial (e información multimedia si aplica), invoca el LLM y retorna la respuesta completa para envío por WhatsApp.
 
 Se implementa como módulo NestJS con interfaces agnósticas al proveedor, diseñado para ser extraíble a microservicio sin refactorizar consumidores.
 
@@ -198,7 +198,7 @@ Se implementa como módulo NestJS con interfaces agnósticas al proveedor, dise�
 ## 3. Out of Scope
 
 - **Indexación de base de conocimiento**: Generar embeddings y almacenarlos es responsabilidad de la Solución 6.
-- **Preprocesamiento multimedia**: Convertir audio/imágenes a texto es responsabilidad de la capa de preprocesamiento (Solución 5).
+- **Preprocesamiento multimedia inter-plataforma**: La conversión de audio a texto (Whisper) y la descarga/análisis directo de imágenes con prompts multimodales ahora están **dentro del alcance** (In-Scope) del Motor RAG para garantizar un flujo nativo y consistente. El preprocesamiento o alteración estructural de archivos de documentos complejos sigue estando fuera de alcance.
 - **Envío de mensajes por WhatsApp**: El motor retorna la respuesta; el envío es responsabilidad del Conector (Solución 5).
 - **Gestión de la configuración del agente**: Crear/editar agentes es responsabilidad del Panel Web (Solución 1) y Gestión de Empresas (Solución 14).
 - **Implementación de la memoria**: La lógica de ventana temporal, expiración y persistencia es de la Solución 7.
@@ -321,8 +321,12 @@ class BedrockLangChainProvider implements LlmProvider {
 interface RagProcessInput {
   agentId: string;
   conversationId: string;
-  userMessage: string;        // Siempre texto (preprocesado)
+  userMessage?: string;       // Opcional si el input es multimedia (ej. imagen sin texto)
   timestamp: Date;
+  channelId?: string;         // Identificador del canal/proveedor
+  messageType?: 'text' | 'audio' | 'image' | 'document';
+  mediaId?: string;           // ID del media en el proveedor (ej. WhatsApp)
+  mimeType?: string;          // Tipo MIME del archivo adjunto
 }
 ```
 

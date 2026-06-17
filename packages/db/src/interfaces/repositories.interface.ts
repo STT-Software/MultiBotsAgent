@@ -22,6 +22,10 @@ import type {
   EncryptedToken,
   ProcessedMessage,
   MessageLog,
+  Agent,
+  Booking,
+  Order,
+  OrderStatus,
 } from '@multibotagents/types';
 import type { Repository } from './repository.interface';
 
@@ -69,6 +73,7 @@ export interface IUserRepository extends Repository<User> {
   markEmailVerified(userId: string): Promise<void>;
   /** Actualiza el hash de contraseña de un usuario de forma atómica. Retorna true si se actualizó. */
   updatePasswordHash(userId: string, newHash: string): Promise<boolean>;
+  findOperatorsByCompany(companyId: string): Promise<User[]>;
 }
 
 // ─── RefreshToken ────────────────────────────────────────────────────────────
@@ -247,4 +252,187 @@ export interface IMessageLogRepository extends Repository<MessageLog> {
     status: MessageLog["status"],
     details?: { errorCode?: number; errorMessage?: string }
   ): Promise<void>;
+}
+
+// ─── Agent ───────────────────────────────────────────────────────────────────
+
+export interface IAgentRepository extends Repository<Agent> {
+  findByCompanyId(companyId: string): Promise<Agent[]>;
+}
+
+// ─── MetricEvent ─────────────────────────────────────────────────────────────
+
+import type { MetricEventDocument } from '../schemas/metric-event.schema';
+import type { MetricEventType } from '@multibotagents/types';
+import type { ObjectId } from 'mongodb';
+import type { AgentFilter } from '../adapters/mongodb/metric-event.repository';
+
+/**
+ * Repositorio de eventos de métricas.
+ * Inmutable por diseño: solo soporta inserción y lectura, nunca update ni delete.
+ */
+export interface IMetricEventRepository {
+  // ── Escritura (Slice 1) ──────────────────────────────────────────────────
+  /** Inserta un único evento de métrica. */
+  create(payload: Omit<MetricEventDocument, '_id'>): Promise<MetricEventDocument>;
+  /** Inserta múltiples eventos en un solo batch (para seeding y bulk-insert). */
+  insertMany(payloads: Omit<MetricEventDocument, '_id'>[]): Promise<void>;
+  /** Cuenta los eventos de una empresa (usado para evitar duplicados en seed). */
+  countByCompany(companyId: string): Promise<number>;
+
+  // ── Agregaciones de lectura (Slice 2 — Consulta de Métricas Generales) ───
+  /** Cuenta documentos que coincidan con uno o más eventTypes dentro de un período. */
+  countByEventTypes(
+    companyId: ObjectId,
+    eventTypes: MetricEventType[],
+    since: Date,
+  ): Promise<number>;
+
+  /** Cuenta documentos de un eventType que tengan un campo de metadata con valor concreto. */
+  countByEventTypeAndMeta(
+    companyId: ObjectId,
+    eventType: MetricEventType,
+    metaKey: string,
+    metaValue: unknown,
+    since: Date,
+  ): Promise<number>;
+
+  /** Agrega los N valores más frecuentes de un campo de metadata para un eventType. */
+  topValuesByMetaField(
+    companyId: ObjectId,
+    eventType: MetricEventType,
+    metaField: string,
+    limit: number,
+    since: Date,
+  ): Promise<{ value: string; count: number }[]>;
+
+  /** Calcula el promedio de un campo numérico de metadata. Retorna 0 si no hay datos. */
+  avgMetaNumberField(
+    companyId: ObjectId,
+    eventType: MetricEventType,
+    metaField: string,
+    since: Date,
+  ): Promise<number>;
+
+  // ── Agregaciones por Agente (Slice 3 — Métricas por Tipo de Agente) ─────
+  /** Cuenta eventos filtrando por empresa, agente (id o tipo) y eventTypes. */
+  countByAgentAndEventTypes(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventTypes: MetricEventType[],
+    since: Date,
+  ): Promise<number>;
+
+  /** Cuenta eventos filtrando por empresa, agente, eventType y campo de metadata. */
+  countByAgentEventTypeAndMeta(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    metaKey: string,
+    metaValue: unknown,
+    since: Date,
+  ): Promise<number>;
+
+  /** Top N valores de un campo de metadata, filtrado por agente. */
+  topAgentValuesByMetaField(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    metaField: string,
+    limit: number,
+    since: Date,
+  ): Promise<{ value: string; count: number }[]>;
+
+  /** Top N valores desanidando un campo array de metadata, filtrado por agente. */
+  topAgentValuesByArrayMetaField(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    arrayMetaField: string,
+    limit: number,
+    since: Date,
+  ): Promise<{ value: string; count: number }[]>;
+
+  /** Distribución de eventos por hora del día (campo fecha en metadata), filtrado por agente. */
+  distributionByMetaHour(
+    companyId: ObjectId,
+    agentFilter: AgentFilter,
+    eventType: MetricEventType,
+    dateMetaField: string,
+    since: Date,
+  ): Promise<{ hour: number; count: number }[]>;
+
+  /** Obtiene los eventos más recientes de una empresa ordenados por timestamp desc. */
+  findRecent(
+    companyId: ObjectId,
+    limit: number,
+  ): Promise<MetricEventDocument[]>;
+}
+
+
+// ─── Booking (Agendamiento) ──────────────────────────────────────────────────
+
+export interface CreateBookingData {
+  companyId: string;
+  agentId: string;
+  googleEventId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  dateTime: Date;
+  durationMinutes: number;
+  notes?: string;
+}
+
+export interface IBookingRepository extends Repository<Booking> {
+  findByCompanyId(companyId: string): Promise<Booking[]>;
+  findByAgentId(agentId: string): Promise<Booking[]>;
+  findByCustomerPhone(customerPhone: string): Promise<Booking[]>;
+  findActiveByCustomerPhone(customerPhone: string): Promise<Booking[]>;
+  findByDateRange(companyId: string, startDate: Date, endDate: Date): Promise<Booking[]>;
+}
+
+// ─── Audit Log (Auditoría Administrativa) ───────────────────────────────────
+
+import type { AuditLogDocument } from "../schemas/audit-log.schema";
+import type { AuditLogPayload } from "@multibotagents/types";
+
+export interface IAuditLogRepository {
+  create(payload: AuditLogPayload): Promise<AuditLogDocument>;
+  findPaginated(
+    companyId: string,
+    limit: number,
+    skip: number,
+  ): Promise<AuditLogDocument[]>;
+  countByCompany(companyId: string): Promise<number>;
+}
+
+
+// ─── Order (Pedidos) ─────────────────────────────────────────────────────────
+
+export interface CreateOrderData {
+  companyId: string;
+  agentId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  customerAddress: string;
+  items: {
+    nombre: string;
+    precioUnitario: number;
+    cantidad: number;
+    subtotal: number;
+  }[];
+  total: number;
+  status: OrderStatus;
+  notes?: string;
+}
+
+export interface IOrderRepository extends Repository<Order> {
+  findByCompanyId(companyId: string): Promise<Order[]>;
+  findByAgentId(agentId: string): Promise<Order[]>;
+  findByCustomerPhone(customerPhone: string): Promise<Order[]>;
+  findActiveByCustomerPhone(customerPhone: string): Promise<Order[]>;
+  createWithSession(data: CreateOrderData, session: ClientSession): Promise<Order>;
+  updateStatus(orderId: string, status: OrderStatus, session?: ClientSession): Promise<Order | null>;
 }

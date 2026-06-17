@@ -9,9 +9,13 @@ interface StatCardProps {
   label: string
   subtitle: ReactNode
   icon: ReactNode
+  percentage?: number
+  percentageType?: 'growth' | 'ratio'
 }
 
-function StatCard({ value, label, subtitle, icon }: StatCardProps) {
+function StatCard({ value, label, subtitle, icon, percentage, percentageType = 'growth' }: StatCardProps) {
+  const isPercentageValid = percentage !== undefined && !isNaN(percentage)
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -33,12 +37,23 @@ function StatCard({ value, label, subtitle, icon }: StatCardProps) {
           <span className="font-[family-name:var(--font-geist-sans)] text-[48px] font-bold leading-[1.1] tracking-[-0.02em] text-white">
             {value}
           </span>
-          <span className="font-mono text-xs text-emerald-400 flex items-center gap-1">
-            <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M1 8 C3 6, 5 9, 7 5 C8 3, 10 4, 11 2" strokeLinecap="round" />
-            </svg>
-            +12%
-          </span>
+          {isPercentageValid && percentageType === 'growth' && (
+            <span className={`font-mono text-xs flex items-center gap-1 ${percentage >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>
+              <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                {percentage >= 0 ? (
+                  <path d="M1 9 C3 7, 5 10, 7 6 C8 4, 10 5, 11 3 M11 3 H7.5 M11 3 V6.5" strokeLinecap="round" strokeLinejoin="round" />
+                ) : (
+                  <path d="M1 3 C3 5, 5 2, 7 6 C8 8, 10 7, 11 9 M11 9 H7.5 M11 9 V5.5" strokeLinecap="round" strokeLinejoin="round" />
+                )}
+              </svg>
+              {percentage >= 0 ? '+' : ''}{percentage.toFixed(0)}%
+            </span>
+          )}
+          {isPercentageValid && percentageType === 'ratio' && (
+            <span className="font-mono text-[11px] text-gray-400 bg-gray-800/40 px-2 py-0.5 rounded border border-gray-800/50">
+              {percentage.toFixed(0)}% del total
+            </span>
+          )}
         </div>
       </div>
 
@@ -53,9 +68,19 @@ interface StatsSummaryProps {
   total: number
   activos: number
   borradores: number
+  totalChangePct?: number
+  activosPct?: number
+  borradoresPct?: number
 }
 
-export function StatsSummary({ total, activos, borradores }: StatsSummaryProps) {
+export function StatsSummary({
+  total,
+  activos,
+  borradores,
+  totalChangePct = 0,
+  activosPct = 0,
+  borradoresPct = 0,
+}: StatsSummaryProps) {
   return (
     <motion.div
       initial="hidden"
@@ -75,6 +100,8 @@ export function StatsSummary({ total, activos, borradores }: StatsSummaryProps) 
         value={total}
         label="Total de agentes"
         subtitle="Últimos 30 días"
+        percentage={totalChangePct}
+        percentageType="growth"
         icon={<Users className="h-[130px] w-[130px] text-white" strokeWidth={2.5} />}
       />
       <StatCard
@@ -86,6 +113,8 @@ export function StatsSummary({ total, activos, borradores }: StatsSummaryProps) 
             Operativos ahora
           </span>
         }
+        percentage={activosPct}
+        percentageType="ratio"
         icon={<Bot className="h-[130px] w-[130px] text-white" strokeWidth={2.5} />}
       />
       <StatCard
@@ -103,6 +132,8 @@ export function StatsSummary({ total, activos, borradores }: StatsSummaryProps) 
             </div>
           </div>
         }
+        percentage={borradoresPct}
+        percentageType="ratio"
         icon={<FileText className="h-[130px] w-[130px] text-white" strokeWidth={2.5} />}
       />
     </motion.div>

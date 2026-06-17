@@ -49,12 +49,17 @@ export function InboxConversationDetail({
   onResolve,
   extraMessages = [],
 }: InboxConversationDetailProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll al último mensaje
+  // Auto-scroll al último mensaje (scroll interno únicamente)
   useEffect(() => {
-    if (conversation && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (container) {
+      // Ajustamos el scroll de manera directa sin activar scrollIntoView global
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
     }
   }, [conversation, extraMessages.length, isTyping]);
 
@@ -160,13 +165,12 @@ export function InboxConversationDetail({
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-6 py-4">
         <div className="flex flex-col gap-4">
           {allMessages.map((message) => (
             <InboxMessageBubble key={message.id} message={message} />
           ))}
           {isTyping && <InboxTypingIndicator />}
-          <div ref={messagesEndRef} />
         </div>
       </div>
 

@@ -2,13 +2,11 @@
 
 import { useAgentesSummary } from '../hooks/use-agentes-summary'
 import { NavCards } from './nav-cards'
-import { QuickActions } from './quick-actions'
 import { StatsError } from './stats-error'
 import { StatsSkeleton } from './stats-skeleton'
 import { StatsSummary } from './stats-summary'
 import { OnboardingChecklist } from './onboarding-checklist'
 import { RecentActivity } from './recent-activity'
-import { MarketingFeatures } from './marketing-features'
 
 export function DashboardView() {
   const { loading, error, data, retry } = useAgentesSummary()
@@ -26,7 +24,6 @@ export function DashboardView() {
             Resumen en tiempo real de tus agentes.
           </p>
         </div>
-        <QuickActions />
       </div>
 
       {/* KPI Cards */}
@@ -38,6 +35,9 @@ export function DashboardView() {
             total={data.total}
             activos={data.activos}
             borradores={data.borradores}
+            totalChangePct={data.totalChangePct}
+            activosPct={data.activosPct}
+            borradoresPct={data.borradoresPct}
           />
         )}
       </section>
@@ -64,11 +64,6 @@ export function DashboardView() {
           )}
         </div>
       </div>
-
-      {/* Sección de Marketing y Expansión */}
-      <section aria-label="Funcionalidades Premium" className="border-t border-gray-800/50 pt-8">
-        <MarketingFeatures />
-      </section>
     </div>
   )
 }

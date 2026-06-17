@@ -10,7 +10,7 @@
 
 export const vpc = new sst.aws.Vpc("MainVpc", {
   az: 1,
-  nat: {
+  nat: $dev ? undefined : {
     ec2: {
       instance: "t4g.nano",
     },

@@ -29,6 +29,17 @@ export const elasticEmailTemplateId = new sst.Secret("ElasticEmailTemplateId");
 // Elastic Email — Password Recovery
 export const elasticEmailPasswordResetTemplateId = new sst.Secret("ElasticEmailPasswordResetTemplateId");
 
+// Elastic Email — Orders
+export const elasticEmailOrderClientTemplateId = new sst.Secret("ElasticEmailOrderClientTemplateId");
+export const elasticEmailOrderOperatorTemplateId = new sst.Secret("ElasticEmailOrderOperatorTemplateId");
+
+// Elastic Email — Booking & Escalation
+export const elasticEmailEscalationAlertTemplateId = new sst.Secret("ElasticEmailEscalationAlertTemplateId");
+export const elasticEmailNewBookingAlertTemplateId = new sst.Secret("ElasticEmailNewBookingAlertTemplateId");
+export const elasticEmailBookingConfirmedTemplateId = new sst.Secret("ElasticEmailBookingConfirmedTemplateId");
+export const elasticEmailBookingRescheduledTemplateId = new sst.Secret("ElasticEmailBookingRescheduledTemplateId");
+export const elasticEmailBookingCancelledTemplateId = new sst.Secret("ElasticEmailBookingCancelledTemplateId");
+
 export const frontendDomain = new sst.Secret("FrontendDomain");
 
 // Meta & WhatsApp
@@ -36,3 +47,12 @@ export const metaAppId = new sst.Secret("META_APP_ID");
 export const metaAppSecret = new sst.Secret("META_APP_SECRET");
 export const metaConfigId = new sst.Secret("META_CONFIG_ID");
 export const encryptionKey = new sst.Secret("ENCRYPTION_KEY");
+
+// Google Calendar
+export const googleClientId = new sst.Secret("GOOGLE_CLIENT_ID");
+export const googleClientSecret = new sst.Secret("GOOGLE_CLIENT_SECRET");
+export const googleRedirectUri = new sst.Secret("GOOGLE_REDIRECT_URI");
+
+// OpenAI
+export const openaiApiKey = new sst.Secret("OPENAI_API_KEY");
+

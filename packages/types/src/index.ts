@@ -34,5 +34,22 @@ export * from "./knowledge";
 // WhatsApp — Webhook verification y tipos del conector
 export * from "./whatsapp";
 
+// Telegram — Tipos para la mensajería del bot
+export * from "./telegram";
+
 // Conversational Memory
 export * from "./memory";
+
+// Agents
+export * from "./agents/agent.types";
+
+// Metrics — Contrato de eventos para el sistema de métricas y analíticas (SL12)
+export * from "./metrics";
+// Bookings
+export * from "./interfaces/booking.interface";
+
+// Audit Logs
+export * from "./audit/audit-log.types";
+
+// Orders
+export * from "./interfaces/order.interface";

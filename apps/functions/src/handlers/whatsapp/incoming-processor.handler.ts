@@ -32,7 +32,7 @@ export async function handler(event: SQSEvent): Promise<void> {
 
 async function processRecord(record: SQSRecord): Promise<void> {
   const incoming: IncomingMessageEvent = JSON.parse(record.body);
-  const { agentId, conversationId, messageText, timestamp, channelId, phoneNumberId, senderPhoneNumber } = incoming;
+  const { agentId, conversationId, messageText, timestamp, channelId, phoneNumberId, senderPhoneNumber, messageType, mediaId, mimeType, fileUrl } = incoming;
 
   log("INFO", "Iniciando procesamiento de consulta RAG vía NestJS Fargate", {
     agentId,
@@ -57,10 +57,19 @@ async function processRecord(record: SQSRecord): Promise<void> {
       conversationId,
       userMessage: messageText,
       timestamp,
+      channelId,
+      messageType,
+      mediaId,
+      mimeType,
+      fileUrl,
     }),
   });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      log("WARN", `El agente ${agentId} no fue encontrado o está inactivo (404). Ignorando mensaje para evitar bucle de reintentos.`);
+      return;
+    }
     const errorBody = await response.text().catch(() => "");
     throw new Error(
       `Llamada fallida a NestJS (${response.status}): ${errorBody || response.statusText}`

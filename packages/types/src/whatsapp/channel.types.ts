@@ -22,7 +22,7 @@ export type ChannelStatus =
 /**
  * Proveedor del canal. Preparado para futura extensión a otros proveedores.
  */
-export type ChannelProvider = "whatsapp";
+export type ChannelProvider = "whatsapp" | "telegram";
 
 /**
  * Token de acceso cifrado con AES-256-GCM.
@@ -35,7 +35,7 @@ export interface EncryptedToken {
 }
 
 /**
- * Entidad Channel que representa la conexión entre un agente y un número de WhatsApp.
+ * Entidad Channel que representa la conexión entre un agente y un número de WhatsApp o bot de Telegram.
  */
 export interface Channel {
   id: string;
@@ -43,8 +43,9 @@ export interface Channel {
   agentId: string;
   provider: ChannelProvider;
   status: ChannelStatus;
-  phoneNumberId: string;
-  wabaId: string;
+  phoneNumberId?: string;
+  wabaId?: string;
+  telegramBotUsername?: string;
   encryptedToken: EncryptedToken;
   displayName: string;
   webhookOverrideUrl?: string;
@@ -83,9 +84,11 @@ export interface ConnectWhatsAppResponse {
 export interface ChannelInfo {
   channelId: string;
   status: ChannelStatus;
-  phoneNumberId: string;
+  phoneNumberId?: string;
+  telegramBotUsername?: string;
   displayName: string;
   connectedAt: string;
+  provider?: ChannelProvider;
 }
 
 /**

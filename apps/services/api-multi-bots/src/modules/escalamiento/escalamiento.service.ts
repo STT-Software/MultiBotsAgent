@@ -1,5 +1,6 @@
 import { Injectable, Inject, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { ObjectId } from 'mongodb';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import type {
   IEscalatedConversationRepository,
@@ -8,8 +9,9 @@ import type {
   EscalatedConversation,
   EscalatedConversationMessage,
 } from '@multibotagents/db';
+import { S3StorageService } from '@multibotagents/db';
 import type { SendMessageDto } from './dto';
-import type { OutgoingMessageEvent, MemoryService } from '@multibotagents/types';
+import type { OutgoingMessageEvent, MemoryService, MetricEventPayload, TelegramOutgoingMessageEvent } from '@multibotagents/types';
 import { RAG_MEMORY_SERVICE } from '../rag-engine/constants/injection-tokens';
 
 @Injectable()
@@ -27,18 +29,38 @@ export class EscalamientoService {
     private readonly eventRepo: IEscalationEventRepository,
     @Inject(RAG_MEMORY_SERVICE)
     private readonly memoryService: MemoryService,
+    @Inject('ESCALAMIENTO_STORAGE')
+    private readonly storageService: S3StorageService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.logger.log('EscalamientoService initialized');
   }
 
   async getConversations(companyId: string, status: string): Promise<EscalatedConversation[]> {
-    return this.repo.findByCompanyAndStatus(companyId, status);
+    const conversations = await this.repo.findByCompanyAndStatus(companyId, status);
+    for (const conversation of conversations) {
+      if (conversation.messages) {
+        for (const msg of conversation.messages) {
+          if (msg.fileUrl) {
+            msg.fileUrl = await this.storageService.signFileUrl(msg.fileUrl);
+          }
+        }
+      }
+    }
+    return conversations;
   }
 
   async getConversationById(companyId: string, id: string): Promise<EscalatedConversation> {
     const conversation = await this.repo.findById(companyId, id);
     if (!conversation) {
       throw new NotFoundException(`Conversación ${id} no encontrada`);
+    }
+    if (conversation.messages) {
+      for (const msg of conversation.messages) {
+        if (msg.fileUrl) {
+          msg.fileUrl = await this.storageService.signFileUrl(msg.fileUrl);
+        }
+      }
     }
     return conversation;
   }
@@ -81,18 +103,17 @@ export class EscalamientoService {
       fileMimeType: dto.fileMimeType,
     });
 
+    // Firmar la URL de retorno si es necesario para el frontend
+    if (message.fileUrl) {
+      message.fileUrl = await this.storageService.signFileUrl(message.fileUrl);
+    }
+
     // Actualizar lastActivityAt para el cálculo de timeout
     await this.repo.updateLastActivity(companyId, conversationId);
 
-    // Si es una conversación semilla/mock, no enviamos mensaje real a WhatsApp
+    // Si es una conversación semilla/mock, no enviamos mensaje real
     if (conversation.isSeeded || !ObjectId.isValid(conversation.agentId)) {
-      this.logger.log(`Conversación semilla detectada (${conversationId}), omitiendo envío real a WhatsApp.`);
-      return message;
-    }
-
-    const outgoingQueueUrl = process.env.WHATSAPP_OUTGOING_QUEUE_URL;
-    if (!outgoingQueueUrl) {
-      this.logger.warn('WHATSAPP_OUTGOING_QUEUE_URL no está configurada, omitiendo envío de mensaje a Meta');
+      this.logger.log(`Conversación semilla detectada (${conversationId}), omitiendo envío real.`);
       return message;
     }
 
@@ -103,30 +124,70 @@ export class EscalamientoService {
         return message;
       }
 
-      const recipientPhone = conversation.userId.replace('whatsapp_', '');
+      let content = dto.content;
+      if (dto.type === 'image' || dto.type === 'file') {
+        content = await this.storageService.signFileUrl(dto.fileUrl!);
+      }
 
-      const outgoingEvent: OutgoingMessageEvent = {
-        channelId: channel.id,
-        phoneNumberId: channel.phoneNumberId,
-        recipientPhone,
-        conversationId: conversation.userId,
-        messages: [
-          {
-            type: dto.type === 'file' ? 'document' : (dto.type as any),
-            content: dto.content,
-          },
-        ],
-        escalated: true,
-      };
+      if (channel.provider === 'telegram') {
+        const telegramOutgoingQueueUrl = process.env.TELEGRAM_OUTGOING_QUEUE_URL;
+        if (!telegramOutgoingQueueUrl) {
+          this.logger.warn('TELEGRAM_OUTGOING_QUEUE_URL no está configurada, omitiendo envío de mensaje a Telegram');
+          return message;
+        }
 
-      await this.sqsClient.send(
-        new SendMessageCommand({
-          QueueUrl: outgoingQueueUrl,
-          MessageBody: JSON.stringify(outgoingEvent),
-        })
-      );
+        const outgoingEvent: TelegramOutgoingMessageEvent = {
+          channelId: channel.id,
+          conversationId: conversation.userId,
+          messages: [
+            {
+              type: dto.type === 'file' ? 'document' : (dto.type as any),
+              content,
+            },
+          ],
+          escalated: true,
+        };
 
-      this.logger.log(`Mensaje de operador enviado a SQS para ${recipientPhone}`);
+        await this.sqsClient.send(
+          new SendMessageCommand({
+            QueueUrl: telegramOutgoingQueueUrl,
+            MessageBody: JSON.stringify(outgoingEvent),
+          })
+        );
+
+        this.logger.log(`Mensaje de operador enviado a SQS Telegram para ${conversation.userId}`);
+      } else {
+        const outgoingQueueUrl = process.env.WHATSAPP_OUTGOING_QUEUE_URL;
+        if (!outgoingQueueUrl) {
+          this.logger.warn('WHATSAPP_OUTGOING_QUEUE_URL no está configurada, omitiendo envío de mensaje a Meta');
+          return message;
+        }
+
+        const recipientPhone = conversation.userId.replace('whatsapp_', '');
+
+        const outgoingEvent: OutgoingMessageEvent = {
+          channelId: channel.id,
+          phoneNumberId: channel.phoneNumberId ?? '',
+          recipientPhone,
+          conversationId: conversation.userId,
+          messages: [
+            {
+              type: dto.type === 'file' ? 'document' : (dto.type as any),
+              content,
+            },
+          ],
+          escalated: true,
+        };
+
+        await this.sqsClient.send(
+          new SendMessageCommand({
+            QueueUrl: outgoingQueueUrl,
+            MessageBody: JSON.stringify(outgoingEvent),
+          })
+        );
+
+        this.logger.log(`Mensaje de operador enviado a SQS WhatsApp para ${recipientPhone}`);
+      }
     } catch (err) {
       this.logger.error(`Error enviando mensaje de operador a SQS: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -203,6 +264,20 @@ export class EscalamientoService {
     }
 
     this.logger.log(`Conversation ${conversationId} resolved by ${resolvedBy} → ${newStatus} (${durationMinutes} min)`);
+
+    // Emitir métrica de escalamiento resuelto (fire-and-forget)
+    this.eventEmitter.emit('metric.event', {
+      companyId,
+      agentId: conversation.agentId,
+      agentType: conversation.agentType as 'rag' | 'cotizador' | 'agendamiento',
+      eventType: 'escalation.resolved',
+      timestamp: resolvedAt,
+      metadata: {
+        resolvedAt: resolvedAt.toISOString(),
+        durationMinutes,
+        resolvedBy,
+      },
+    } satisfies MetricEventPayload);
 
     return { success: true, newStatus };
   }

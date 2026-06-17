@@ -15,6 +15,8 @@ export interface ChatMemoryDocument {
     timestamp: Date;
     source?: string;
     isEscalated?: boolean;
+    fileUrl?: string;
+    messageType?: string;
   }>;
   createdAt: Date;
   updatedAt: Date;
@@ -74,6 +76,14 @@ export const CHAT_MEMORIES_VALIDATION = {
             isEscalated: {
               bsonType: "bool",
               description: "Indica si el mensaje ocurrió durante un escalamiento — opcional",
+            },
+            fileUrl: {
+              bsonType: "string",
+              description: "URL del archivo adjunto en S3 — opcional",
+            },
+            messageType: {
+              bsonType: "string",
+              description: "Tipo original de mensaje (text, image, file) — opcional",
             },
           },
         },

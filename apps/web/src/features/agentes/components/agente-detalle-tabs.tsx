@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { Settings, Brain, MessageCircle, FileText } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Settings, Brain, MessageCircle, FileText, Calendar } from "lucide-react";
 
 import { Agente } from "../types/agentes.types";
 import { useEditarAgente } from "../hooks/use-editar-agente";
@@ -9,21 +9,15 @@ import { AgenteTabGeneral } from "./agente-tab-general";
 import { AgenteTabPersonalidad } from "./agente-tab-personalidad";
 import { AgenteTabCanal } from "./agente-tab-canal";
 import { AgenteTabConocimiento } from "./agente-tab-conocimiento";
+import { AgenteTabAgenda } from "./agente-tab-agenda";
 
-type TabId = "general" | "personalidad" | "canal" | "conocimiento";
+type TabId = "general" | "personalidad" | "canal" | "conocimiento" | "agenda";
 
 interface Tab {
   id: TabId;
   label: string;
   icon: React.ReactNode;
 }
-
-const TABS: Tab[] = [
-  { id: "general", label: "General", icon: <Settings size={14} aria-hidden="true" /> },
-  { id: "personalidad", label: "Personalidad", icon: <Brain size={14} aria-hidden="true" /> },
-  { id: "canal", label: "Canal", icon: <MessageCircle size={14} aria-hidden="true" /> },
-  { id: "conocimiento", label: "Base de Conocimiento", icon: <FileText size={14} aria-hidden="true" /> },
-];
 
 interface AgenteDetalleTabsProps {
   agente: Agente;
@@ -33,6 +27,19 @@ interface AgenteDetalleTabsProps {
 export function AgenteDetalleTabs({ agente, onAgenteUpdate }: AgenteDetalleTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const { editarAgente, saving, error, success, resetStatus } = useEditarAgente(agente, onAgenteUpdate);
+
+  const tabs = useMemo(() => {
+    const list: Tab[] = [
+      { id: "general", label: "General", icon: <Settings size={14} aria-hidden="true" /> },
+      { id: "personalidad", label: "Personalidad", icon: <Brain size={14} aria-hidden="true" /> },
+      { id: "canal", label: "Canal", icon: <MessageCircle size={14} aria-hidden="true" /> },
+      { id: "conocimiento", label: "Base de Conocimiento", icon: <FileText size={14} aria-hidden="true" /> },
+    ];
+    if (agente.tipo === "agendamiento") {
+      list.push({ id: "agenda", label: "Calendario y Citas", icon: <Calendar size={14} aria-hidden="true" /> });
+    }
+    return list;
+  }, [agente.tipo]);
 
   const renderTabContent = useCallback(() => {
     switch (activeTab) {
@@ -48,11 +55,24 @@ export function AgenteDetalleTabs({ agente, onAgenteUpdate }: AgenteDetalleTabsP
           />
         );
       case "personalidad":
-        return <AgenteTabPersonalidad />;
+        return (
+          <AgenteTabPersonalidad
+            agente={agente}
+            editarAgente={editarAgente}
+            saving={saving}
+            error={error}
+            success={success}
+            resetStatus={resetStatus}
+          />
+        );
       case "canal":
         return <AgenteTabCanal agente={agente} />;
       case "conocimiento":
         return <AgenteTabConocimiento agentId={agente.id} />;
+      case "agenda":
+        return <AgenteTabAgenda agentId={agente.id} />;
+      default:
+        return null;
     }
   }, [activeTab, agente, editarAgente, saving, error, success, resetStatus]);
 
@@ -65,7 +85,7 @@ export function AgenteDetalleTabs({ agente, onAgenteUpdate }: AgenteDetalleTabsP
         aria-label="Secciones del agente"
         style={{ borderBottom: "1px solid #3c4a41" }}
       >
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button

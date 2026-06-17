@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Calculator, Calendar } from "lucide-react";
+import { BookOpen, Calendar, ShoppingBag } from "lucide-react";
 import { TipoAgenteOption } from "../types/agentes.types";
 import { motion } from "motion/react";
 
@@ -11,15 +11,15 @@ const TIPO_COLORS: Record<string, { icon: string; bg: string; border: string }> 
     bg: "rgba(16, 185, 129, 0.1)",
     border: "rgba(16, 185, 129, 0.2)",
   },
-  Calculator: {
-    icon: "#e6a817",      // amarillo/dorado
-    bg: "rgba(230, 168, 23, 0.1)",
-    border: "rgba(230, 168, 23, 0.2)",
-  },
   Calendar: {
     icon: "#b366ff",      // púrpura
     bg: "rgba(179, 102, 255, 0.1)",
     border: "rgba(179, 102, 255, 0.2)",
+  },
+  ShoppingBag: {
+    icon: "#f59e0b",      // ámbar
+    bg: "rgba(245, 158, 11, 0.1)",
+    border: "rgba(245, 158, 11, 0.2)",
   },
 };
 
@@ -27,27 +27,27 @@ const TIPOS_AGENTE: TipoAgenteOption[] = [
   {
     value: "rag",
     label: "RAG",
-    description: "Retrieval Augmented Generation para respuestas basadas en datos.",
+    description: "Respuestas inteligentes basadas en tus documentos y base de conocimiento.",
     icon: "BookOpen",
   },
   {
     value: "cotizador",
-    label: "Workflow",
-    description: "Basado en flujos lógicos y decisiones estructuradas paso a paso.",
-    icon: "Calculator",
+    label: "Cotizador",
+    description: "Consultar catálogo, armar cotizaciones y gestionar pedidos en tiempo real.",
+    icon: "ShoppingBag",
   },
   {
     value: "agendamiento",
-    label: "Conversacional",
-    description: "Chat simple optimizado para interacciones humanas naturales.",
+    label: "Agendamiento",
+    description: "Gestión de citas y reservas automática sincronizada con Google Calendar.",
     icon: "Calendar",
   },
 ];
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
   BookOpen,
-  Calculator,
   Calendar,
+  ShoppingBag,
 };
 
 interface TipoAgenteSelectorProps {

@@ -11,6 +11,7 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -76,10 +77,62 @@ export class S3StorageService {
   }
 
   /**
+   * Sube un buffer directamente a S3.
+   */
+  async uploadObject(key: string, body: Buffer, contentType: string): Promise<void> {
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    });
+
+    await this.client.send(command);
+  }
+
+  /**
    * Obtiene la URL pública de un objeto en S3.
    * Formato: https://{bucket}.s3.{region}.amazonaws.com/{key}
    */
   getPublicUrl(key: string): string {
     return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
+  }
+
+  /**
+   * Genera una presigned URL para descargar/leer un archivo de S3 de forma segura.
+   */
+  async generatePresignedDownloadUrl(
+    key: string,
+    expiresInSeconds: number = 900,
+  ): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    const url = await getSignedUrl(this.client, command, {
+      expiresIn: expiresInSeconds,
+    });
+
+    return url;
+  }
+
+  /**
+   * Intenta extraer el Key de un fileUrl de S3 del bucket configurado y retorna una URL pre-firmada de lectura.
+   * Si no pertenece a nuestro bucket, o no se puede parsear, retorna la URL original sin modificar.
+   */
+  async signFileUrl(url: string, expiresInSeconds: number = 900): Promise<string> {
+    if (!url) return url;
+    try {
+      const s3UrlPattern = new RegExp(`^https://${this.bucket}\\.s3\\.[a-z0-9-]+\\.amazonaws\\.com/(.+)`);
+      const match = url.match(s3UrlPattern);
+      if (match && match[1]) {
+        const key = decodeURIComponent(match[1]);
+        return await this.generatePresignedDownloadUrl(key, expiresInSeconds);
+      }
+    } catch {
+      // Deferencia silenciosa si hay errores
+    }
+    return url;
   }
 }

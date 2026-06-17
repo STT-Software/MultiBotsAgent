@@ -1,12 +1,24 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { ObjectId } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { decryptToken } from '@multibotagents/core/whatsapp';
 import { filterByThreshold } from '@multibotagents/core';
-import { EscalatedConversationRepository } from '@multibotagents/db';
+import { EscalatedConversationRepository, S3StorageService } from '@multibotagents/db';
+import { randomUUID } from 'crypto';
 import {
   EscalationReason,
   MessageRole,
   ResponseType,
 } from '@multibotagents/types';
+import type { MetricEventPayload } from '@multibotagents/types';
+import { z } from 'zod';
+import { DynamicStructuredTool } from '@langchain/core/tools';
+import {
+  SystemMessage,
+  HumanMessage,
+  AIMessage,
+  ToolMessage,
+} from '@langchain/core/messages';
 
 import {
   RAG_AGENT_CONFIG_SERVICE,
@@ -14,15 +26,19 @@ import {
   RAG_MEMORY_SERVICE,
   RAG_VECTOR_SEARCH,
 } from './constants/injection-tokens';
-import { AgentNotFoundException, InvalidInputException } from './exceptions/rag-engine.exceptions';
+import { AgentNotFoundException, AgentInactiveException, InvalidInputException } from './exceptions/rag-engine.exceptions';
 import { PromptBuilderService } from './services/prompt-builder.service';
 import { ReRankingService } from './services/re-ranking.service';
 import { ResponseFormatterService } from './services/response-formatter.service';
+import { BookingsService } from '../bookings/bookings.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { OrdersService } from '../orders/orders.service';
 
 import type {
   AgentConfig,
   AgentConfigProvider,
   HistoryMessage,
+  LlmPrompt,
   LlmProvider,
   MemoryService,
   RagProcessInput,
@@ -52,6 +68,12 @@ export class RagEngineService {
     @Inject(ReRankingService) private readonly reRankingService: ReRankingService,
     @Inject(ResponseFormatterService) private readonly responseFormatter: ResponseFormatterService,
     @Inject('ESCALATED_CONVERSATION_REPO') private readonly escalatedRepo: EscalatedConversationRepository,
+    @Inject('MONGO_CLIENT') private readonly mongoClient: MongoClient,
+    @Inject('RAG_STORAGE') private readonly storageService: S3StorageService,
+    private readonly eventEmitter: EventEmitter2,
+    private readonly bookingsService: BookingsService,
+    private readonly notificationsService: NotificationsService,
+    private readonly ordersService: OrdersService,
   ) {}
 
   /**
@@ -68,8 +90,179 @@ export class RagEngineService {
     this.validateInput(input);
 
     // 2. Get agent config
-    const config = await this.getAgentConfig(input.agentId);
+    let config: AgentConfig;
+    try {
+      config = await this.getAgentConfig(input.agentId);
+    } catch (error: unknown) {
+      if (error instanceof AgentInactiveException) {
+        this.logger.log(`Agent ${input.agentId} is inactive/borrador. Bypassing processing and returning empty response.`);
+        return {
+          conversationId: input.conversationId,
+          messages: [],
+          escalated: false,
+        };
+      }
+      throw error;
+    }
     this.logger.debug('Agent config retrieved', { agentId: config.agentId });
+
+    // -- MEDIA FLOW (AUDIO / IMAGE) --
+    let userMessage = input.userMessage || '';
+    if (input.messageType === 'image' && userMessage.trim().length === 0) {
+      userMessage = 'Analiza esta imagen';
+    }
+    let imageInfo: { base64: string; mimeType: string } | undefined = undefined;
+    let s3FileUrl: string | undefined = undefined;
+    let fileType: 'text' | 'image' | 'file' = 'text';
+
+    if ((input.messageType === 'audio' || input.messageType === 'image') && (input.mediaId || input.fileUrl)) {
+      this.logger.log(`Media message (${input.messageType}) received. fileUrl=${input.fileUrl || 'none'}, mediaId=${input.mediaId || 'none'}. Starting media retrieval flow...`);
+      try {
+        let mediaBuffer: Buffer | undefined;
+        let resolvedMimeType = input.mimeType || (input.messageType === 'audio' ? 'audio/ogg' : 'image/jpeg');
+
+        if (input.fileUrl) {
+          try {
+            this.logger.log(`Downloading pre-uploaded media directly from S3 URL: ${input.fileUrl}`);
+            const response = await fetch(input.fileUrl);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch pre-uploaded file from S3: ${response.statusText}`);
+            }
+            mediaBuffer = Buffer.from(await response.arrayBuffer());
+            s3FileUrl = input.fileUrl;
+            fileType = input.messageType === 'audio' ? 'file' : 'image';
+            const contentType = response.headers.get('content-type');
+            if (contentType) {
+              resolvedMimeType = contentType;
+            }
+          } catch (fetchErr) {
+            this.logger.warn(`Failed to retrieve pre-uploaded media from S3 URL (${input.fileUrl}). Falling back to provider API download.`, {
+              error: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
+            });
+          }
+        }
+
+        // Si no se pudo obtener el buffer (o no había fileUrl), usamos el flujo clásico con mediaId
+        if (!mediaBuffer && input.mediaId) {
+          const db = this.mongoClient.db();
+          let channelDoc;
+          const agentIdQuery = ObjectId.isValid(input.agentId) ? new ObjectId(input.agentId) : input.agentId;
+          if (input.channelId) {
+            const channelIdQuery = ObjectId.isValid(input.channelId) ? new ObjectId(input.channelId) : input.channelId;
+            channelDoc = await db.collection('channels').findOne({
+              _id: channelIdQuery as any,
+            });
+          } else {
+            channelDoc = await db.collection('channels').findOne({
+              agentId: agentIdQuery as any,
+              status: 'connected',
+            });
+          }
+
+          if (!channelDoc) {
+            throw new Error(`No active channel found for agent ${input.agentId} to retrieve media.`);
+          }
+
+          const encryptionKey = process.env.ENCRYPTION_KEY;
+          if (!encryptionKey) {
+            throw new Error('ENCRYPTION_KEY no está configurada en las variables de entorno.');
+          }
+          const token = decryptToken(channelDoc.encryptedToken as any, encryptionKey);
+
+          const downloaded = await this.downloadMedia(
+            channelDoc,
+            input.mediaId,
+            token,
+            input.mimeType || (input.messageType === 'audio' ? 'audio/ogg' : 'image/jpeg'),
+          );
+          mediaBuffer = downloaded.buffer;
+          resolvedMimeType = downloaded.mimeType;
+
+          // Subir a S3
+          try {
+            const uuid = randomUUID();
+            const ext = this.getExtensionFromMimeType(resolvedMimeType);
+            const key = `escalamiento/${config.companyId}/${input.conversationId}/${uuid}-${input.mediaId}.${ext}`;
+            this.logger.log(`Uploading user media to S3 with key: ${key}`);
+            await this.storageService.uploadObject(key, mediaBuffer, resolvedMimeType);
+            s3FileUrl = this.storageService.getPublicUrl(key);
+            fileType = input.messageType === 'audio' ? 'file' : 'image';
+          } catch (uploadErr) {
+            this.logger.error(`Failed to upload media to S3`, {
+              error: uploadErr instanceof Error ? uploadErr.message : String(uploadErr),
+            });
+          }
+        }
+
+        if (!mediaBuffer) {
+          throw new Error('No media buffer could be retrieved from either S3 or provider API.');
+        }
+
+        // Ahora procesar según el tipo de mensaje
+        if (input.messageType === 'audio') {
+          const openaiApiKey = process.env.OPENAI_API_KEY;
+          if (!openaiApiKey) {
+            throw new Error('OPENAI_API_KEY no está configurada en las variables de entorno.');
+          }
+
+          const isGroq = openaiApiKey.startsWith('gsk_');
+          const transcriptionUrl = isGroq 
+            ? 'https://api.groq.com/openai/v1/audio/transcriptions'
+            : 'https://api.openai.com/v1/audio/transcriptions';
+          const modelName = isGroq ? 'whisper-large-v3' : 'whisper-1';
+
+          this.logger.log(`Sending audio buffer to ${isGroq ? 'Groq' : 'OpenAI'} Whisper for transcription...`);
+
+          const formData = new FormData();
+          const blob = new Blob([new Uint8Array(mediaBuffer)], { type: resolvedMimeType });
+          formData.append('file', blob, 'audio.ogg');
+          formData.append('model', modelName);
+          if (config.language) {
+            formData.append('language', config.language.substring(0, 2).toLowerCase());
+          }
+
+          const whisperResponse = await fetch(transcriptionUrl, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${openaiApiKey}`,
+            },
+            body: formData,
+          });
+
+          if (!whisperResponse.ok) {
+            const errText = await whisperResponse.text();
+            throw new Error(`${isGroq ? 'Groq' : 'OpenAI'} Whisper API failed: ${errText}`);
+          }
+
+          const whisperData = await whisperResponse.json() as { text: string };
+          userMessage = whisperData.text || '';
+          this.logger.log(`Audio successfully transcribed to: "${userMessage}"`);
+        } else if (input.messageType === 'image') {
+          imageInfo = {
+            base64: mediaBuffer.toString('base64'),
+            mimeType: resolvedMimeType,
+          };
+          this.logger.log(`Image successfully processed and encoded to base64. MimeType: ${resolvedMimeType}`);
+        }
+      } catch (error: unknown) {
+        this.logger.error(`Error processing media message (${input.messageType})`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        const errorContent = input.messageType === 'audio'
+          ? (config.errorMessage || 'Lo siento, no he podido procesar tu nota de voz en este momento.')
+          : 'Lo siento, no he podido procesar tu imagen en este momento.';
+        return {
+          conversationId: input.conversationId,
+          messages: [
+            {
+              type: ResponseType.TEXT,
+              content: errorContent,
+            },
+          ],
+          escalated: false,
+        };
+      }
+    }
 
     // 2.5 Check if conversation is already escalated
     const activeEscalation = await this.escalatedRepo.findByUserIdAndStatus(
@@ -85,12 +278,15 @@ export class RagEngineService {
         escalationId: activeEscalation.id,
       });
 
+      const messageContent = input.messageType === 'audio' ? `[Nota de voz]: ${userMessage}` : userMessage;
+
       // Save user message to the escalated conversation log
       await this.escalatedRepo.addMessage(config.companyId, activeEscalation.id, {
         sender: 'user',
-        content: input.userMessage,
+        content: messageContent,
         timestamp: input.timestamp,
-        type: 'text',
+        type: fileType,
+        fileUrl: s3FileUrl,
       });
 
       // Also persist to history memory
@@ -98,15 +294,19 @@ export class RagEngineService {
         if (typeof this.memoryService.addMessage === 'function') {
           await this.memoryService.addMessage(input.conversationId, {
             type: 'human',
-            content: input.userMessage,
+            content: messageContent,
             timestamp: input.timestamp,
             isEscalated: true,
+            fileUrl: s3FileUrl,
+            messageType: fileType,
           });
         } else {
           await this.memoryService.saveMessage(input.conversationId, {
             role: MessageRole.USER,
-            content: input.userMessage,
+            content: messageContent,
             timestamp: input.timestamp,
+            fileUrl: s3FileUrl,
+            messageType: fileType,
           });
         }
       } catch (err: unknown) {
@@ -131,8 +331,8 @@ export class RagEngineService {
     const isNewSession = await this.checkIsNewSession(input.conversationId);
 
     // 5. Vector search
-    this.logger.log(`Executing vector search for query: "${input.userMessage}" (topK: ${config.topK})`);
-    const searchResults = await this.vectorSearch.search(input.agentId, input.userMessage, config.topK);
+    this.logger.log(`Executing vector search for query: "${userMessage}" (topK: ${config.topK})`);
+    const searchResults = await this.vectorSearch.search(input.agentId, userMessage, config.topK);
     this.logger.log(`Vector search completed. Found ${searchResults.length} candidate fragments: ` + 
       JSON.stringify(searchResults.map(r => ({ id: r.fragmentId, score: r.score, snippet: r.content.substring(0, 60) + '...' }))));
 
@@ -156,13 +356,13 @@ export class RagEngineService {
         conversationId: input.conversationId,
         threshold: config.relevanceThreshold,
         scores: searchResults.map((r) => r.score),
-        userMessage: input.userMessage,
+        userMessage: userMessage,
         stage: 'threshold_filtering',
       });
     }
 
     // 9. Re-ranking (graceful degradation)
-    const validatedFragments = await this.performReRanking(filteredFragments, input.userMessage);
+    const validatedFragments = await this.performReRanking(filteredFragments, userMessage);
     this.logger.log(`Re-ranking completed. ${validatedFragments.length}/${filteredFragments.length} fragments validated for context.`);
 
     // 10. Handle re-ranking rejection
@@ -171,7 +371,7 @@ export class RagEngineService {
         agentId: input.agentId,
         conversationId: input.conversationId,
         originalCount: filteredFragments.length,
-        userMessage: input.userMessage,
+        userMessage: userMessage,
         stage: 're_ranking',
       });
     }
@@ -185,40 +385,49 @@ export class RagEngineService {
       config,
       fragments: validatedFragments,
       history,
-      userMessage: input.userMessage,
+      userMessage: userMessage,
+      image: imageInfo,
     });
 
     // 11.5 Quick check for explicit human escalation (safety net for LLM disobedience)
-    const lowerMessage = input.userMessage.toLowerCase();
+    const lowerMessage = userMessage.toLowerCase();
     const escalationKeywords = ['asesor', 'humano', 'operador', 'representante', 'hablar con alguien', 'soporte'];
     if (escalationKeywords.some(kw => lowerMessage.includes(kw))) {
       this.logger.warn('Explicit human escalation keyword detected, bypassing LLM', {
         agentId: input.agentId,
         conversationId: input.conversationId,
-        userMessage: input.userMessage,
+        userMessage: userMessage,
       });
-      return this.buildNoInfoResponse(input, config, history, 'explicit');
+      return this.buildNoInfoResponse(input, config, history, 'explicit', userMessage, fileType, s3FileUrl);
     }
 
     // 12. Invoke LLM
     let llmContent: string;
     try {
-      this.logger.debug('Invoking LLM');
-      const llmResponse = await this.llmProvider.generate(prompt);
+      if (config.tipo === 'agendamiento' || config.tipo === 'cotizador') {
+        this.logger.debug(`Invoking ${config.tipo} agent with tools`);
+        llmContent = await this.executeAgentWithTools(config, prompt, input);
+      } else {
+        this.logger.debug('Invoking standard LLM');
+        const llmResponse = await this.llmProvider.generate(prompt);
+        llmContent = llmResponse.content;
+      }
+
+      // Clean thinking blocks from response content
+      if (llmContent) {
+        llmContent = llmContent.replace(/<(thinking|thought)>[\s\S]*?(?:<\/\1>|$)/gi, '').trim();
+      }
 
       // 13. Handle empty LLM response
-      if (!llmResponse.content || llmResponse.content.trim().length === 0) {
+      if (!llmContent || llmContent.trim().length === 0) {
         this.logger.error('LLM returned empty response', {
           agentId: input.agentId,
           conversationId: input.conversationId,
           stage: 'llm_invocation',
         });
-        return this.buildErrorResponse(input, config, history);
+        return this.buildErrorResponse(input, config, history, userMessage, fileType, s3FileUrl);
       }
 
-      llmContent = llmResponse.content;
-
-      // 13.5 Handle TRANSFER or NO_INFO response from LLM
       const cleanContent = llmContent.trim().toUpperCase();
       if (cleanContent === 'TRANSFER' || cleanContent.includes('TRANSFER')) {
         this.logger.warn('LLM determined user wants human transfer, initiating escalation', {
@@ -226,22 +435,19 @@ export class RagEngineService {
           conversationId: input.conversationId,
           stage: 'llm_invocation',
         });
-        return this.buildNoInfoResponse(input, config, history, 'explicit');
+        return this.buildNoInfoResponse(input, config, history, 'explicit', userMessage, fileType, s3FileUrl);
       }
 
       if (cleanContent === 'NO_INFO' || cleanContent.includes('NO_INFO')) {
         this.logger.warn('LLM determined no information was available, returning noInfoMessage', {
-          agentId: input.agentId,
+          agentId: config.agentId,
           conversationId: input.conversationId,
           stage: 'llm_invocation',
         });
-        return this.buildNoInfoResponse(input, config, history, 'agent_detected');
+        return this.buildNoInfoResponse(input, config, history, 'agent_detected', userMessage, fileType, s3FileUrl);
       }
 
-      this.logger.debug('LLM response received', {
-        tokensUsed: llmResponse.tokensUsed,
-        finishReason: llmResponse.finishReason,
-      });
+      this.logger.debug('LLM response received');
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('LLM invocation failed', {
@@ -250,14 +456,14 @@ export class RagEngineService {
         error: errorMessage,
         stage: 'llm_invocation',
       });
-      return this.buildErrorResponse(input, config, history);
+      return this.buildErrorResponse(input, config, history, userMessage, fileType, s3FileUrl);
     }
 
     // 14. Format response
     const responseMessages = this.responseFormatter.format(llmContent, config.maxResponseLength);
 
     // 15. Persist messages (graceful degradation)
-    await this.persistMessages(input, responseMessages);
+    await this.persistMessages(input, responseMessages, userMessage, s3FileUrl, fileType);
 
     // 16. Add welcome message if new session
     const messages = this.prependWelcomeMessage(responseMessages, isNewSession, config);
@@ -281,6 +487,15 @@ export class RagEngineService {
    * Throws InvalidInputException if userMessage is empty or whitespace.
    */
   private validateInput(input: RagProcessInput): void {
+    if (input.messageType === 'audio') {
+      if (!input.mediaId) {
+        throw new InvalidInputException('mediaId', 'Media ID is required for audio messages');
+      }
+      return;
+    }
+    if (input.messageType === 'image') {
+      return;
+    }
     if (!input.userMessage || input.userMessage.trim().length === 0) {
       throw new InvalidInputException('userMessage', 'Message cannot be empty or whitespace');
     }
@@ -294,7 +509,7 @@ export class RagEngineService {
     try {
       return await this.agentConfigProvider.getConfig(agentId);
     } catch (error: unknown) {
-      if (error instanceof AgentNotFoundException) {
+      if (error instanceof AgentNotFoundException || error instanceof AgentInactiveException) {
         throw error;
       }
       throw new AgentNotFoundException(agentId);
@@ -377,13 +592,18 @@ export class RagEngineService {
   private async persistMessages(
     input: RagProcessInput,
     responseMessages: ResponseMessage[],
+    userMessage: string,
+    fileUrl?: string,
+    messageType?: 'text' | 'image' | 'file',
   ): Promise<void> {
     try {
       // Save user message
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.USER,
-        content: input.userMessage,
+        content: userMessage,
         timestamp: input.timestamp,
+        fileUrl,
+        messageType,
       });
 
       // Save assistant response
@@ -434,6 +654,9 @@ export class RagEngineService {
     config: AgentConfig,
     history: HistoryMessage[],
     escalationType: 'explicit' | 'agent_detected' = 'agent_detected',
+    userMessage: string = input.userMessage,
+    fileType: 'text' | 'image' | 'file' = 'text',
+    fileUrl?: string,
   ): Promise<RagProcessOutput> {
     const escalatedAt = new Date();
     const responseContent = escalationType === 'explicit'
@@ -452,9 +675,10 @@ export class RagEngineService {
       messages.push({
         _id: new ObjectId(),
         sender: 'user',
-        content: input.userMessage,
+        content: userMessage,
         timestamp: input.timestamp,
-        type: 'text',
+        type: fileType,
+        fileUrl,
       });
 
       messages.push({
@@ -482,11 +706,38 @@ export class RagEngineService {
         updatedAt: escalatedAt,
       });
 
+      // Notificar a la empresa en tiempo real y encolar correos de alerta
+      await this.notificationsService.notificarEscalamiento({
+        companyId: config.companyId,
+        conversationId: input.conversationId,
+        agentName: config.personality?.name || 'Agente RAG',
+        reason: escalationType === 'explicit'
+          ? 'El usuario solicitó hablar con un humano directamente.'
+          : 'El agente no tiene información sobre el producto solicitado.',
+      });
+
+      // Emitir métrica de escalamiento abierto (fire-and-forget)
+      this.eventEmitter.emit('metric.event', {
+        companyId: config.companyId,
+        agentId: config.agentId,
+        agentType: 'rag',
+        eventType: 'escalation.opened',
+        timestamp: escalatedAt,
+        metadata: {
+          reason: escalationType === 'explicit'
+            ? 'El usuario solicitó hablar con un humano directamente.'
+            : 'El agente no tiene información sobre el producto solicitado.',
+          escalationType,
+        },
+      } satisfies MetricEventPayload);
+
       // Guardar también en la memoria general
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.USER,
-        content: input.userMessage,
+        content: userMessage,
         timestamp: input.timestamp,
+        fileUrl,
+        messageType: fileType,
       });
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.ASSISTANT,
@@ -515,6 +766,9 @@ export class RagEngineService {
     input: RagProcessInput,
     config: AgentConfig,
     history: HistoryMessage[],
+    userMessage: string = input.userMessage,
+    fileType: 'text' | 'image' | 'file' = 'text',
+    fileUrl?: string,
   ): Promise<RagProcessOutput> {
     const escalatedAt = new Date();
     const responseContent = config.errorMessage;
@@ -531,9 +785,10 @@ export class RagEngineService {
       messages.push({
         _id: new ObjectId(),
         sender: 'user',
-        content: input.userMessage,
+        content: userMessage,
         timestamp: input.timestamp,
-        type: 'text',
+        type: fileType,
+        fileUrl,
       });
 
       messages.push({
@@ -559,11 +814,34 @@ export class RagEngineService {
         updatedAt: escalatedAt,
       });
 
+      // Notificar a la empresa en tiempo real y encolar correos de alerta
+      await this.notificationsService.notificarEscalamiento({
+        companyId: config.companyId,
+        conversationId: input.conversationId,
+        agentName: config.personality?.name || 'Agente RAG',
+        reason: 'Error al invocar o procesar el modelo de lenguaje.',
+      });
+
+      // Emitir métrica de escalamiento abierto por error de LLM (fire-and-forget)
+      this.eventEmitter.emit('metric.event', {
+        companyId: config.companyId,
+        agentId: config.agentId,
+        agentType: 'rag',
+        eventType: 'escalation.opened',
+        timestamp: escalatedAt,
+        metadata: {
+          reason: 'Error al invocar o procesar el modelo de lenguaje.',
+          escalationType: 'agent_detected',
+        },
+      } satisfies MetricEventPayload);
+
       // Guardar también en la memoria general
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.USER,
-        content: input.userMessage,
+        content: userMessage,
         timestamp: input.timestamp,
+        fileUrl,
+        messageType: fileType,
       });
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.ASSISTANT,
@@ -583,5 +861,366 @@ export class RagEngineService {
       escalated: true,
       escalationReason: EscalationReason.LLM_UNAVAILABLE,
     };
+  }
+
+  /**
+   * Ejecuta el flujo del LLM para agentes de agendamiento con soporte de herramientas (Tools).
+   */
+  private async executeAgentWithTools(
+    config: AgentConfig,
+    prompt: LlmPrompt,
+    _input: RagProcessInput,
+  ): Promise<string> {
+    const rawModel = typeof this.llmProvider.getModel === 'function' ? this.llmProvider.getModel(!!prompt.image) : null;
+    if (!rawModel) {
+      this.logger.error('El proveedor de LLM no expone el modelo LangChain crudo');
+      throw new Error('Soporte de herramientas no configurado en el LLM');
+    }
+
+    let tools: any[] = [];
+
+    if (config.tipo === 'agendamiento') {
+      const checkAvailabilityTool = new DynamicStructuredTool({
+        name: 'check_availability',
+        description:
+          'Consulta los horarios/slots de 30 minutos disponibles para una fecha específica (YYYY-MM-DD). Retorna un array de strings con las horas disponibles (ej: ["09:00", "09:30"]).',
+        schema: z.object({
+          date: z.string().describe('Fecha en formato YYYY-MM-DD del día a consultar.'),
+          timeOfDay: z.enum(['morning', 'afternoon', 'any']).optional().describe('Preferencia de jornada de disponibilidad.'),
+        }),
+        func: async ({ date, timeOfDay }) => {
+          try {
+            const slots = await this.bookingsService.checkAvailability(
+              config.agentId,
+              date,
+              timeOfDay || 'any',
+            );
+            return JSON.stringify({ success: true, date, availableSlots: slots });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
+
+      const bookAppointmentTool = new DynamicStructuredTool({
+        name: 'book_appointment',
+        description: 'Reserva una cita para un cliente en una fecha y hora específica.',
+        schema: z.object({
+          dateTime: z
+            .string()
+            .describe(
+              'Fecha y hora de inicio de la cita en formato ISO 8601 (ej. YYYY-MM-DDTHH:mm:ss). Debe ser uno de los slots disponibles.',
+            ),
+          customerName: z.string().describe('Nombre completo del cliente.'),
+          customerPhone: z.string().describe('Teléfono de contacto del cliente.'),
+          customerEmail: z.string().optional().describe('Correo electrónico del cliente.'),
+          notes: z.string().optional().describe('Notas o comentarios adicionales de la cita.'),
+        }),
+        func: async ({ dateTime, customerName, customerPhone, customerEmail, notes }) => {
+          try {
+            const booking = await this.bookingsService.createBooking(config.companyId, {
+              agentId: config.agentId,
+              dateTime,
+              customerName,
+              customerPhone,
+              customerEmail,
+              notes,
+            });
+            return JSON.stringify({ success: true, booking });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
+
+      tools = [checkAvailabilityTool, bookAppointmentTool];
+    } else if (config.tipo === 'cotizador') {
+      const listProductsTool = new DynamicStructuredTool({
+        name: 'list_products',
+        description: 'Busca productos o consulta el catálogo del agente cotizador. Puedes pasar términos de búsqueda para encontrar productos específicos.',
+        schema: z.object({
+          query: z.string().optional().describe('Término de búsqueda para filtrar productos o vacío para ver general.'),
+        }),
+        func: async ({ query }) => {
+          try {
+            const results = await this.vectorSearch.search(config.agentId, query || 'productos', 10);
+            return JSON.stringify({
+              success: true,
+              products: results.map(r => r.content),
+            });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
+
+      const createOrderTool = new DynamicStructuredTool({
+        name: 'create_order',
+        description: 'Crea un nuevo pedido o cotización para el cliente con los ítems y precios especificados.',
+        schema: z.object({
+          customerName: z.string().describe('Nombre completo del cliente.'),
+          customerPhone: z.string().describe('Teléfono de WhatsApp del cliente.'),
+          customerEmail: z.string().email().describe('Correo electrónico del cliente.'),
+          customerAddress: z.string().describe('Dirección física de entrega del cliente.'),
+          items: z.array(
+            z.object({
+              nombre: z.string().describe('Nombre del producto o servicio.'),
+              cantidad: z.number().describe('Cantidad ordenada.'),
+              precioUnitario: z.number().describe('Precio unitario del producto.'),
+            })
+          ).describe('Lista de productos o ítems agregados al pedido.'),
+          notes: z.string().optional().describe('Notas o comentarios adicionales del pedido.'),
+        }),
+        func: async ({ customerName, customerPhone, customerEmail, customerAddress, items, notes }) => {
+          try {
+            const total = items.reduce((acc, item) => acc + item.cantidad * item.precioUnitario, 0);
+            const order = await this.ordersService.createOrder(config.companyId, {
+              agentId: config.agentId,
+              customerName,
+              customerPhone,
+              customerEmail,
+              customerAddress,
+              items: items.map(item => ({
+                nombre: item.nombre,
+                cantidad: item.cantidad,
+                precioUnitario: item.precioUnitario,
+                subtotal: item.cantidad * item.precioUnitario,
+              })),
+              total,
+              status: 'pending_confirmation',
+              notes,
+            });
+            return JSON.stringify({ success: true, order });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
+
+      const getOrderStatusTool = new DynamicStructuredTool({
+        name: 'get_order_status',
+        description: 'Obtiene el estado de un pedido específico por su ID.',
+        schema: z.object({
+          orderId: z.string().describe('ID único del pedido a consultar.'),
+        }),
+        func: async ({ orderId }) => {
+          try {
+            const order = await this.ordersService.getOrder(orderId, config.companyId);
+            return JSON.stringify({
+              success: true,
+              orderId: order.id,
+              status: order.status,
+              customerName: order.customerName,
+              total: order.total,
+              createdAt: order.createdAt,
+              updatedAt: order.updatedAt,
+            });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
+
+      const cancelOrderTool = new DynamicStructuredTool({
+        name: 'cancel_order',
+        description: 'Cancela un pedido existente usando su ID.',
+        schema: z.object({
+          orderId: z.string().describe('ID único del pedido a cancelar.'),
+        }),
+        func: async ({ orderId }) => {
+          try {
+            const order = await this.ordersService.cancelOrder(orderId, config.companyId);
+            return JSON.stringify({ success: true, order });
+          } catch (err: any) {
+            return JSON.stringify({ success: false, error: err.message || String(err) });
+          }
+        },
+      });
+
+      tools = [listProductsTool, createOrderTool, getOrderStatusTool, cancelOrderTool];
+    }
+
+    const modelWithTools = rawModel.bindTools(tools);
+
+    // Construcción de mensajes para el LLM
+    const messages: any[] = [];
+
+    // System prompt con contexto inyectado
+    const systemPromptParts = [prompt.systemPrompt];
+    if (prompt.context) {
+      systemPromptParts.push(`\n\n--- CONTEXTO ---\n${prompt.context}`);
+    }
+
+    const isEnglish = prompt.language?.trim().toLowerCase() === 'en';
+    if (isEnglish) {
+      systemPromptParts.push(`\n\nRestriction: Your response must not exceed ${prompt.maxResponseLength} characters.`);
+    } else {
+      systemPromptParts.push(`\n\nRestricción: Tu respuesta no debe exceder de ${prompt.maxResponseLength} caracteres.`);
+    }
+
+    // Inyectar contexto temporal local del agente
+    const timezone = config.timezone || 'America/Bogota';
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('es-CO', {
+      timeZone: timezone,
+      dateStyle: 'full',
+      timeStyle: 'long',
+    });
+    const localTimeStr = formatter.format(now);
+    systemPromptParts.push(`\n\nFecha y hora actual del sistema (huso horario ${timezone}): ${localTimeStr}.`);
+
+    messages.push(new SystemMessage(systemPromptParts.join('')));
+
+    // Historial conversacional
+    for (const msg of prompt.history) {
+      if (msg.role === 'user') {
+        messages.push(new HumanMessage(msg.content));
+      } else {
+        messages.push(new AIMessage(msg.content));
+      }
+    }
+
+    // Mensaje de usuario actual
+    if (prompt.image) {
+      messages.push(
+        new HumanMessage({
+          content: [
+            { type: 'text', text: prompt.userMessage || 'Analiza esta imagen.' },
+            {
+              type: 'image_url',
+              name: 'my_image_input',
+              image_url: {
+                url: `data:${prompt.image.mimeType};base64,${prompt.image.base64}`,
+              },
+            },
+          ] as any,
+        }),
+      );
+    } else {
+      messages.push(new HumanMessage(prompt.userMessage));
+    }
+
+    this.logger.log(`Iniciando ejecución de agente de agendamiento. Mensaje usuario: "${prompt.userMessage}"`);
+
+    let response = await modelWithTools.invoke(messages);
+    let loopCount = 0;
+
+    while (loopCount < 5) {
+      const toolCalls = response.tool_calls || [];
+      if (toolCalls.length === 0) {
+        break;
+      }
+
+      loopCount++;
+      messages.push(response);
+
+      for (const toolCall of toolCalls) {
+        const targetTool = tools.find((t) => t.name === toolCall.name);
+        if (targetTool) {
+          this.logger.log(`Llamando herramienta ${toolCall.name} con argumentos: ${JSON.stringify(toolCall.args)}`);
+          const result = await (targetTool as any).invoke(toolCall.args);
+          let contentStr = '';
+          if (result && typeof result === 'object' && 'content' in result) {
+            contentStr = typeof result.content === 'string' ? result.content : JSON.stringify(result.content);
+          } else {
+            contentStr = typeof result === 'string' ? result : JSON.stringify(result);
+          }
+          messages.push(
+            new ToolMessage({
+              content: contentStr,
+              tool_call_id: toolCall.id!,
+            }),
+          );
+        } else {
+          messages.push(
+            new ToolMessage({
+              content: `Error: herramienta ${toolCall.name} no encontrada`,
+              tool_call_id: toolCall.id!,
+            }),
+          );
+        }
+      }
+
+      response = await modelWithTools.invoke(messages);
+    }
+
+    const finalContent =
+      typeof response.content === 'string'
+        ? response.content
+        : Array.isArray(response.content)
+          ? response.content.map((b: any) => b.text || '').join('')
+          : '';
+
+    return finalContent;
+  }
+
+  private async downloadMedia(
+    channelDoc: any,
+    mediaId: string,
+    token: string,
+    defaultMimeType: string,
+  ): Promise<{ buffer: Buffer; mimeType: string }> {
+    let buffer: Buffer;
+    let mimeType = defaultMimeType;
+
+    if (channelDoc.provider === 'whatsapp') {
+      this.logger.log(`Downloading media from Meta for mediaId=${mediaId}...`);
+      const mediaUrlResponse = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!mediaUrlResponse.ok) {
+        const errText = await mediaUrlResponse.text();
+        throw new Error(`Failed to get media URL from Meta: ${errText}`);
+      }
+      const mediaData = await mediaUrlResponse.json() as { url: string; mime_type?: string };
+      if (!mediaData.url) {
+        throw new Error(`Meta media metadata did not return a URL: ${JSON.stringify(mediaData)}`);
+      }
+      if (mediaData.mime_type) {
+        mimeType = mediaData.mime_type;
+      }
+
+      const mediaDownloadResponse = await fetch(mediaData.url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!mediaDownloadResponse.ok) {
+        const errText = await mediaDownloadResponse.text();
+        throw new Error(`Failed to download media binary from Meta: ${errText}`);
+      }
+      buffer = Buffer.from(await mediaDownloadResponse.arrayBuffer());
+    } else if (channelDoc.provider === 'telegram') {
+      this.logger.log(`Downloading media from Telegram for file_id=${mediaId}...`);
+      const fileUrlResponse = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${mediaId}`);
+      if (!fileUrlResponse.ok) {
+        const errText = await fileUrlResponse.text();
+        throw new Error(`Failed to get file path from Telegram: ${errText}`);
+      }
+      const fileData = await fileUrlResponse.json() as { ok: boolean; result?: { file_path?: string } };
+      if (!fileData.ok || !fileData.result?.file_path) {
+        throw new Error(`Telegram getFile did not return a path: ${JSON.stringify(fileData)}`);
+      }
+
+      const downloadUrl = `https://api.telegram.org/file/bot${token}/${fileData.result.file_path}`;
+      const mediaDownloadResponse = await fetch(downloadUrl);
+      if (!mediaDownloadResponse.ok) {
+        const errText = await mediaDownloadResponse.text();
+        throw new Error(`Failed to download media binary from Telegram: ${errText}`);
+      }
+      buffer = Buffer.from(await mediaDownloadResponse.arrayBuffer());
+    } else {
+      throw new Error(`Unsupported channel provider for media download: ${channelDoc.provider}`);
+    }
+
+    return { buffer, mimeType };
+  }
+
+  private getExtensionFromMimeType(mimeType: string): string {
+    if (!mimeType) return 'bin';
+    const parts = mimeType.split('/');
+    if (parts.length < 2) return 'bin';
+    const sub = parts[1].toLowerCase();
+    if (sub === 'jpeg') return 'jpg';
+    if (sub.includes('svg')) return 'svg';
+    return sub;
   }
 }

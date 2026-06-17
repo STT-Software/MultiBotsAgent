@@ -30,6 +30,12 @@ import {
   RATE_LIMITS_INDEXES,
   CHANNELS_COLLECTION,
   CHANNELS_INDEXES,
+  AGENTS_COLLECTION,
+  AGENTS_INDEXES,
+  BOOKINGS_COLLECTION,
+  BOOKINGS_INDEXES,
+  ORDERS_COLLECTION,
+  ORDERS_INDEXES,
 } from "../schemas";
 
 interface IndexDefinition {
@@ -69,6 +75,9 @@ async function createIndexes(): Promise<void> {
       { name: COMPANIES_COLLECTION, indexes: COMPANIES_INDEXES as unknown as IndexDefinition[] },
       { name: RATE_LIMITS_COLLECTION, indexes: RATE_LIMITS_INDEXES as unknown as IndexDefinition[] },
       { name: CHANNELS_COLLECTION, indexes: CHANNELS_INDEXES as unknown as IndexDefinition[] },
+      { name: AGENTS_COLLECTION, indexes: AGENTS_INDEXES as unknown as IndexDefinition[] },
+      { name: BOOKINGS_COLLECTION, indexes: BOOKINGS_INDEXES as unknown as IndexDefinition[] },
+      { name: ORDERS_COLLECTION, indexes: ORDERS_INDEXES as unknown as IndexDefinition[] },
     ];
 
     for (const { name, indexes } of collections) {

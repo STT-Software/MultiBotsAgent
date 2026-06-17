@@ -1,5 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ObjectId, Db } from 'mongodb';
 import type {
   IEscalatedConversationRepository,
@@ -9,6 +10,7 @@ import {
   COMPANIES_COLLECTION,
   ESCALATED_CONVERSATIONS_COLLECTION,
 } from '@multibotagents/db';
+import type { MetricEventPayload } from '@multibotagents/types';
 
 const DEFAULT_TIMEOUT_MINUTES = 60;
 
@@ -23,6 +25,7 @@ export class EscalamientoCronService {
     private readonly eventRepo: IEscalationEventRepository,
     @Inject('MONGO_DB')
     private readonly db: Db,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.logger.log('EscalamientoCronService initialized');
   }
@@ -92,6 +95,16 @@ export class EscalamientoCronService {
               durationMinutes,
               createdAt: resolvedAt,
             });
+
+            // Emitir métrica de escalamiento por timeout (fire-and-forget)
+            this.eventEmitter.emit('metric.event', {
+              companyId: companyIdStr,
+              agentId: conversation.agentId,
+              agentType: conversation.agentType as 'rag' | 'cotizador' | 'agendamiento',
+              eventType: 'escalation.timeout',
+              timestamp: resolvedAt,
+              metadata: { timeoutMinutes },
+            } satisfies MetricEventPayload);
 
             totalProcessed++;
           } catch (err) {

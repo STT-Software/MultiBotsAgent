@@ -4,6 +4,8 @@ export interface ChatMessage {
   timestamp: Date;
   source?: 'agent' | 'operator';
   isEscalated?: boolean;
+  fileUrl?: string;
+  messageType?: 'text' | 'image' | 'file';
 }
 
 export interface ChatMemoryEntity {

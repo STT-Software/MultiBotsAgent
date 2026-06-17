@@ -21,4 +21,11 @@ export type {
   IChannelRepository,
   IProcessedMessageRepository,
   IMessageLogRepository,
+  IAgentRepository,
+  IMetricEventRepository,
+  CreateBookingData,
+  IBookingRepository,
+  IAuditLogRepository,
+  CreateOrderData,
+  IOrderRepository,
 } from './repositories.interface';

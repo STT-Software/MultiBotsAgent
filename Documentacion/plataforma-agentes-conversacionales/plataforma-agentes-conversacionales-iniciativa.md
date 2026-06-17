@@ -5,7 +5,7 @@ initiative: Plataforma de Agentes Conversacionales
 product: Por definir
 author: Por definir
 created: 2026-05-05
-updated: 2026-05-05
+updated: 2026-06-11
 version: 0.1.0
 status: discovery
 language: es
@@ -25,6 +25,12 @@ changelog:
   - date: 2026-05-20
     author: Oscar Gomez
     description: "Refinamiento del Solution Map — Solución 8 (Sistema de Escalamiento a Humano) diseñada. Status: drafting."
+  - date: 2026-06-01
+    author: Oscar Gomez
+    description: "Refinamiento del Solution Map — Solución 12 (Sistema de Métricas y Analíticas) diseñada. Status: drafting."
+  - date: 2026-06-11
+    author: Antigravity (IA)
+    description: "Refinamiento del Solution Map — Adición de la Solución 15 (Procesamiento y Transcripción de Mensajes de Voz - STT). Status: drafting."
 ---
 
 # Plataforma de Agentes Conversacionales
@@ -227,15 +233,16 @@ Una plataforma plug & play donde una empresa pueda:
 | 9 | **Motor de Mensajes Proactivos** | Recordatorios de citas, actualizaciones de pedido, mensajes según gestión del agente | Transversal | Media | Aplica a agendamiento y cotizador principalmente |
 | 10 | **Sistema de Notificaciones** | Notificar a empresa (pedidos, escalamientos), notificar a cliente (estados, confirmaciones) | Transversal | Alta | Canales: plataforma, WhatsApp, correo |
 | 11 | **Motor de Personalidad del Agente** | Tono, nombre, idioma, restricciones, mensaje de bienvenida | Transversal | Media | Configurable por agente, aplica a todos los tipos |
-| 12 | **Sistema de Métricas y Analíticas** | Tasa de éxito, consultas frecuentes, métricas específicas por tipo de agente | Transversal | Media | Métricas básicas, sin dashboards complejos |
+| 12 | **Sistema de Métricas y Analíticas** | Tasa de éxito, consultas frecuentes, métricas específicas por tipo de agente | Transversal | Media | Métricas básicas, sin dashboards complejos. Status: `drafting` |
 | 13 | **Gestión de Integraciones Externas** | Conexión con Google Drive, Notion, Confluence, SharePoint, Dropbox, Google Calendar | Transversal | Alta | Credenciales simples, conexión automática |
 | 14 | **Gestión de Empresas y Acceso** | Multi-empresa, acceso sin roles, múltiples agentes por empresa | Transversal | Alta | Sin planes/tiers por ahora |
+| 15 | **Procesamiento y Transcripción de Mensajes de Voz (STT)** | Recepción y transcripción asíncrona de notas de voz de usuario para que el motor RAG de cualquier agente procese la consulta y responda en texto plano | Transversal | Alta | Soporte para WhatsApp y Telegram usando OpenAI Whisper o la alternativa gratuita de Groq Whisper. Status: drafting |
 
 ### Flujos Transversales Implícitos
 
 | Flujo | Descripción | Soluciones involucradas |
 |-------|-------------|------------------------|
-| Recepción de mensaje | WhatsApp recibe mensaje → identifica agente → enruta al motor correspondiente | 5, 7, 2/3/4 |
+| Recepción de mensaje | WhatsApp/Telegram recibe mensaje (texto o audio) → identifica agente → (si es audio, descarga y transcribe) → enruta al motor correspondiente | 5, 7, 15, 2/3/4 |
 | Configuración de agente | Usuario crea agente → selecciona tipo → configura personalidad → asocia canal → carga conocimiento | 1, 11, 6, 5 |
 | Escalamiento | Agente detecta que no puede resolver → notifica → inbox toma control → humano responde | 8, 10, 1 |
 | Ciclo de pedido | Cliente solicita → agente cotiza → cliente confirma → empresa recibe notificación → actualiza estado → agente informa al cliente | 3, 10, 9 |

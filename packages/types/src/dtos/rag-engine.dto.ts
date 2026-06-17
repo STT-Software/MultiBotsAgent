@@ -12,7 +12,7 @@ import {
   IsDate,
   ValidatorConstraint,
   ValidatorConstraintInterface,
-  Validate,
+  IsOptional,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -52,11 +52,30 @@ export class RagProcessInputDto implements RagProcessInput {
   conversationId!: string;
 
   @IsString()
-  @IsNotEmpty()
-  @Validate(IsNotWhitespaceOnly)
+  @IsOptional()
   userMessage!: string;
 
   @IsDate()
   @Type(() => Date)
   timestamp!: Date;
+
+  @IsString()
+  @IsOptional()
+  channelId?: string;
+
+  @IsString()
+  @IsOptional()
+  messageType?: "text" | "audio" | "image";
+
+  @IsString()
+  @IsOptional()
+  mediaId?: string;
+
+  @IsString()
+  @IsOptional()
+  mimeType?: string;
+
+  @IsString()
+  @IsOptional()
+  fileUrl?: string;
 }

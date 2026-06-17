@@ -20,8 +20,10 @@ export function useEscalatedConversations(): UseEscalatedConversationsReturn {
   const [error, setError] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isBackground = false) => {
+    if (!isBackground) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -44,24 +46,38 @@ export function useEscalatedConversations(): UseEscalatedConversationsReturn {
       setConversations(all);
       setPendingCount(escalatedResponse.pendingCount);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Error al cargar conversaciones escaladas";
-      setError(message);
+      if (!isBackground) {
+        const message =
+          err instanceof Error ? err.message : "Error al cargar conversaciones escaladas";
+        setError(message);
+      }
     } finally {
-      setLoading(false);
+      if (!isBackground) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    load();
+    // Carga inicial
+    load(false);
+
+    // Polling en background cada 4 segundos para mantener la lista actualizada
+    const interval = setInterval(() => {
+      load(true);
+    }, 4000);
+
+    return () => {
+      clearInterval(interval);
+    };
   }, [load]);
 
   const retry = useCallback(() => {
-    load();
+    load(false);
   }, [load]);
 
   const refresh = useCallback(() => {
-    load();
+    load(false);
   }, [load]);
 
   return { conversations, loading, error, pendingCount, retry, refresh };

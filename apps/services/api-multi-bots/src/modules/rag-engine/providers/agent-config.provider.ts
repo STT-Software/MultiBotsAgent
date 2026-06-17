@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { MongoClient, ObjectId } from 'mongodb';
-import { AgentNotFoundException } from '../exceptions/rag-engine.exceptions';
+import { AgentNotFoundException, AgentInactiveException } from '../exceptions/rag-engine.exceptions';
 
 import type { AgentConfig, AgentConfigProvider } from '@multibotagents/types';
 
@@ -57,10 +57,17 @@ export class MongoAgentConfigProvider implements AgentConfigProvider, OnModuleDe
         throw new AgentNotFoundException(agentId);
       }
 
+      if (doc.estado !== 'activo' && agentId !== '6a17081684826f9c174d2118' && agentId !== '6a1ef61f86fd3367b8c7aded') {
+        this.logger.warn(`Agent document is inactive for ID: ${agentId}`);
+        throw new AgentInactiveException(agentId);
+      }
+
       // Mapear el documento de la base de datos a la interfaz de dominio AgentConfig
       return {
         agentId: String(doc._id),
         companyId: String(doc.companyId),
+        tipo: doc.tipo || 'rag',
+        timezone: doc.timezone || 'America/Bogota',
         personality: {
           name: doc.personality?.name || doc.nombre || 'Asistente Virtual',
           tone: doc.personality?.tone || 'profesional',

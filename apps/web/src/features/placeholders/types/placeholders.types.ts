@@ -1,6 +1,7 @@
 export interface PlaceholderAction {
   label: string;
   icon?: React.ReactNode;
+  onClick?: () => void;
 }
 
 export interface PlaceholderPageProps {
