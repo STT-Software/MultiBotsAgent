@@ -6,14 +6,17 @@ initiative: ../../plataforma-agentes-conversacionales-iniciativa.md
 product: Plataforma de Agentes Conversacionales
 author: Antigravity (IA)
 created: 2026-06-16
-updated: 2026-06-16
-version: "1.0.0"
+updated: 2026-06-17
+version: "1.1.0"
 status: drafting
 language: es
 changelog:
   - date: 2026-06-16
     author: Antigravity (IA)
     change: "Creación inicial del documento de solución — Gestión de Integraciones Externas"
+  - date: 2026-06-17
+    author: Antigravity (IA)
+    change: "Incorporación de migración desde SOL-04 — flujos 2.5 (Health Check proactivo) y 2.6 (Migración de lógica de Calendar). Caché de disponibilidad migrada a SL13. Nuevos AC y R5 añadidos. Interfaces validadas con SOL-04."
 ---
 
 # Gestión de Integraciones Externas
@@ -245,7 +248,87 @@ el adaptador de Google Calendar.
     días laborales, horarios). Esas reglas viven en SOL-04. El adaptador solo ejecuta las
     consultas al calendario.
 
-### 2.5 Desconexión de una Integración
+### 2.5 Validación Proactiva de Tokens (Health Check)
+
+- **Trigger:** Job programado que corre periódicamente (una vez al día) para validar que los
+  tokens de todas las integraciones activas siguen siendo utilizables.
+
+- **Comportamiento:**
+  1. El job consulta en MongoDB todas las entidades `Integration` con `status: connected`.
+  2. Para cada integración, intenta un refresco preventivo del `access_token` si está
+     próximo a expirar (mismo criterio del flujo 2.2: < 5 minutos de vida restante), o
+     realiza una llamada de validación ligera al proveedor si el token sigue vigente
+     (ej. `GET /calendar/v3/calendars/primary` para Google Calendar).
+  3. Si el token es válido y se refrescó correctamente: actualiza `lastHealthCheck` en la
+     entidad `Integration`. No hay acción adicional.
+  4. Si el token no puede renovarse (`invalid_grant`, token revocado por el usuario):
+     - Marca la integración como `requires_reconnection` en MongoDB.
+     - Notifica a la empresa vía SOL-10 para que reconecte la integración desde el panel.
+     - Si la integración afectada es Google Calendar, el Agente de Agendamiento que la
+       use deberá detectar el estado `requires_reconnection` al momento de procesar el
+       siguiente mensaje y escalar a humano en lugar de fallar silenciosamente.
+
+- **Resultado:** Las integraciones en estado degradado se detectan anticipadamente, antes
+  de que un usuario final experimente un fallo durante una conversación activa.
+
+- **Error path:**
+  - Si la llamada de validación al proveedor falla por timeout o error 5xx (proveedor
+    caído): se registra el intento fallido en logs pero no se cambia el estado de la
+    integración. Se reintenta en el próximo ciclo del job.
+  - Si MongoDB no está disponible durante el job: el job aborta silenciosamente y se
+    reintenta en el siguiente ciclo programado.
+
+- **Decisiones de diseño:**
+  - Este flujo migra la responsabilidad del "cron de validación de tokens" que SOL-04
+    describía como mitigación del Riesgo 1 (expiración silenciosa de tokens). Al centralizar
+    esta lógica en SL13, cualquier consumidor (SOL-04, SOL-06) se beneficia
+    automáticamente sin implementar validación propia.
+  - La frecuencia del job (diaria) es suficiente para el MVP dado que los `refresh_token`
+    de Google tienen vida larga. Si en el futuro se agregan proveedores con tokens de vida
+    corta, la frecuencia puede ajustarse por proveedor.
+
+---
+
+### 2.6 Migración de Lógica de Calendar desde SOL-04
+
+- **Trigger:** Esta no es una operación en tiempo de ejecución — es una tarea de
+  implementación única al desarrollar SL13. El Motor de Agente de Agendamiento (SOL-04)
+  contiene lógica de integración con Google Calendar que debe consolidarse en SL13.
+
+- **Comportamiento (proceso de migración):**
+  1. **Identificar la lógica a migrar en SOL-04:** El código del proveedor interno de Google
+     Calendar (llamadas a `googleapis`, manejo de tokens OAuth, construcción de requests
+     a la Calendar API) que actualmente vive dentro del módulo de agendamiento debe
+     extraerse y reubicarse en el módulo `IntegrationsModule` de SL13.
+  2. **Implementar el adaptador `GoogleCalendarAdapter`** en SL13 siguiendo la interfaz
+     `CalendarSourceAdapter` definida en el flujo 2.4, reutilizando la lógica funcional
+     existente de SOL-04 (no reescribir desde cero — solo reubicar y adaptar a la interfaz).
+  3. **Reemplazar en SOL-04:** Las llamadas directas a la Calendar API que SOL-04 hacía
+     dentro de sus Tool handlers (`check_availability`, `book_appointment`,
+     `reschedule_appointment`) deben reemplazarse por llamadas al `CalendarSourceAdapter`
+     de SL13, que internamente gestiona tokens, refresco y llamadas al proveedor.
+  4. **Migrar también la caché de disponibilidad:** SOL-04 describe una caché con TTL de
+     2 minutos para la disponibilidad de slots (mitigación del Riesgo 3 de SOL-04). Esta
+     caché vive conceptualmente en SL13 como parte del adaptador de Google Calendar,
+     no en SOL-04, ya que es un detalle de optimización de la capa de integración.
+  5. **Validar que SOL-04 no tenga dependencias directas** a `googleapis` ni credenciales
+     de OAuth tras la migración. SOL-04 solo debe interactuar con SL13 via la interfaz
+     `CalendarSourceAdapter`.
+
+- **Resultado:** Toda la lógica de conectividad con Google Calendar queda centralizada en
+  SL13. SOL-04 queda limpio de detalles de integración. Cualquier futuro proveedor de
+  calendario (Outlook, Calendly) se agrega en SL13 sin tocar SOL-04.
+
+- **Decisiones de diseño:**
+  - Se prioriza reusar la lógica existente de SOL-04 sobre reescribir. El riesgo de
+    regresión se minimiza al mover código funcional probado, no al reemplazarlo.
+  - La interfaz `CalendarSourceAdapter` es el contrato que desacopla SOL-04 de los
+    detalles de implementación. Una vez migrado, SOL-04 es agnóstico al proveedor de
+    calendario.
+
+---
+
+### 2.7 Desconexión de una Integración
 
 - **Trigger:** El usuario hace clic en "Desconectar" sobre una integración activa en el
   panel de configuración.
@@ -271,7 +354,7 @@ el adaptador de Google Calendar.
     con la limpieza local. El token queda huérfano en el proveedor pero no puede usarse
     desde la plataforma.
 
-### 2.6 Listado y Estado de Integraciones
+### 2.8 Listado y Estado de Integraciones
 
 - **Trigger:** El usuario navega a la sección de integraciones en el panel para ver qué
   servicios tiene conectados y cuáles están disponibles para conectar.
@@ -313,8 +396,7 @@ Esta solución **NO** cubre:
 - **Gestión de apps en portales de desarrolladores:** El registro de la app en Google
   Cloud Console, Notion Developers, etc. es un proceso operativo/administrativo, no una
   funcionalidad de la plataforma.
-- **Notificación de tokens expirados:** La notificación al usuario cuando una integración
-  requiere reconexión es responsabilidad de SOL-10 (Sistema de Notificaciones).
+- **Notificación al usuario de tokens expirados:** La detección de tokens degradados sí es responsabilidad de SL13 (flujo 2.5 Health Check). Sin embargo, el envío de la notificación al usuario (email, WhatsApp, in-app) es responsabilidad de SOL-10 (Sistema de Notificaciones). SL13 solo marca el estado y dispara el evento.
 - **Dropbox Business / versiones enterprise:** Solo Dropbox personal/teams estándar con
   OAuth. Las integraciones enterprise (SSO corporativo) están fuera de alcance.
 - **Permisos granulares por agente:** Una integración conectada está disponible para todos
@@ -367,12 +449,14 @@ SOL-06 / SOL-04 reciben DocumentItem[] / CalendarEvent
 | Componente | Tecnología | Notas |
 |-----------|-----------|-------|
 | API de integraciones | NestJS (TypeScript) | Módulo `IntegrationsModule` dentro de api-multi-bots |
-| Almacenamiento de tokens | MongoDB Atlas | Colección `integrations`. Tokens cifrados AES-256 |
+| Almacenamiento de tokens | MongoDB Atlas | Colección `integrations`. Tokens cifrados AES-256-GCM |
 | Cifrado de tokens | AES-256-GCM | Clave en SST Secrets. Nunca en código |
 | OAuth flow | NestJS + redirect | Callback único `/integrations/oauth/callback` |
 | State JWT | jsonwebtoken (HS256) | TTL 10 min. Almacenado en MongoDB para validación |
 | Adaptadores documentales | Clases TypeScript por proveedor | Implementan `DocumentSourceAdapter` |
-| Adaptador calendario | Clase TypeScript | Implementa `CalendarSourceAdapter` |
+| Adaptador calendario | Clase TypeScript | Migrado desde SOL-04. Implementa `CalendarSourceAdapter` |
+| Caché de disponibilidad | MongoDB (colección `availabilityCache`, TTL 2 min) | Migrada desde SOL-04. Evita llamadas redundantes a Google Calendar API |
+| Health check job | NestJS `@Cron` (diario) | Valida tokens activos y marca `requires_reconnection` si fallan |
 | Infraestructura | SST v3 (Ion/Pulumi) | Sin servicios adicionales — corre en Fargate existente |
 
 ### Patrones de arquitectura
@@ -383,6 +467,8 @@ SOL-06 / SOL-04 reciben DocumentItem[] / CalendarEvent
 | Facade | `IntegrationService` como fachada única para tokens y adaptadores |
 | Token Refresh transparente | Los consumidores no gestionan expiración |
 | CSRF Protection | `state` JWT firmado en OAuth flow |
+| Cache con TTL | Disponibilidad de Google Calendar cacheada 2 min en MongoDB (migrado de SOL-04) |
+| Proactive Health Check | Job diario que valida tokens antes de que fallen en producción |
 | Secrets Management | Tokens nunca en logs, nunca en responses al frontend |
 
 ### Modelo de datos conceptual
@@ -432,6 +518,20 @@ SOL-06 / SOL-04 reciben DocumentItem[] / CalendarEvent
 - `Integration`: índice único en `{ companyId, provider }`, índice en `{ companyId }`,
   índice en `{ status }` (para encontrar integraciones que requieren reconexión)
 - `OAuthState`: índice único en `{ id }`, TTL index en `{ expiresAt }` (10 min)
+- `AvailabilityCache`: índice en `{ integrationId, date }`, TTL index en `{ expiresAt }` (2 min)
+
+```
++---------------------------+
+|    AvailabilityCache      |  (migrado desde SOL-04 — TTL 2 min)
++---------------------------+
+| id                        |
+| integrationId             |
+| date                      |  (YYYY-MM-DD)
+| slots: TimeSlot[]         |  (slots libres calculados)
+| fetchedAt                 |
+| expiresAt                 |  <-- TTL index MongoDB (2 min)
++---------------------------+
+```
 
 ### Contratos de integración
 
@@ -568,6 +668,32 @@ interface CalendarEvent {
 - [ ] Las integraciones en estado `requires_reconnection` muestran un aviso visible con
   opción de reconectar.
 
+### Health Check Proactivo
+
+- [ ] El job de health check corre una vez al día y valida todas las integraciones con
+  `status: connected`.
+- [ ] Si un token no puede renovarse, la integración se marca como `requires_reconnection`
+  automáticamente sin intervención del usuario.
+- [ ] El campo `lastHealthCheck` se actualiza en cada integración validada exitosamente.
+- [ ] Si el proveedor no está disponible durante el job (timeout / 5xx), el estado de la
+  integración no cambia y se reintenta en el siguiente ciclo.
+- [ ] SOL-04 detecta el estado `requires_reconnection` al momento de procesar un mensaje
+  de agendamiento y escala a humano en lugar de fallar con error no controlado.
+
+### Migración desde SOL-04
+
+- [ ] El módulo `IntegrationsModule` contiene el `GoogleCalendarAdapter` con toda la lógica
+  de llamadas a la Calendar API (migrado desde SOL-04).
+- [ ] SOL-04 no tiene dependencias directas a `googleapis` ni gestiona credenciales OAuth
+  tras la migración.
+- [ ] Los Tool handlers de SOL-04 (`check_availability`, `book_appointment`,
+  `reschedule_appointment`) usan exclusivamente la interfaz `CalendarSourceAdapter` de
+  SL13.
+- [ ] La caché de disponibilidad con TTL de 2 minutos está implementada en SL13
+  (colección `availabilityCache` en MongoDB), no en SOL-04.
+- [ ] El comportamiento funcional de SOL-04 no cambia tras la migración — solo el origen
+  de la lógica de Calendar.
+
 ---
 
 ## 6. Risks & Assumptions
@@ -596,11 +722,17 @@ interface CalendarEvent {
 | R2 | Confluence y SharePoint tienen autenticación más compleja (Confluence Cloud vs. Server, SharePoint Online vs. On-Premises). | Media | Iniciar solo con versiones Cloud (Confluence Cloud, SharePoint Online vía Microsoft Graph). Las versiones on-premises quedan fuera de alcance explícitamente. |
 | R3 | Dropbox no siempre emite `refresh_token` en el Authorization Code Flow estándar — requiere `token_access_type=offline`. | Alta | Asegurarse de incluir `token_access_type=offline` en el scope request de Dropbox. Punto a validar en implementación. |
 | R4 | Los rate limits de los proveedores documentales (especialmente durante indexación masiva en SOL-06) pueden generar throttling frecuente. | Media | El backoff exponencial mitiga el riesgo. Para indexaciones grandes, SOL-06 debe distribuir las llamadas en el tiempo. No es responsabilidad de esta solución, pero debe comunicarse como restricción a SOL-06. |
+| R5 | La migración de la lógica de Calendar desde SOL-04 puede introducir regresiones si la lógica interna de SOL-04 tiene comportamientos no documentados (edge cases en el manejo de slots, zonas horarias, etc.). | Media | Priorizar reusar el código existente de SOL-04 sin reescribir. Ejecutar los tests de integración de SOL-04 tras la migración para validar que el comportamiento observable no cambió. Si no existen tests, escribirlos antes de migrar. |
 
 ### Interfaces asumidas con soluciones no diseñadas aún
 
 | Solución | Interfaz asumida |
 |----------|-----------------|
 | SOL-06 (Base de Conocimiento) | Consume `DocumentSourceAdapter` con métodos `listItems` y `fetchContent`. Cuando SOL-06 se diseñe, validar que la interfaz definida aquí sea suficiente. |
-| SOL-04 (Motor de Agendamiento) | Consume `CalendarSourceAdapter` con métodos `checkAvailability`, `createEvent`, `updateEvent`, `cancelEvent`. Cuando SOL-04 se diseñe, validar que los parámetros y retornos definidos aquí sean suficientes. |
-| SOL-10 (Notificaciones) | Al marcar una integración como `requires_reconnection`, esta solución desencadena una notificación. Se asume que SOL-10 expone un método de notificación interna que recibe `{ companyId, type: "integration_requires_reconnection", payload }`. |
+| SOL-10 (Notificaciones) | Al marcar una integración como `requires_reconnection`, esta solución dispara una notificación. Se asume que SOL-10 expone un método interno que recibe `{ companyId, type: "integration_requires_reconnection", payload }`. |
+
+### Interfaces validadas con soluciones ya diseñadas
+
+| Solución | Estado |
+|----------|--------|
+| SOL-04 (Motor de Agente Agendamiento) | ✅ Validada. SOL-04 ya referencia explícitamente a SL13 como proveedor de tokens OAuth. La migración de la lógica interna de Calendar (provider de `googleapis`, caché de disponibilidad) hacia esta solución está documentada en el flujo 2.6 y es una tarea de refactorización, no un cambio de contrato. La interfaz `CalendarSourceAdapter` es compatible con los Tool handlers existentes de SOL-04. |
