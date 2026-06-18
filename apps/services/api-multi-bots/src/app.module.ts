@@ -15,6 +15,7 @@ import { MetricasModule } from "./modules/metricas/metricas.module";
 import { BookingsModule } from "./modules/bookings/bookings.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { OrdersModule } from "./modules/orders/orders.module";
+import { IntegrationsModule } from "./modules/integrations/integrations.module";
 import { EmailVerifiedGuard } from "./modules/email-verification/guards/email-verified.guard";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 
@@ -36,6 +37,7 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
     NotificationsModule,
     AuditModule,
     OrdersModule,
+    IntegrationsModule,
   ],
   providers: [
     {
