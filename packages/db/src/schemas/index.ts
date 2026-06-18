@@ -129,3 +129,17 @@ export {
   type AuditLogDocument,
 } from "./audit-log.schema";
 
+export {
+  INTEGRATIONS_COLLECTION,
+  INTEGRATIONS_INDEXES,
+  INTEGRATIONS_VALIDATION,
+  type IntegrationDocument,
+} from "./integration.schema";
+
+export {
+  OAUTH_STATES_COLLECTION,
+  OAUTH_STATES_INDEXES,
+  OAUTH_STATES_VALIDATION,
+  type OAuthStateDocument,
+} from "./oauth-state.schema";
+
