@@ -26,6 +26,10 @@ import type {
   Booking,
   Order,
   OrderStatus,
+  Integration,
+  IntegrationProvider,
+  IntegrationCategory,
+  IntegrationStatus,
 } from '@multibotagents/types';
 import type { Repository } from './repository.interface';
 
@@ -435,4 +439,94 @@ export interface IOrderRepository extends Repository<Order> {
   findActiveByCustomerPhone(customerPhone: string): Promise<Order[]>;
   createWithSession(data: CreateOrderData, session: ClientSession): Promise<Order>;
   updateStatus(orderId: string, status: OrderStatus, session?: ClientSession): Promise<Order | null>;
+}
+
+// ─── Integration (Integraciones Externas, SL13) ──────────────────────────────
+
+/** Datos para crear/reemplazar una integración tras el callback OAuth. */
+export interface CreateIntegrationData {
+  companyId: string;
+  provider: IntegrationProvider;
+  category: IntegrationCategory;
+  status: IntegrationStatus;
+  encryptedAccessToken: EncryptedToken;
+  encryptedRefreshToken?: EncryptedToken;
+  tokenExpiresAt?: Date;
+  scopes: string[];
+  accountDisplayName?: string;
+  providerAccountId?: string;
+  calendarId?: string;
+  connectedAt?: Date;
+}
+
+/** Campos actualizables de una integración (refresco de tokens, health check, etc.). */
+export interface UpdateIntegrationData {
+  status?: IntegrationStatus;
+  encryptedAccessToken?: EncryptedToken;
+  encryptedRefreshToken?: EncryptedToken;
+  tokenExpiresAt?: Date;
+  scopes?: string[];
+  accountDisplayName?: string;
+  providerAccountId?: string;
+  calendarId?: string;
+  lastHealthCheck?: Date;
+  connectedAt?: Date;
+  lastUsedAt?: Date;
+}
+
+export interface IIntegrationRepository extends Repository<Integration> {
+  /** Busca la integración de un proveedor para una empresa (lookup principal). */
+  findByCompanyAndProvider(
+    companyId: string,
+    provider: IntegrationProvider,
+  ): Promise<Integration | null>;
+
+  /** Lista todas las integraciones de una empresa (listado del panel). */
+  findByCompanyId(companyId: string): Promise<Integration[]>;
+
+  /** Lista las integraciones en un estado dado (barrido del health check). */
+  findByStatus(status: IntegrationStatus): Promise<Integration[]>;
+
+  /** Actualiza campos parciales de una integración. */
+  update(id: string, data: Partial<UpdateIntegrationData>): Promise<Integration>;
+
+  /**
+   * Crea o reemplaza la integración de un proveedor para una empresa.
+   * Respeta el índice único `{companyId, provider}` (reconexión = reemplazo).
+   */
+  upsertByCompanyAndProvider(data: CreateIntegrationData): Promise<Integration>;
+}
+
+// ─── OAuthState (anti-CSRF del flujo OAuth, SL13) ────────────────────────────
+
+/** Datos para persistir un `state` al iniciar el flujo OAuth. */
+export interface CreateOAuthStateData {
+  /** `jti` del state JWT firmado (se usa como `_id`). */
+  jti: string;
+  companyId: string;
+  agentId?: string;
+  provider: IntegrationProvider;
+  expiresAt: Date;
+}
+
+/** Registro de un `state` OAuth con ids de dominio (string). */
+export interface OAuthStateRecord {
+  jti: string;
+  companyId: string;
+  agentId?: string;
+  provider: IntegrationProvider;
+  used: boolean;
+  expiresAt: Date;
+  createdAt: Date;
+}
+
+export interface IOAuthStateRepository {
+  /** Persiste un nuevo `state` (TTL gestionado por índice en la colección). */
+  create(data: CreateOAuthStateData): Promise<void>;
+
+  /**
+   * Marca el `state` como usado de forma atómica para impedir el reuso del `code`.
+   * Retorna el registro si era válido (existe, no usado y no expirado); null si no.
+   */
+  consume(jti: string): Promise<OAuthStateRecord | null>;
 }

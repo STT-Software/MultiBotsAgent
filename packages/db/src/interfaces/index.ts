@@ -28,4 +28,10 @@ export type {
   IAuditLogRepository,
   CreateOrderData,
   IOrderRepository,
+  CreateIntegrationData,
+  UpdateIntegrationData,
+  IIntegrationRepository,
+  CreateOAuthStateData,
+  OAuthStateRecord,
+  IOAuthStateRepository,
 } from './repositories.interface';

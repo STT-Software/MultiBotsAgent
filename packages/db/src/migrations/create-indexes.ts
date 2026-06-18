@@ -12,6 +12,8 @@
  * - verifyTokens: token (unique), expiresAt (TTL), userId+type
  * - emailQueue: status+nextRetryAt, createdAt
  * - companies: status+deletionReqDate
+ * - integrations: companyId+provider (unique), companyId, status
+ * - oauthStates: expiresAt (TTL)
  */
 
 import { MongoClient } from "mongodb";
@@ -36,6 +38,10 @@ import {
   BOOKINGS_INDEXES,
   ORDERS_COLLECTION,
   ORDERS_INDEXES,
+  INTEGRATIONS_COLLECTION,
+  INTEGRATIONS_INDEXES,
+  OAUTH_STATES_COLLECTION,
+  OAUTH_STATES_INDEXES,
 } from "../schemas";
 
 interface IndexDefinition {
@@ -78,6 +84,8 @@ async function createIndexes(): Promise<void> {
       { name: AGENTS_COLLECTION, indexes: AGENTS_INDEXES as unknown as IndexDefinition[] },
       { name: BOOKINGS_COLLECTION, indexes: BOOKINGS_INDEXES as unknown as IndexDefinition[] },
       { name: ORDERS_COLLECTION, indexes: ORDERS_INDEXES as unknown as IndexDefinition[] },
+      { name: INTEGRATIONS_COLLECTION, indexes: INTEGRATIONS_INDEXES as unknown as IndexDefinition[] },
+      { name: OAUTH_STATES_COLLECTION, indexes: OAUTH_STATES_INDEXES as unknown as IndexDefinition[] },
     ];
 
     for (const { name, indexes } of collections) {

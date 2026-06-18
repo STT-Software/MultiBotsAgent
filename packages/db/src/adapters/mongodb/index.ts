@@ -33,6 +33,8 @@ export type { AgentFilter, AgentType } from "./metric-event.repository";
 export { BookingRepository } from "./booking.repository";
 export { AuditLogRepository } from "./audit-log.repository";
 export { OrderRepository } from "./order.repository";
+export { IntegrationRepository } from "./integration.repository";
+export { OAuthStateRepository } from "./oauth-state.repository";
 
 // Re-export interfaces desde la carpeta centralizada
 export type {
@@ -64,4 +66,10 @@ export type {
   IAuditLogRepository,
   CreateOrderData,
   IOrderRepository,
+  CreateIntegrationData,
+  UpdateIntegrationData,
+  IIntegrationRepository,
+  CreateOAuthStateData,
+  OAuthStateRecord,
+  IOAuthStateRepository,
 } from "../../interfaces";
