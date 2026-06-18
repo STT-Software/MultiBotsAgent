@@ -53,3 +53,6 @@ export * from "./audit/audit-log.types";
 
 // Orders
 export * from "./interfaces/order.interface";
+
+// Integraciones Externas (SL13)
+export * from "./integrations";
