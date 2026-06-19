@@ -31,4 +31,9 @@ export const NAV_ITEMS: NavItemConfig[] = [
     href: '/metricas',
     icon: 'ChartBar',
   },
+  {
+    label: 'Integraciones',
+    href: '/integraciones',
+    icon: 'Plug',
+  },
 ]
