@@ -9,6 +9,8 @@ import {
   UseGuards,
   UseFilters,
   Logger,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -402,6 +404,7 @@ Los campos de contraseña se sanitizan antes del procesamiento:
   @Post('forgot-password')
   @SkipEmailVerification()
   @UseFilters(AuthExceptionFilter)
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiOperation({
     summary: 'Solicitar restablecimiento de contraseña',
     description: `
@@ -468,6 +471,7 @@ Si se excede el límite, se retorna el mismo mensaje genérico (el rate limit no
   @Post('reset-password')
   @SkipEmailVerification()
   @UseFilters(AuthExceptionFilter)
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiOperation({
     summary: 'Restablecer contraseña con token',
     description: `
