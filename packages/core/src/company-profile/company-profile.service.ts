@@ -45,6 +45,7 @@ export interface CompanyProfileResult {
   phone: string | null;
   logo: string | null;
   referralSource: string | null;
+  escalationTimeoutMinutes?: number;
   email: string;
 }
 
@@ -97,6 +98,7 @@ export class CompanyProfileService {
       phone: company.phone ?? null,
       logo: company.logo ?? null,
       referralSource: company.referralSource ?? null,
+      escalationTimeoutMinutes: company.escalationTimeoutMinutes,
       email,
     };
   }

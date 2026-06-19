@@ -160,6 +160,8 @@ export interface Company {
   status: CompanyStatus;
   /** Fecha de solicitud de eliminación. */
   deletionReqDate?: Date;
+  /** Timeout de auto-devolución de escalamiento en minutos. */
+  escalationTimeoutMinutes?: number;
   /** Timestamp de creación. */
   createdAt: Date;
   /** Timestamp de última actualización. */

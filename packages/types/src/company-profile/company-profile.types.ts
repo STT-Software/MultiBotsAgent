@@ -23,6 +23,8 @@ export interface UpdateCompanyProfileDto {
   logo?: string | null;
   /** Fuente de referencia (null para eliminar). */
   referralSource?: ReferralSource | null;
+  /** Timeout de auto-devolución de escalamiento en minutos. */
+  escalationTimeoutMinutes?: number;
 }
 
 /** Respuesta del perfil de empresa (incluye email del usuario como solo lectura). */
@@ -43,6 +45,8 @@ export interface CompanyProfileResponse {
   logo: string | null;
   /** Fuente de referencia. */
   referralSource: ReferralSource | null;
+  /** Timeout de auto-devolución de escalamiento en minutos. */
+  escalationTimeoutMinutes?: number;
   /** Email del usuario (solo lectura, no editable). */
   email: string;
 }
