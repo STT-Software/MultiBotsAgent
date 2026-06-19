@@ -72,10 +72,19 @@ export function useNotificationsWs() {
       socketRef.current = null;
     }
 
+    /**
+     * Estrategia de conexión:
+     * - Local: directo a localhost:3001 con WebSocket nativo (baja latencia)
+     * - Deploy: vía proxy de Next.js rewrites (HTTPS, solo polling)
+     *   → Evita Mixed Content al usar el mismo dominio de CloudFront
+     */
     const isLocal = apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
-    const transports = isLocal ? ['polling', 'websocket'] : ['polling'];
+    const socketUrl = isLocal ? `${apiUrl}/notifications` : '/notifications';
+    const transports: ('websocket' | 'polling')[] = isLocal
+      ? ['websocket', 'polling']
+      : ['polling'];
 
-    const socket = io(`${apiUrl}/notifications`, {
+    const socket = io(socketUrl, {
       query: { token },
       transports,
       autoConnect: false,
