@@ -16,6 +16,7 @@ interface UseCompanyProfileReturn {
   updateProfile: (data: UpdateCompanyProfileDto) => Promise<boolean>;
   clearErrors: () => void;
   clearSaveSuccess: () => void;
+  setProfile: React.Dispatch<React.SetStateAction<CompanyProfileResponse | null>>;
 }
 
 export function useCompanyProfile(): UseCompanyProfileReturn {
@@ -115,5 +116,6 @@ export function useCompanyProfile(): UseCompanyProfileReturn {
     updateProfile,
     clearErrors,
     clearSaveSuccess,
+    setProfile,
   };
 }

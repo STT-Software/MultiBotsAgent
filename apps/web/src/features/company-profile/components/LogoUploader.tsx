@@ -67,19 +67,17 @@ export function LogoUploader({
 
   const handleCropComplete = useCallback(
     async (croppedBlob: Blob) => {
-      // Close crop modal
-      if (cropImageSrc) URL.revokeObjectURL(cropImageSrc)
-      setCropImageSrc(null)
-
       // Create a File from the cropped blob
       const fileName = selectedFile?.name || 'logo.png'
       const croppedFile = new File([croppedBlob], fileName, { type: 'image/png' })
 
       onClearError()
-      await onUpload(croppedFile)
-      setSelectedFile(null)
+      const success = await onUpload(croppedFile)
+      if (!success) {
+        throw new Error('Upload failed')
+      }
     },
-    [cropImageSrc, selectedFile, onUpload, onClearError],
+    [selectedFile, onUpload, onClearError],
   )
 
   const handleCropClose = useCallback(() => {

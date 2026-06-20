@@ -21,15 +21,16 @@ export default function CompanyProfileContainer() {
     updateProfile,
     clearErrors,
     clearSaveSuccess,
+    setProfile,
   } = useCompanyProfile();
 
   const handleProfileUpdate = useCallback(
     (updated: CompanyProfileResponse) => {
-      if (updated && profile) {
-        updateProfile({ logo: updated.logo });
+      if (updated) {
+        setProfile(updated);
       }
     },
-    [profile, updateProfile],
+    [setProfile],
   );
 
   const {
