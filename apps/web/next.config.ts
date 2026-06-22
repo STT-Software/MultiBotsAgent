@@ -64,6 +64,14 @@ const nextConfig: NextConfig = {
         source: "/auditoria/:path*",
         destination: `${apiUrl}/auditoria/:path*`,
       },
+      {
+        source: "/integrations",
+        destination: `${apiUrl}/integrations`,
+      },
+      {
+        source: "/integrations/:path*",
+        destination: `${apiUrl}/integrations/:path*`,
+      },
     ];
   },
 };
