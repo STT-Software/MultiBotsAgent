@@ -1,12 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import {
+  IntegrationCategory,
   IntegrationProvider,
   IntegrationStatus,
 } from "@multibotagents/types";
+import type { Integration } from "@multibotagents/types";
+import { encryptToken } from "@multibotagents/core";
 import type { OAuthStateService } from "@multibotagents/core";
 import type { IIntegrationRepository } from "@multibotagents/db";
 import { IntegrationsService } from "../integrations.service";
+import {
+  IntegrationNotFoundException,
+  IntegrationNotConnectedException,
+} from "../exceptions/integrations.exceptions";
 import type { GoogleDriveAdapter } from "../providers";
 
 /** Clave de cifrado de prueba (32 bytes en hex). */
@@ -25,8 +32,34 @@ const CONTEXT = {
   provider: IntegrationProvider.GOOGLE_DRIVE,
 };
 
+/** Construye una `Integration` de prueba con tokens cifrados reales. */
+function makeIntegration(overrides: Partial<Integration> = {}): Integration {
+  return {
+    id: "int-1",
+    companyId: CONTEXT.companyId,
+    provider: IntegrationProvider.GOOGLE_DRIVE,
+    category: IntegrationCategory.DOCUMENT_SOURCE,
+    status: IntegrationStatus.CONNECTED,
+    encryptedAccessToken: encryptToken("access-token", ENCRYPTION_KEY),
+    encryptedRefreshToken: encryptToken("refresh-token", ENCRYPTION_KEY),
+    tokenExpiresAt: new Date("2030-01-01T00:00:00Z"),
+    scopes: GRANTED_SCOPES,
+    accountDisplayName: "user@empresa.com",
+    providerAccountId: "google-user-1",
+    createdAt: new Date("2025-01-01T00:00:00Z"),
+    updatedAt: new Date("2025-01-01T00:00:00Z"),
+    ...overrides,
+  };
+}
+
 describe("IntegrationsService", () => {
-  let repo: { upsertByCompanyAndProvider: ReturnType<typeof vi.fn> };
+  let repo: {
+    upsertByCompanyAndProvider: ReturnType<typeof vi.fn>;
+    findByCompanyId: ReturnType<typeof vi.fn>;
+    findById: ReturnType<typeof vi.fn>;
+    findByCompanyAndProvider: ReturnType<typeof vi.fn>;
+    disconnect: ReturnType<typeof vi.fn>;
+  };
   let oauthStateService: {
     issue: ReturnType<typeof vi.fn>;
     validateAndConsume: ReturnType<typeof vi.fn>;
@@ -34,6 +67,7 @@ describe("IntegrationsService", () => {
   let adapter: {
     exchangeCodeForTokens: ReturnType<typeof vi.fn>;
     fetchAccountMetadata: ReturnType<typeof vi.fn>;
+    revokeAccess: ReturnType<typeof vi.fn>;
   };
   let service: IntegrationsService;
 
@@ -43,7 +77,13 @@ describe("IntegrationsService", () => {
     vi.stubEnv("INTEGRATIONS_OAUTH_REDIRECT_URI", REDIRECT_URI);
     vi.stubEnv("ENCRYPTION_KEY", ENCRYPTION_KEY);
 
-    repo = { upsertByCompanyAndProvider: vi.fn().mockResolvedValue(undefined) };
+    repo = {
+      upsertByCompanyAndProvider: vi.fn().mockResolvedValue(undefined),
+      findByCompanyId: vi.fn().mockResolvedValue([]),
+      findById: vi.fn().mockResolvedValue(null),
+      findByCompanyAndProvider: vi.fn().mockResolvedValue(null),
+      disconnect: vi.fn(),
+    };
     oauthStateService = {
       issue: vi.fn().mockResolvedValue("signed-state"),
       validateAndConsume: vi.fn().mockResolvedValue(CONTEXT),
@@ -59,6 +99,7 @@ describe("IntegrationsService", () => {
         accountDisplayName: "user@empresa.com",
         providerAccountId: "google-user-1",
       }),
+      revokeAccess: vi.fn().mockResolvedValue(undefined),
     };
 
     service = new IntegrationsService(
@@ -213,6 +254,138 @@ describe("IntegrationsService", () => {
 
       expect(result).toBe("exchange_failed");
       expect(repo.upsertByCompanyAndProvider).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("listIntegrations", () => {
+    it("devuelve IntegrationSummary[] sin tokens ni campos sensibles (R7.4)", async () => {
+      repo.findByCompanyId.mockResolvedValue([
+        makeIntegration(),
+        makeIntegration({
+          id: "int-2",
+          status: IntegrationStatus.DISCONNECTED,
+          encryptedAccessToken: undefined,
+          encryptedRefreshToken: undefined,
+          tokenExpiresAt: undefined,
+        }),
+      ]);
+
+      const result = await service.listIntegrations(CONTEXT.companyId);
+
+      expect(repo.findByCompanyId).toHaveBeenCalledWith(CONTEXT.companyId);
+      expect(result).toHaveLength(2);
+      for (const summary of result) {
+        expect(summary).not.toHaveProperty("encryptedAccessToken");
+        expect(summary).not.toHaveProperty("encryptedRefreshToken");
+        expect(summary).not.toHaveProperty("tokenExpiresAt");
+        expect(summary).not.toHaveProperty("companyId");
+      }
+      expect(result[0]).toMatchObject({
+        id: "int-1",
+        provider: IntegrationProvider.GOOGLE_DRIVE,
+        status: IntegrationStatus.CONNECTED,
+        accountDisplayName: "user@empresa.com",
+      });
+    });
+  });
+
+  describe("disconnect", () => {
+    it("revoca el token, limpia la BD y devuelve el resumen desconectado (R6)", async () => {
+      repo.findById.mockResolvedValue(makeIntegration());
+      repo.disconnect.mockResolvedValue(
+        makeIntegration({
+          status: IntegrationStatus.DISCONNECTED,
+          encryptedAccessToken: undefined,
+          encryptedRefreshToken: undefined,
+          tokenExpiresAt: undefined,
+        }),
+      );
+
+      const summary = await service.disconnect(CONTEXT.companyId, "int-1");
+
+      // Revoca con el refresh token descifrado y limpia vía repo.disconnect.
+      expect(adapter.revokeAccess).toHaveBeenCalledWith("refresh-token");
+      expect(repo.disconnect).toHaveBeenCalledWith("int-1");
+      expect(summary.status).toBe(IntegrationStatus.DISCONNECTED);
+      expect(summary).not.toHaveProperty("encryptedAccessToken");
+    });
+
+    it("continúa con la limpieza aunque la revocación en el proveedor falle (R6.3)", async () => {
+      repo.findById.mockResolvedValue(makeIntegration());
+      adapter.revokeAccess.mockRejectedValue(new Error("revoke failed"));
+      repo.disconnect.mockResolvedValue(
+        makeIntegration({ status: IntegrationStatus.DISCONNECTED }),
+      );
+
+      const summary = await service.disconnect(CONTEXT.companyId, "int-1");
+
+      expect(repo.disconnect).toHaveBeenCalledWith("int-1");
+      expect(summary.status).toBe(IntegrationStatus.DISCONNECTED);
+    });
+
+    it("lanza NotFound y no toca la BD si la integración es de otra empresa", async () => {
+      repo.findById.mockResolvedValue(
+        makeIntegration({ companyId: "otra-empresa" }),
+      );
+
+      await expect(
+        service.disconnect(CONTEXT.companyId, "int-1"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.disconnect).not.toHaveBeenCalled();
+      expect(adapter.revokeAccess).not.toHaveBeenCalled();
+    });
+
+    it("lanza NotFound si la integración no existe", async () => {
+      repo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.disconnect(CONTEXT.companyId, "missing"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.disconnect).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getConnectedIntegration", () => {
+    it("devuelve la integración cuando está connected", async () => {
+      const integration = makeIntegration();
+      repo.findByCompanyAndProvider.mockResolvedValue(integration);
+
+      await expect(
+        service.getConnectedIntegration(
+          CONTEXT.companyId,
+          IntegrationProvider.GOOGLE_DRIVE,
+        ),
+      ).resolves.toBe(integration);
+    });
+
+    it("lanza IntegrationNotFound si la empresa no tiene esa integración (R6.4)", async () => {
+      repo.findByCompanyAndProvider.mockResolvedValue(null);
+
+      await expect(
+        service.getConnectedIntegration(
+          CONTEXT.companyId,
+          IntegrationProvider.GOOGLE_DRIVE,
+        ),
+      ).rejects.toBeInstanceOf(IntegrationNotFoundException);
+    });
+
+    it("lanza IntegrationNotConnected con el status si está desconectada (R6.4)", async () => {
+      repo.findByCompanyAndProvider.mockResolvedValue(
+        makeIntegration({ status: IntegrationStatus.DISCONNECTED }),
+      );
+
+      const error = await service
+        .getConnectedIntegration(
+          CONTEXT.companyId,
+          IntegrationProvider.GOOGLE_DRIVE,
+        )
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(IntegrationNotConnectedException);
+      expect(error).toMatchObject({
+        code: "INTEGRATION_NOT_CONNECTED",
+        status: IntegrationStatus.DISCONNECTED,
+      });
     });
   });
 });

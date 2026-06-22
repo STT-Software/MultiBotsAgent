@@ -9,6 +9,8 @@ describe("IntegrationsController", () => {
   let service: {
     buildAuthorizationUrl: ReturnType<typeof vi.fn>;
     handleCallback: ReturnType<typeof vi.fn>;
+    listIntegrations: ReturnType<typeof vi.fn>;
+    disconnect: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -19,6 +21,8 @@ describe("IntegrationsController", () => {
         .fn()
         .mockResolvedValue({ authorizationUrl: "https://provider/auth" }),
       handleCallback: vi.fn(),
+      listIntegrations: vi.fn().mockResolvedValue([]),
+      disconnect: vi.fn(),
     };
 
     controller = new IntegrationsController(
@@ -77,6 +81,32 @@ describe("IntegrationsController", () => {
       expect(redirect).toHaveBeenCalledWith(
         "https://panel.test/integraciones?status=state_expired",
       );
+    });
+  });
+
+  describe("list", () => {
+    it("usa el companyId del token y devuelve los resúmenes del servicio", async () => {
+      const summaries = [{ id: "int-1", provider: IntegrationProvider.GOOGLE_DRIVE }];
+      service.listIntegrations.mockResolvedValue(summaries);
+      const req = { user: { companyId: "company-123" } } as unknown as Request;
+
+      const result = await controller.list(req);
+
+      expect(result).toBe(summaries);
+      expect(service.listIntegrations).toHaveBeenCalledWith("company-123");
+    });
+  });
+
+  describe("disconnect", () => {
+    it("delega en el servicio con el companyId del token y el id de la ruta", async () => {
+      const summary = { id: "int-1", status: "disconnected" };
+      service.disconnect.mockResolvedValue(summary);
+      const req = { user: { companyId: "company-123" } } as unknown as Request;
+
+      const result = await controller.disconnect(req, "int-1");
+
+      expect(result).toBe(summary);
+      expect(service.disconnect).toHaveBeenCalledWith("company-123", "int-1");
     });
   });
 });
