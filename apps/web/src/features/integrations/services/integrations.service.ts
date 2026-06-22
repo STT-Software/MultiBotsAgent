@@ -1,6 +1,7 @@
 import { fetchWithAuth } from '@/lib/auth';
 import type {
   IntegrationProvider,
+  IntegrationSummary,
   OAuthAuthorizeResponse,
 } from '@multibotagents/types';
 
@@ -31,6 +32,43 @@ export async function getAuthorizationUrl(
   if (res.ok) {
     const data = (await res.json()) as OAuthAuthorizeResponse;
     return data.authorizationUrl;
+  }
+
+  throw await buildServiceError(res);
+}
+
+/**
+ * Lista las integraciones de la empresa.
+ * GET /integrations con Bearer token.
+ *
+ * Devuelve `IntegrationSummary[]` (sin tokens ni campos sensibles, R7.4).
+ */
+export async function getIntegrations(): Promise<IntegrationSummary[]> {
+  const res = await fetchWithAuth('/integrations', { method: 'GET' });
+
+  if (res.ok) {
+    return (await res.json()) as IntegrationSummary[];
+  }
+
+  throw await buildServiceError(res);
+}
+
+/**
+ * Desconecta una integración por id.
+ * DELETE /integrations/:id con Bearer token.
+ *
+ * Devuelve el `IntegrationSummary` ya en estado `disconnected` (R6).
+ */
+export async function disconnectIntegration(
+  integrationId: string,
+): Promise<IntegrationSummary> {
+  const res = await fetchWithAuth(
+    `/integrations/${encodeURIComponent(integrationId)}`,
+    { method: 'DELETE' },
+  );
+
+  if (res.ok) {
+    return (await res.json()) as IntegrationSummary;
   }
 
   throw await buildServiceError(res);

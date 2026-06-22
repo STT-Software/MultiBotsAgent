@@ -1,4 +1,4 @@
-import { IntegrationProvider } from '@multibotagents/types';
+import { IntegrationCategory, IntegrationProvider } from '@multibotagents/types';
 import type {
   ConnectionFeedback,
   ConnectionStatus,
@@ -12,11 +12,24 @@ import type {
 export const PROVIDER_CARDS: ProviderCardConfig[] = [
   {
     provider: IntegrationProvider.GOOGLE_DRIVE,
+    category: IntegrationCategory.DOCUMENT_SOURCE,
     name: 'Google Drive',
     description:
       'Conecta tu Drive para que los agentes consulten tus documentos como fuente de conocimiento.',
     icon: 'HardDrive',
   },
+];
+
+/**
+ * Etiquetas legibles de cada categoría, para los encabezados de sección del
+ * listado (R7.1). El orden define el orden de aparición en el panel.
+ */
+export const CATEGORY_LABELS: Array<{
+  category: IntegrationCategory;
+  label: string;
+}> = [
+  { category: IntegrationCategory.DOCUMENT_SOURCE, label: 'Fuentes de documentos' },
+  { category: IntegrationCategory.CALENDAR, label: 'Calendario' },
 ];
 
 /**
