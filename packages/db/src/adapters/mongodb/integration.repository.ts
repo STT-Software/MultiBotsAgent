@@ -1,5 +1,6 @@
 import { Db, ObjectId } from "mongodb";
-import type { Integration, IntegrationProvider, IntegrationStatus } from "@multibotagents/types";
+import { IntegrationStatus } from "@multibotagents/types";
+import type { Integration, IntegrationProvider } from "@multibotagents/types";
 import type {
   IIntegrationRepository,
   CreateIntegrationData,
@@ -128,6 +129,23 @@ export class IntegrationRepository implements IIntegrationRepository {
     const result = await this.collection.findOneAndUpdate(
       { _id: new ObjectId(id) },
       { $set: { ...data, updatedAt: new Date() } },
+      { returnDocument: "after" },
+    );
+    if (!result) throw new Error(`Integration not found: ${id}`);
+    return toEntity(result);
+  }
+
+  async disconnect(id: string): Promise<Integration> {
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      {
+        $set: { status: IntegrationStatus.DISCONNECTED, updatedAt: new Date() },
+        $unset: {
+          encryptedAccessToken: "",
+          encryptedRefreshToken: "",
+          tokenExpiresAt: "",
+        },
+      },
       { returnDocument: "after" },
     );
     if (!result) throw new Error(`Integration not found: ${id}`);

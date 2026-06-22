@@ -491,6 +491,12 @@ export interface IIntegrationRepository extends Repository<Integration> {
   update(id: string, data: Partial<UpdateIntegrationData>): Promise<Integration>;
 
   /**
+   * Desconecta una integración: marca el estado `disconnected` y elimina todo el
+   * material de tokens (`encrypted*`, `tokenExpiresAt`). Idempotente (R6).
+   */
+  disconnect(id: string): Promise<Integration>;
+
+  /**
    * Crea o reemplaza la integración de un proveedor para una empresa.
    * Respeta el índice único `{companyId, provider}` (reconexión = reemplazo).
    */

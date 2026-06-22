@@ -49,6 +49,9 @@ interface GoogleUserInfoResponse {
 /** Endpoint de información del usuario de Google (cuenta vinculada). */
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 
+/** Endpoint de revocación de tokens de Google (desconexión). */
+const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
+
 /**
  * Adaptador de Google Drive (SL13).
  *
@@ -131,6 +134,24 @@ export class GoogleDriveAdapter {
       accountDisplayName: data.email,
       providerAccountId: data.id,
     };
+  }
+
+  /**
+   * Revoca un token (access o refresh) en Google, invalidando la concesión
+   * OAuth de la cuenta (R6.2). Revocar el `refresh_token` invalida toda la
+   * cadena de tokens derivados.
+   *
+   * @throws BadRequestException si el token ya es inválido o la revocación falla.
+   * @throws BadGatewayException si Google no está disponible.
+   */
+  async revokeAccess(token: string): Promise<void> {
+    const body = new URLSearchParams({ token });
+
+    await this.makeRequest(GOOGLE_REVOKE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
   }
 
   // ─── Private Helpers ──────────────────────────────────────────────────────

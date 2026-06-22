@@ -32,7 +32,7 @@ export interface IntegrationDocument {
     | "disconnected"
     | "requires_reconnection"
     | "insufficient_scopes";
-  encryptedAccessToken: {
+  encryptedAccessToken?: {
     ciphertext: string;
     iv: string;
     tag: string;
@@ -102,12 +102,13 @@ const ENCRYPTED_TOKEN_SCHEMA = {
 export const INTEGRATIONS_VALIDATION = {
   $jsonSchema: {
     bsonType: "object",
+    // `encryptedAccessToken` NO es requerido: una integración `disconnected`
+    // conserva el registro sin material de tokens (R6).
     required: [
       "companyId",
       "provider",
       "category",
       "status",
-      "encryptedAccessToken",
       "scopes",
       "createdAt",
       "updatedAt",

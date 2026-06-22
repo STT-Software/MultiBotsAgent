@@ -60,8 +60,11 @@ export interface Integration {
   provider: IntegrationProvider;
   category: IntegrationCategory;
   status: IntegrationStatus;
-  /** Access token cifrado AES-256-GCM. */
-  encryptedAccessToken: EncryptedToken;
+  /**
+   * Access token cifrado AES-256-GCM. Ausente cuando la integración está
+   * `disconnected`: la desconexión elimina todo el material de tokens (R6).
+   */
+  encryptedAccessToken?: EncryptedToken;
   /** Refresh token cifrado AES-256-GCM (si el proveedor lo emite). */
   encryptedRefreshToken?: EncryptedToken;
   /** Expiración del access token. */

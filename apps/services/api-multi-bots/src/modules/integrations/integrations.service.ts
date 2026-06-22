@@ -12,7 +12,7 @@ import {
   type IntegrationSummary,
   type OAuthCallbackResult,
 } from "@multibotagents/types";
-import { OAuthStateService, encryptToken } from "@multibotagents/core";
+import { OAuthStateService, encryptToken, decryptToken } from "@multibotagents/core";
 import type {
   IIntegrationRepository,
   CreateIntegrationData,
@@ -166,9 +166,9 @@ export class IntegrationsService {
   }
 
   /**
-   * Desconecta una integración de la empresa: valida la pertenencia y marca el
-   * estado `disconnected` (R6, R7). La revocación del token en el proveedor y la
-   * eliminación del material cifrado se incorporan en la tarea 2.2.
+   * Desconecta una integración de la empresa: valida la pertenencia, revoca el
+   * token en el proveedor (best-effort) y elimina el material cifrado dejando la
+   * integración en estado `disconnected` (R6, R7).
    *
    * @throws NotFoundException si la integración no existe o no pertenece a la empresa.
    */
@@ -183,15 +183,42 @@ export class IntegrationsService {
       throw new NotFoundException("Integración no encontrada.");
     }
 
-    const updated = await this.integrationRepository.update(integrationId, {
-      status: IntegrationStatus.DISCONNECTED,
-    });
+    // R6.2/R6.3: revocar es best-effort; un fallo no debe impedir la limpieza.
+    await this.tryRevokeProviderAccess(integration);
+
+    const updated = await this.integrationRepository.disconnect(integrationId);
 
     this.logger.log(
       `Integración ${integration.provider} desconectada para la empresa ${companyId}.`,
     );
 
     return this.toSummary(updated);
+  }
+
+  /**
+   * Intenta revocar la concesión OAuth en el proveedor antes de eliminar los
+   * tokens. Nunca lanza: si el proveedor no soporta revocación o la llamada
+   * falla, se registra y la desconexión continúa (R6.3).
+   */
+  private async tryRevokeProviderAccess(
+    integration: Integration,
+  ): Promise<void> {
+    const encrypted =
+      integration.encryptedRefreshToken ?? integration.encryptedAccessToken;
+    if (!encrypted) {
+      return;
+    }
+
+    try {
+      const adapter = this.getOAuthAdapter(integration.provider);
+      const token = decryptToken(encrypted, this.getEncryptionKey());
+      await adapter.revokeAccess(token);
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo revocar el token de ${integration.provider} ` +
+          `(se continúa con la desconexión): ${(error as Error).message}`,
+      );
+    }
   }
 
   // ─── Helpers privados ──────────────────────────────────────────────────────
@@ -235,10 +262,7 @@ export class IntegrationsService {
     metadata: ProviderAccountMetadata,
     status: IntegrationStatus,
   ): Promise<void> {
-    const encryptionKey = process.env.ENCRYPTION_KEY;
-    if (!encryptionKey) {
-      throw new Error("ENCRYPTION_KEY no está configurada en el servidor.");
-    }
+    const encryptionKey = this.getEncryptionKey();
 
     const data: CreateIntegrationData = {
       companyId: context.companyId,
@@ -272,6 +296,15 @@ export class IntegrationsService {
 
   private isIdentityScope(scope: string): boolean {
     return IDENTITY_SCOPE_HINTS.some((hint) => scope.includes(hint));
+  }
+
+  /** Clave de cifrado AES-256-GCM de los tokens, leída del entorno. */
+  private getEncryptionKey(): string {
+    const encryptionKey = process.env.ENCRYPTION_KEY;
+    if (!encryptionKey) {
+      throw new Error("ENCRYPTION_KEY no está configurada en el servidor.");
+    }
+    return encryptionKey;
   }
 
   /** URL del callback único, registrada en el proveedor (debe coincidir exacto). */
