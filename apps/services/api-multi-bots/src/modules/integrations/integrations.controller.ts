@@ -1,6 +1,8 @@
 import {
   Controller,
+  Delete,
   Get,
+  Param,
   Query,
   Req,
   Res,
@@ -13,6 +15,7 @@ import {
   ApiOkResponse,
 } from "@nestjs/swagger";
 import { Request, Response } from "express";
+import type { IntegrationSummary } from "@multibotagents/types";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { IntegrationsService } from "./integrations.service";
 import {
@@ -31,6 +34,36 @@ export class IntegrationsController {
 
   @ApiBearerAuth("access-token")
   @UseGuards(JwtAuthGuard)
+  @Get()
+  @ApiOperation({
+    summary: "Listar las integraciones de la empresa",
+    description:
+      "Devuelve las integraciones de la empresa como `IntegrationSummary[]` (sin tokens ni campos cifrados) para pintar el panel por categoría y estado.",
+  })
+  async list(@Req() req: Request): Promise<IntegrationSummary[]> {
+    return this.integrationsService.listIntegrations(this.getCompanyId(req));
+  }
+
+  @ApiBearerAuth("access-token")
+  @UseGuards(JwtAuthGuard)
+  @Delete(":integrationId")
+  @ApiOperation({
+    summary: "Desconectar una integración",
+    description:
+      "Desconecta la integración de la empresa y devuelve su `IntegrationSummary` actualizado.",
+  })
+  async disconnect(
+    @Req() req: Request,
+    @Param("integrationId") integrationId: string,
+  ): Promise<IntegrationSummary> {
+    return this.integrationsService.disconnect(
+      this.getCompanyId(req),
+      integrationId,
+    );
+  }
+
+  @ApiBearerAuth("access-token")
+  @UseGuards(JwtAuthGuard)
   @Get("oauth/authorize")
   @ApiOperation({
     summary: "Iniciar la conexión OAuth de un proveedor",
@@ -42,13 +75,16 @@ export class IntegrationsController {
     @Req() req: Request,
     @Query() query: OAuthAuthorizeQueryDto,
   ): Promise<OAuthAuthorizeResponseDto> {
-    const { companyId } = (req as unknown as { user: { companyId: string } })
-      .user;
     return this.integrationsService.buildAuthorizationUrl(
-      companyId,
+      this.getCompanyId(req),
       query.provider,
       query.agentId,
     );
+  }
+
+  /** Extrae el `companyId` del usuario autenticado inyectado por `JwtAuthGuard`. */
+  private getCompanyId(req: Request): string {
+    return (req as unknown as { user: { companyId: string } }).user.companyId;
   }
 
   @Get("oauth/callback")

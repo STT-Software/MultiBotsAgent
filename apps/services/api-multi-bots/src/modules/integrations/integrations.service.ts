@@ -3,10 +3,13 @@ import {
   Inject,
   Logger,
   BadRequestException,
+  NotFoundException,
 } from "@nestjs/common";
 import {
   IntegrationProvider,
   IntegrationStatus,
+  type Integration,
+  type IntegrationSummary,
   type OAuthCallbackResult,
 } from "@multibotagents/types";
 import { OAuthStateService, encryptToken } from "@multibotagents/core";
@@ -151,7 +154,66 @@ export class IntegrationsService {
     }
   }
 
+  /**
+   * Lista las integraciones de una empresa como `IntegrationSummary[]`, la única
+   * proyección que viaja al frontend: excluye deliberadamente los campos
+   * `encrypted*` y `tokenExpiresAt` (R7.1, R7.4).
+   */
+  async listIntegrations(companyId: string): Promise<IntegrationSummary[]> {
+    const integrations =
+      await this.integrationRepository.findByCompanyId(companyId);
+    return integrations.map((integration) => this.toSummary(integration));
+  }
+
+  /**
+   * Desconecta una integración de la empresa: valida la pertenencia y marca el
+   * estado `disconnected` (R6, R7). La revocación del token en el proveedor y la
+   * eliminación del material cifrado se incorporan en la tarea 2.2.
+   *
+   * @throws NotFoundException si la integración no existe o no pertenece a la empresa.
+   */
+  async disconnect(
+    companyId: string,
+    integrationId: string,
+  ): Promise<IntegrationSummary> {
+    const integration = await this.integrationRepository.findById(integrationId);
+
+    // No revelamos la existencia de integraciones de otras empresas.
+    if (!integration || integration.companyId !== companyId) {
+      throw new NotFoundException("Integración no encontrada.");
+    }
+
+    const updated = await this.integrationRepository.update(integrationId, {
+      status: IntegrationStatus.DISCONNECTED,
+    });
+
+    this.logger.log(
+      `Integración ${integration.provider} desconectada para la empresa ${companyId}.`,
+    );
+
+    return this.toSummary(updated);
+  }
+
   // ─── Helpers privados ──────────────────────────────────────────────────────
+
+  /**
+   * Proyecta una `Integration` a su `IntegrationSummary` seguro, dejando fuera
+   * los tokens cifrados y cualquier dato sensible.
+   */
+  private toSummary(integration: Integration): IntegrationSummary {
+    return {
+      id: integration.id,
+      provider: integration.provider,
+      category: integration.category,
+      status: integration.status,
+      accountDisplayName: integration.accountDisplayName,
+      scopes: integration.scopes,
+      calendarId: integration.calendarId,
+      lastHealthCheck: integration.lastHealthCheck,
+      connectedAt: integration.connectedAt,
+      lastUsedAt: integration.lastUsedAt,
+    };
+  }
 
   /** Selecciona el adaptador OAuth del proveedor (slice 1: solo Google Drive). */
   private getOAuthAdapter(provider: IntegrationProvider): GoogleDriveAdapter {
