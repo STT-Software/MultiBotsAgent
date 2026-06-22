@@ -28,6 +28,10 @@ import {
   type OAuthTokenResult,
   type ProviderAccountMetadata,
 } from "./providers";
+import {
+  IntegrationNotFoundException,
+  IntegrationNotConnectedException,
+} from "./exceptions/integrations.exceptions";
 
 /** Contexto del flujo recuperado al validar el `state`. */
 interface CallbackContext {
@@ -193,6 +197,39 @@ export class IntegrationsService {
     );
 
     return this.toSummary(updated);
+  }
+
+  /**
+   * Resuelve la integración de un proveedor para **consumo interno** (R6.4).
+   *
+   * Punto de entrada de los consumidores (SOL-06/SOL-04): si la integración no
+   * existe o no está `connected` (desconectada, requiere reconexión o permisos
+   * insuficientes), lanza un error **controlado** (`IntegrationNotFound`/`IntegrationNotConnected`)
+   * en vez de una excepción inesperada. La obtención del token válido (descifrado
+   * + refresco) se construye sobre este método en el slice 3.
+   *
+   * @throws IntegrationNotFoundException si la empresa no tiene esa integración.
+   * @throws IntegrationNotConnectedException si existe pero no está operativa.
+   */
+  async getConnectedIntegration(
+    companyId: string,
+    provider: IntegrationProvider,
+  ): Promise<Integration> {
+    const integration =
+      await this.integrationRepository.findByCompanyAndProvider(
+        companyId,
+        provider,
+      );
+
+    if (!integration) {
+      throw new IntegrationNotFoundException(companyId, provider);
+    }
+
+    if (integration.status !== IntegrationStatus.CONNECTED) {
+      throw new IntegrationNotConnectedException(provider, integration.status);
+    }
+
+    return integration;
   }
 
   /**
