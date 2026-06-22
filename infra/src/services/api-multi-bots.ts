@@ -50,6 +50,17 @@ import {
  */
 const frontendDomainValue = $dev ? "http://localhost:3000" : frontendDomain.value;
 
+/**
+ * Callback único OAuth de Integraciones (SL13). El proveedor se resuelve desde
+ * el `state`, por lo que esta URI es la misma para todos los proveedores y debe
+ * coincidir EXACTO con la registrada en la consola de cada proveedor.
+ * - En `sst dev`: la API NestJS escucha en localhost:3001.
+ * - En deploy: se toma del secret GOOGLE_REDIRECT_URI (apunta a la API pública).
+ */
+const integrationsOAuthRedirectUri = $dev
+  ? "http://localhost:3001/integrations/oauth/callback"
+  : googleRedirectUri.value;
+
 export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   cluster,
   image: {
@@ -125,6 +136,9 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
     GOOGLE_CLIENT_ID: googleClientId.value,
     GOOGLE_CLIENT_SECRET: googleClientSecret.value,
     GOOGLE_REDIRECT_URI: googleRedirectUri.value,
+    // SL13 — Integraciones externas (OAuth)
+    INTEGRATIONS_OAUTH_REDIRECT_URI: integrationsOAuthRedirectUri,
+    FRONTEND_URL: frontendDomainValue,
     OPENAI_API_KEY: openaiApiKey.value,
     MONGODB_VECTOR_INDEX: "knowledge_vector_index",
     BEDROCK_MODEL_ID: "minimax.minimax-m2.5",
