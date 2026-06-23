@@ -475,6 +475,19 @@ export class RagEngineService {
       messagesCount: messages.length,
     });
 
+    // Emitir métrica de conversación completada (fire-and-forget)
+    this.eventEmitter.emit('metric.event', {
+      companyId: config.companyId,
+      agentId: config.agentId,
+      agentType: config.tipo || 'rag',
+      eventType: 'conversation.completed',
+      timestamp: new Date(),
+      metadata: {
+        conversationId: input.conversationId,
+        messageType: input.messageType || 'text',
+      },
+    } satisfies MetricEventPayload);
+
     return {
       conversationId: input.conversationId,
       messages,
@@ -731,6 +744,19 @@ export class RagEngineService {
         },
       } satisfies MetricEventPayload);
 
+      // Emitir métrica de conversación escalada (alimenta totalConversations)
+      this.eventEmitter.emit('metric.event', {
+        companyId: config.companyId,
+        agentId: config.agentId,
+        agentType: 'rag',
+        eventType: 'conversation.escalated',
+        timestamp: escalatedAt,
+        metadata: {
+          conversationId: input.conversationId,
+          escalationType,
+        },
+      } satisfies MetricEventPayload);
+
       // Guardar también en la memoria general
       await this.memoryService.saveMessage(input.conversationId, {
         role: MessageRole.USER,
@@ -831,6 +857,19 @@ export class RagEngineService {
         timestamp: escalatedAt,
         metadata: {
           reason: 'Error al invocar o procesar el modelo de lenguaje.',
+          escalationType: 'agent_detected',
+        },
+      } satisfies MetricEventPayload);
+
+      // Emitir métrica de conversación escalada (alimenta totalConversations)
+      this.eventEmitter.emit('metric.event', {
+        companyId: config.companyId,
+        agentId: config.agentId,
+        agentType: 'rag',
+        eventType: 'conversation.escalated',
+        timestamp: escalatedAt,
+        metadata: {
+          conversationId: input.conversationId,
           escalationType: 'agent_detected',
         },
       } satisfies MetricEventPayload);

@@ -1,6 +1,6 @@
 'use client';
 
-import type { AgentTypeFilter, MetricPeriod } from '../types/metricas.types';
+import type { AgentMetricsResponse, AgentTypeFilter, MetricPeriod } from '../types/metricas.types';
 import { useMetricasGenerales } from '../hooks/use-metricas-generales';
 import { useMetricasPorTipo } from '../hooks/use-metricas-por-tipo';
 import { MetricasPeriodSelector } from './metricas-period-selector';
@@ -12,6 +12,29 @@ import { MetricasAgendamientoCards } from './metricas-agendamiento-cards';
 import { MetricasSkeleton } from './metricas-skeleton';
 import { MetricasErrorState } from './metricas-error-state';
 import { MetricasEmptyState } from './metricas-empty-state';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Determina si un agente tiene actividad real en el período, sin depender
+ * únicamente de successRate (que puede ser 0 aun habiendo actividad, p. ej.
+ * un agente RAG con consultas sin respuesta o temas identificados).
+ */
+function hasAgentData(data: AgentMetricsResponse): boolean {
+  if (data.successRate > 0) return true;
+  // RAG
+  if ((data.noAnswerCount ?? 0) > 0) return true;
+  if ((data.topTopics?.length ?? 0) > 0) return true;
+  // Cotizador
+  if ((data.ordersConfirmed ?? 0) > 0) return true;
+  if ((data.ordersAbandoned ?? 0) > 0) return true;
+  if ((data.conversionRate ?? 0) > 0) return true;
+  // Agendamiento
+  if ((data.appointmentsScheduled ?? 0) > 0) return true;
+  if ((data.appointmentsCancelled ?? 0) > 0) return true;
+  if ((data.peakHours?.length ?? 0) > 0) return true;
+  return false;
+}
 
 // ─── Sub-componentes internos ────────────────────────────────────────────────
 
@@ -36,7 +59,7 @@ function AgentContent({
 
   if (loading) return <MetricasSkeleton />;
   if (error)   return <MetricasErrorState onRetry={retry} />;
-  if (!data || data.successRate === 0) return <MetricasEmptyState />;
+  if (!data || !hasAgentData(data)) return <MetricasEmptyState />;
 
   if (agentType === 'rag')          return <MetricasRagCards data={data} />;
   if (agentType === 'cotizador')    return <MetricasCotizadorCards data={data} />;

@@ -6,6 +6,8 @@ import {
   Query,
   Param,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
   ForbiddenException,
   GatewayTimeoutException,
   BadRequestException,
@@ -33,6 +35,7 @@ const VALID_AGENT_TYPES: AgentType[] = ['rag', 'cotizador', 'agendamiento'];
 @ApiTags('Métricas')
 @ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard)
+@UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
 @Controller('metricas')
 export class MetricasController {
   constructor(
