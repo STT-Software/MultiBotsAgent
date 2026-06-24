@@ -2,6 +2,7 @@ import {
   ExceptionFilter,
   Catch,
   ArgumentsHost,
+  HttpException,
   Logger,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -25,6 +26,13 @@ export class CompanyProfileExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+
+    if (exception instanceof HttpException) {
+      const status = exception.getStatus();
+      const body = exception.getResponse();
+      response.status(status).json(body);
+      return;
+    }
 
     if (exception instanceof CompanyNotFoundError) {
       response.status(404).json({

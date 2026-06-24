@@ -94,7 +94,8 @@ export class CompanyProfileController {
     @Body() dto: UpdateCompanyProfileDto,
   ) {
     const { companyId } = (req as any).user;
-    return this.companyProfileService.updateProfile(companyId, dto);
+    await this.companyProfileService.updateProfile(companyId, dto);
+    return this.companyProfileService.getProfile(companyId);
   }
 
   // ─── POST /company-profile/logo/upload-url ───────────────────────────────
