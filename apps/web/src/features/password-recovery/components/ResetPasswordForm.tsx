@@ -104,7 +104,7 @@ export function ResetPasswordForm({
         />
 
         {/* Requisitos de contraseña — siempre visible debajo del campo */}
-        <PasswordRequirements rules={validationResult.rules} />
+        <PasswordRequirements rules={validationResult.rules} password={formState.newPassword} />
       </div>
 
       {/* Confirmar nueva contraseña */}

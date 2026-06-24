@@ -30,6 +30,13 @@ export default function ResetPasswordContainer() {
     submit,
   } = useResetPassword();
 
+  // Success → redirect to login
+  useEffect(() => {
+    if (status === 'success') {
+      router.push('/login?reset=success');
+    }
+  }, [status, router]);
+
   // No token in URL → show invalid token error
   if (!token) {
     return (
@@ -51,13 +58,6 @@ export default function ResetPasswordContainer() {
       </div>
     );
   }
-
-  // Success → redirect to login
-  useEffect(() => {
-    if (status === 'success') {
-      router.push('/login?reset=success');
-    }
-  }, [status, router]);
 
   if (status === 'success') {
     return null;
