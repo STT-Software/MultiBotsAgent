@@ -133,6 +133,14 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   logging: {
     retention: "1 month",
   },
+  loadBalancer: {
+    ports: [
+      {
+        port: 80,
+        targetPort: 3001,
+      },
+    ],
+  },
   serviceRegistry: {
     port: 3001,
   },

@@ -23,11 +23,13 @@ const INITIAL_STATE: MetricasLiveState = {
 };
 
 /**
- * Hook que abre una conexión WebSocket al namespace /metricas del backend.
+ * Hook que abre una conexión Socket.io al namespace /metricas del backend.
  *
  * Notas de implementación:
- * - El WS va directo al backend (NEXT_PUBLIC_API_URL) sin pasar por Next.js,
- *   porque los rewrites de Next.js no trasladan WebSocket upgrades.
+ * - En deploy: Socket.io se conecta al mismo dominio de CloudFront (HTTPS)
+ *   usando solo transporte polling. Next.js rewrites proxy-a las peticiones
+ *   al backend, eliminando Mixed Content.
+ * - En local: conexión directa a localhost:3001 con WebSocket nativo.
  * - El error "WebSocket closed before connection established" en desarrollo
  *   es normal: React Strict Mode invoca el cleanup/remount. El socket se
  *   reconecta en el segundo montaje y funciona correctamente.
@@ -49,10 +51,19 @@ export function useMetricasWs(): MetricasLiveState {
       socketRef.current = null;
     }
 
+    /**
+     * Estrategia de conexión:
+     * - Local: directo a localhost:3001 con WebSocket nativo (baja latencia)
+     * - Deploy: vía proxy de Next.js rewrites (HTTPS, solo polling)
+     *   → Evita Mixed Content al usar el mismo dominio de CloudFront
+     */
     const isLocal = apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
-    const transports = isLocal ? ['polling', 'websocket'] : ['polling'];
+    const socketUrl = isLocal ? `${apiUrl}/metricas` : '/metricas';
+    const transports: ('websocket' | 'polling')[] = isLocal
+      ? ['websocket', 'polling']
+      : ['polling'];
 
-    const socket = io(`${apiUrl}/metricas`, {
+    const socket = io(socketUrl, {
       query:       { token },
       transports,
       autoConnect: false,

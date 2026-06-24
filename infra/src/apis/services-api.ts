@@ -20,18 +20,6 @@ import { frontendDomain } from "../shared/secrets";
 export let servicesApiUrl: string = "http://localhost:3001";
 
 if (!$dev) {
-  const servicesApi = new sst.aws.ApiGatewayV2("ServicesApi", {
-    vpc,
-    cors: {
-      allowOrigins: [frontendDomain.value],
-      allowCredentials: true,
-      allowHeaders: ["content-type", "authorization", "cookie"],
-      allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    },
-  });
-
-  servicesApi.routePrivate("$default", apiMultiBots.nodes.cloudmapService.arn);
-
-  servicesApiUrl = servicesApi.url;
+  servicesApiUrl = apiMultiBots.url;
 }
 
