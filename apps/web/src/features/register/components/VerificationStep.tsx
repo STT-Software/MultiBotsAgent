@@ -11,23 +11,33 @@ interface VerificationStepProps {
   formData: FormData;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onCaptchaChange: (token: string | null) => void;
+  submitting?: boolean;
 }
 
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '';
 
-export function VerificationStep({ formData, onChange, onCaptchaChange }: VerificationStepProps) {
+export function VerificationStep({
+  formData,
+  onChange,
+  onCaptchaChange,
+  submitting = false,
+}: VerificationStepProps) {
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const handleCaptchaChange = useCallback(
     (token: string | null) => {
+      // No mutar el token mientras hay un request en vuelo (BUG-01).
+      if (submitting) return;
       onCaptchaChange(token);
     },
-    [onCaptchaChange],
+    [onCaptchaChange, submitting],
   );
 
   const handleCaptchaExpired = useCallback(() => {
+    // Ignorar la expiración del widget durante el envío para no borrar el token.
+    if (submitting) return;
     onCaptchaChange(null);
-  }, [onCaptchaChange]);
+  }, [onCaptchaChange, submitting]);
 
   return (
     <>
