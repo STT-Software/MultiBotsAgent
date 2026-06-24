@@ -1,1 +1,281 @@
 @import "tailwindcss";
+
+/* ─── Custom keyframes ─────────────────────────────────────────────────── */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes error-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes stagger-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Utility classes (preserved by Tailwind v4) ───────────────────────── */
+
+@utility animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+@utility animate-error-in {
+  animation: error-in 0.2s ease-out both;
+}
+
+@utility animate-step-in {
+  animation: step-in 0.3s ease-out both;
+}
+
+@utility stagger-1 {
+  opacity: 0;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+}
+
+@utility stagger-2 {
+  opacity: 0;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards;
+}
+
+@utility stagger-3 {
+  opacity: 0;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
+}
+
+@utility stagger-4 {
+  opacity: 0;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.55s forwards;
+}
+
+@utility stagger-5 {
+  opacity: 0;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.7s forwards;
+}
+
+@utility stagger-6 {
+  opacity: 0;
+  animation: stagger-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.85s forwards;
+}
+
+/* ─── Modern surface texture (auth panel) ──────────────────────────────── */
+
+@utility auth-surface {
+  position: relative;
+  background-color: #111318;
+}
+
+/* Multi-value background needs to be outside @utility (Tailwind v4 limitation) */
+.auth-surface {
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(16, 185, 129, 0.06), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(59, 130, 246, 0.04), transparent 60%),
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: auto, auto, 32px 32px, 32px 32px;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+}
+
+/* ─── Success celebration animations ───────────────────────────────────── */
+
+@keyframes success-ring {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes success-check {
+  0% {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes draw-check {
+  0% {
+    stroke-dasharray: 30;
+    stroke-dashoffset: 30;
+  }
+  100% {
+    stroke-dasharray: 30;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes particle-burst {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--rotation, 0deg)) translateY(-20px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--rotation, 0deg)) translateY(-48px) scale(0);
+  }
+}
+
+@keyframes progress-bar {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+@utility animate-success-ring {
+  animation: success-ring 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-success-check {
+  animation: success-check 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+  opacity: 0;
+}
+
+@utility animate-draw-check {
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: draw-check 0.4s ease-out 0.4s forwards;
+}
+
+@utility animate-success-particles {
+  animation: none;
+}
+
+@utility animate-progress-bar {
+  animation: progress-bar 1.8s ease-in-out forwards;
+}
+
+/* ─── Next-gen Landing Page Animations ───────────────────────────────── */
+
+@keyframes gradient-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes laser-flow {
+  0% {
+    left: -20%;
+  }
+  100% {
+    left: 120%;
+  }
+}
+
+@utility animate-gradient-flow {
+  animation: gradient-flow 6s ease infinite;
+}
+
+@utility animate-laser-flow {
+  animation: laser-flow 3s linear infinite;
+}
+
+@keyframes grid-travel {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 80px;
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, -60px) scale(1.1);
+  }
+}
+
+@keyframes float-medium {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-50px, 40px) scale(1.05);
+  }
+}
+
+@utility animate-grid-travel {
+  animation: grid-travel 16s linear infinite;
+}
+
+@utility animate-float-slow {
+  animation: float-slow 20s ease-in-out infinite;
+}
+
+@utility animate-float-medium {
+  animation: float-medium 15s ease-in-out infinite;
+}
+
+@keyframes dash-flow {
+  0% {
+    stroke-dashoffset: 80;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@utility animate-dash-flow {
+  animation: dash-flow 2s linear infinite;
+}
+
+
+

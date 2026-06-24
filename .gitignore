@@ -17,6 +17,9 @@ sst-env.d.ts
 
 # Kiro
 .kiro/
+.antigravity/
+# Agent Skills
+.agents/
 
 # Agents
 .agents/

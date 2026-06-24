@@ -19,6 +19,8 @@ declare namespace sst {
       constructor(name: string, args?: Record<string, unknown>);
       static get(name: string, arn: string): Bucket;
       name: string;
+      arn: string;
+      notify(args: Record<string, unknown>): void;
     }
     class Function {
       constructor(name: string, args?: Record<string, unknown>);
@@ -32,7 +34,9 @@ declare namespace sst {
     }
     class Queue {
       constructor(name: string, args?: Record<string, unknown>);
-      subscribe(handler: string, args?: Record<string, unknown>): void;
+      arn: string;
+      url: string;
+      subscribe(handler: string | sst.aws.Function, args?: Record<string, unknown>): void;
     }
     class Cluster {
       constructor(name: string, args?: Record<string, unknown>);
@@ -64,4 +68,11 @@ declare const $app: {
 
 declare const $dev: boolean;
 
-declare const $dev: boolean;
+/**
+ * Interpolación de strings con Outputs de Pulumi.
+ * Permite componer strings a partir de valores Output sin resolverlos manualmente.
+ */
+declare function $interpolate(
+  literals: TemplateStringsArray,
+  ...placeholders: unknown[]
+): string;

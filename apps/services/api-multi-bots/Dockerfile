@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
@@ -13,20 +13,31 @@ COPY packages/core/package.json ./packages/core/
 COPY packages/db/package.json ./packages/db/
 COPY apps/services/api-multi-bots/package.json ./apps/services/api-multi-bots/
 
-# Instalar dependencias
-RUN pnpm install --frozen-lockfile
+# Instalar dependencias (shamefully-hoist para compatibilidad con nest build en Docker)
+RUN pnpm install --frozen-lockfile --shamefully-hoist
 
 # Copiar código fuente
 COPY packages/ ./packages/
 COPY apps/services/api-multi-bots/ ./apps/services/api-multi-bots/
 
-# Build
+# Build de paquetes internos (orden: types → core, db)
+WORKDIR /app/packages/types
+RUN pnpm run build
+
+WORKDIR /app/packages/core
+RUN pnpm run build
+
+WORKDIR /app/packages/db
+RUN pnpm run build
+
+# Build del servicio NestJS
 WORKDIR /app/apps/services/api-multi-bots
 RUN pnpm run build
 
 # Stage 2: Production
-FROM node:22-alpine AS production
+FROM node:24-alpine AS production
 
+RUN apk add --no-cache curl
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
 WORKDIR /app
@@ -36,7 +47,7 @@ COPY --from=builder /app/packages/ ./packages/
 COPY --from=builder /app/apps/services/api-multi-bots/package.json ./apps/services/api-multi-bots/
 COPY --from=builder /app/apps/services/api-multi-bots/dist/ ./apps/services/api-multi-bots/dist/
 
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --shamefully-hoist
 
 WORKDIR /app/apps/services/api-multi-bots
 

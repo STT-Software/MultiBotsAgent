@@ -13,6 +13,43 @@ export * from "./dtos/example.dto";
 
 // Interfaces
 export * from "./interfaces/example.interface";
+export * from "./interfaces/rag-engine.interfaces";
+export * from "./interfaces/rag-engine-io.interfaces";
 
 // Enums
 export * from "./enums/example.enum";
+export * from "./enums/rag-engine.enums";
+
+// Auth — Registro, login, cambio de contraseña y validación
+export * from "./auth";
+
+// Email Verification
+export * from "./email-verification";
+
+// Company Profile
+export * from "./company-profile";
+
+// Knowledge Base
+export * from "./knowledge";
+// WhatsApp — Webhook verification y tipos del conector
+export * from "./whatsapp";
+
+// Telegram — Tipos para la mensajería del bot
+export * from "./telegram";
+
+// Conversational Memory
+export * from "./memory";
+
+// Agents
+export * from "./agents/agent.types";
+
+// Metrics — Contrato de eventos para el sistema de métricas y analíticas (SL12)
+export * from "./metrics";
+// Bookings
+export * from "./interfaces/booking.interface";
+
+// Audit Logs
+export * from "./audit/audit-log.types";
+
+// Orders
+export * from "./interfaces/order.interface";

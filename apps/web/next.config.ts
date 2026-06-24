@@ -5,6 +5,67 @@ const nextConfig: NextConfig = {
     "@multibotagents/types",
     "@multibotagents/core",
   ],
+  async rewrites() {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    return [
+      {
+        source: "/auth/:path*",
+        destination: `${apiUrl}/auth/:path*`,
+      },
+      {
+        source: "/api/:path*",
+        destination: `${apiUrl}/api/:path*`,
+      },
+      {
+        source: "/metricas/:path*",
+        destination: `${apiUrl}/metricas/:path*`,
+      },
+      {
+        source: "/company-profile",
+        destination: `${apiUrl}/company-profile`,
+      },
+      {
+        source: "/company-profile/:slug*",
+        destination: `${apiUrl}/company-profile/:slug*`,
+      },
+      {
+        source: "/escalamiento/:path*",
+        destination: `${apiUrl}/escalamiento/:path*`,
+      },
+      {
+        source: "/agents",
+        destination: `${apiUrl}/agents`,
+      },
+      {
+        source: "/agents/:path*",
+        destination: `${apiUrl}/agents/:path*`,
+      },
+      {
+        source: "/bookings",
+        destination: `${apiUrl}/bookings`,
+      },
+      {
+        source: "/bookings/:path*",
+        destination: `${apiUrl}/bookings/:path*`,
+      },
+      {
+        source: "/orders",
+        destination: `${apiUrl}/orders`,
+      },
+      {
+        source: "/orders/:path*",
+        destination: `${apiUrl}/orders/:path*`,
+      },
+      {
+        source: "/auditoria",
+        destination: `${apiUrl}/auditoria`,
+      },
+      {
+        source: "/auditoria/:path*",
+        destination: `${apiUrl}/auditoria/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

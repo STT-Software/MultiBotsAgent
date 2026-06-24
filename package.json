@@ -8,13 +8,17 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
+    "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^8.57.0",
-    "turbo": "^2.3.0",
-    "typescript": "^5.7.0"
+    "@typescript-eslint/eslint-plugin": "^8.59.3",
+    "@typescript-eslint/parser": "^8.59.3",
+    "dotenv": "^16.4.5",
+    "eslint": "^8.57.1",
+    "mongodb": "^6.21.0",
+    "sst": "^3.19.3",
+    "turbo": "^2.9.12",
+    "typescript": "^5.9.3"
   }
 }
