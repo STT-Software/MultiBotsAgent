@@ -275,6 +275,9 @@ importers:
       '@pulumi/aws':
         specifier: ^6.83.3
         version: 6.83.3(typescript@5.9.3)
+      '@pulumi/pulumi':
+        specifier: ^3.118.0
+        version: 3.237.0(typescript@5.9.3)
       '@types/node':
         specifier: ^25.7.0
         version: 25.7.0

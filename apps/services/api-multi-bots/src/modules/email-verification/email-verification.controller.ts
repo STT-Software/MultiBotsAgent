@@ -9,6 +9,8 @@ import {
   HttpStatus,
   UseFilters,
   UnauthorizedException,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -161,6 +163,7 @@ El token de verificación actúa como credencial de un solo uso.
 
   @Post('resend-verification')
   @SkipEmailVerification()
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiOperation({
     summary: 'Reenviar email de verificación',
     description: `

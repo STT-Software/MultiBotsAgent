@@ -1,5 +1,8 @@
 'use client';
 
+import Link from 'next/link';
+import { ResendButton } from '@/features/email-verification/components/ResendButton';
+
 interface RegistrationSuccessProps {
   email?: string;
 }
@@ -60,6 +63,20 @@ export function RegistrationSuccess({ email }: RegistrationSuccessProps) {
         <p className="text-xs text-gray-500">
           ¿No lo encuentras? Revisa tu carpeta de spam o correo no deseado.
         </p>
+      </div>
+
+      {/* Acciones de reenvío e inicio de sesión */}
+      <div className="w-full max-w-xs space-y-4 pt-2">
+        <ResendButton />
+
+        <div className="text-center">
+          <Link
+            href="/login"
+            className="text-sm text-gray-400 hover:text-white transition-colors duration-200 underline underline-offset-4"
+          >
+            Ya verifiqué mi email → Ir al login
+          </Link>
+        </div>
       </div>
     </div>
   );
