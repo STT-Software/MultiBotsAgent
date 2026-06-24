@@ -14,6 +14,7 @@ export {
 } from './error-response.dto';
 export { ForgotPasswordRequestDto } from './forgot-password.dto';
 export { ResetPasswordRequestDto } from './reset-password.dto';
+export { LoginRequestDto } from './login-request.dto';
 export {
   ForgotPasswordSuccessResponseDto,
   ResetPasswordSuccessResponseDto,

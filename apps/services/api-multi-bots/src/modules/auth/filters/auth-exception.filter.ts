@@ -98,9 +98,50 @@ export class AuthExceptionFilter implements ExceptionFilter {
 
     // Pass through HttpExceptions already translated by NestJS services
     // (e.g., BadRequestException from ResetPasswordNestService.translateError)
-    if (exception instanceof HttpException) {
-      const status = exception.getStatus();
-      const body = exception.getResponse();
+    if (
+      exception instanceof HttpException ||
+      (exception &&
+        typeof (exception as any).getStatus === 'function' &&
+        typeof (exception as any).getResponse === 'function')
+    ) {
+      const status = (exception as any).getStatus();
+      const body = (exception as any).getResponse();
+
+      // Si el body es un objeto con formato estandar de error de NestJS,
+      // lo transformamos al formato de dominio { error: { code, message } }
+      if (
+        body &&
+        typeof body === 'object' &&
+        'statusCode' in body &&
+        'message' in body &&
+        'error' in body &&
+        !('code' in body)
+      ) {
+        const nestBody = body as any;
+        const message = Array.isArray(nestBody.message)
+          ? nestBody.message.join(', ')
+          : String(nestBody.message);
+
+        let code = 'BAD_REQUEST';
+        if (status === 401) {
+          code = 'UNAUTHORIZED';
+        } else if (status === 403) {
+          code = 'FORBIDDEN';
+        } else if (status === 404) {
+          code = 'NOT_FOUND';
+        } else if (status === 429) {
+          code = 'RATE_LIMIT_EXCEEDED';
+        }
+
+        response.status(status).json({
+          error: {
+            code,
+            message,
+          },
+        });
+        return;
+      }
+
       response.status(status).json(body);
       return;
     }
