@@ -50,6 +50,7 @@ export interface UpdateCompanyProfileData {
   phone?: string | null;
   logo?: string | null;
   referralSource?: ReferralSource | null;
+  escalationTimeoutMinutes?: number;
 }
 
 export interface ICompanyRepository extends Repository<Company> {
