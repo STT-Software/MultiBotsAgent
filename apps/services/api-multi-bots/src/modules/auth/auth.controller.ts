@@ -11,8 +11,6 @@ import {
   UsePipes,
   ValidationPipe,
   Logger,
-  UsePipes,
-  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
