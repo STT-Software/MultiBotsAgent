@@ -8,6 +8,8 @@ import {
   HttpStatus,
   UseGuards,
   UseFilters,
+  UsePipes,
+  ValidationPipe,
   Logger,
 } from '@nestjs/common';
 import {
@@ -20,7 +22,7 @@ import {
   ApiHeader,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import type { RegisterDto, LoginDto } from '@multibotagents/types';
+import type { RegisterDto } from '@multibotagents/types';
 import {
   ValidationError,
   CaptchaError,
@@ -52,6 +54,7 @@ import {
   InternalErrorResponseDto,
   ForgotPasswordRequestDto,
   ResetPasswordRequestDto,
+  LoginRequestDto,
   ForgotPasswordSuccessResponseDto,
   ResetPasswordSuccessResponseDto,
   ResetPasswordBadRequestResponseDto,
@@ -191,6 +194,7 @@ En respuesta exitosa (201), se setea una cookie \`refreshToken\`:
 
   @Post('login')
   @UseFilters(AuthExceptionFilter)
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiOperation({
     summary: 'Iniciar sesión',
     description:
@@ -231,7 +235,7 @@ En respuesta exitosa (201), se setea una cookie \`refreshToken\`:
   @ApiResponse({ status: 429, description: 'Rate limit excedido.' })
   @ApiResponse({ status: 500, description: 'Error interno.' })
   async login(
-    @Body() dto: LoginDto,
+    @Body() dto: LoginRequestDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
@@ -312,6 +316,7 @@ En respuesta exitosa (201), se setea una cookie \`refreshToken\`:
   @Patch('change-password')
   @UseGuards(JwtAuthGuard)
   @UseFilters(AuthExceptionFilter)
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Cambiar contraseña',
@@ -402,6 +407,7 @@ Los campos de contraseña se sanitizan antes del procesamiento:
   @Post('forgot-password')
   @SkipEmailVerification()
   @UseFilters(AuthExceptionFilter)
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiOperation({
     summary: 'Solicitar restablecimiento de contraseña',
     description: `
@@ -468,6 +474,7 @@ Si se excede el límite, se retorna el mismo mensaje genérico (el rate limit no
   @Post('reset-password')
   @SkipEmailVerification()
   @UseFilters(AuthExceptionFilter)
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiOperation({
     summary: 'Restablecer contraseña con token',
     description: `

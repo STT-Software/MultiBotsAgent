@@ -21,6 +21,7 @@ export function InboxView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { conversation, loading: detailLoading } = useConversationDetail(selectedId);
   const [extraMessages, setExtraMessages] = useState<ConversationMessage[]>([]);
+  const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
 
   // Reset extra messages when selecting a different conversation
@@ -48,22 +49,31 @@ export function InboxView() {
 
   const handleResolved = useCallback(() => {
     setToast("Conversación resuelta. El control fue devuelto al agente.");
+    if (selectedId) {
+      setResolvedIds((prev) => {
+        const next = new Set(prev);
+        next.add(selectedId);
+        return next;
+      });
+    }
     setSelectedId(null);
     refresh();
     window.dispatchEvent(new Event("inbox-updated"));
-  }, [refresh]);
+  }, [selectedId, refresh]);
 
   const resolve = useResolveConversation(selectedId, handleResolved);
 
   // Seleccionar la primera conversación escalada por defecto
   useEffect(() => {
     if (conversations.length > 0 && selectedId === null) {
-      const firstEscalated = conversations.find((c) => c.status === "escalated");
+      const firstEscalated = conversations.find(
+        (c) => c.status === "escalated" && !resolvedIds.has(c.id)
+      );
       if (firstEscalated) {
         setSelectedId(firstEscalated.id);
       }
     }
-  }, [conversations, selectedId]);
+  }, [conversations, selectedId, resolvedIds]);
 
   if (loading) {
     return <InboxSkeleton />;

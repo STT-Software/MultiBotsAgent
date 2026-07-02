@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     return [
+      // Proxy de Socket.io — permite que las conexiones en tiempo real
+      // pasen por HTTPS de CloudFront, eliminando Mixed Content en deploy.
+      {
+        source: "/socket.io/:path*",
+        destination: `${apiUrl}/socket.io/:path*`,
+      },
       {
         source: "/auth/:path*",
         destination: `${apiUrl}/auth/:path*`,

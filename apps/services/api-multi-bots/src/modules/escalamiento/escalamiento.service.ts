@@ -221,22 +221,11 @@ export class EscalamientoService {
       throw new BadRequestException('La conversación ya está resuelta');
     }
 
-    // TODO: Verificar si el agente original está activo
-    // Cuando el módulo de agentes esté implementado en el backend, consultar aquí.
-    // Por ahora asumimos que el agente siempre está disponible.
-    const agentAvailable = true;
-
-    let newStatus: string;
-    if (agentAvailable) {
-      await this.repo.updateToActive(companyId, conversationId);
-      newStatus = 'active';
-    } else {
-      await this.repo.updateToUnassigned(companyId, conversationId);
-      newStatus = 'unassigned';
-    }
+    const resolvedAt = new Date();
+    await this.repo.updateStatus(companyId, conversationId, 'resolved', resolvedAt);
+    const newStatus = 'resolved';
 
     // Crear EscalationEvent para auditoría
-    const resolvedAt = new Date();
     const escalatedAt = new Date(conversation.escalatedAt);
     const durationMinutes = Math.round((resolvedAt.getTime() - escalatedAt.getTime()) / 60000);
 

@@ -91,6 +91,11 @@ export class NotificationService {
   async notificarNuevoBooking(params: NotificarNuevoBookingParams): Promise<void> {
     const { companyId, bookingId, customerName, dateTime, agentName } = params;
 
+    if (isNaN(dateTime.getTime())) {
+      console.error("[NotificationService] Intento de notificarNuevoBooking con fecha inválida");
+      return;
+    }
+
     // 1. Emitir alerta por WebSocket
     const wsPayload = {
       type: "booking",
@@ -134,6 +139,11 @@ export class NotificationService {
     const { template, customerEmail, customerName, dateTime, agentName } = params;
 
     if (!customerEmail) return; // Si no hay email, no encolar
+
+    if (isNaN(dateTime.getTime())) {
+      console.error("[NotificationService] Intento de notificarClienteBooking con fecha inválida");
+      return;
+    }
 
     try {
       await this.emailQueueRepository.enqueue({

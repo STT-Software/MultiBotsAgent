@@ -17,6 +17,7 @@ import { indexationQueue } from "../queues/indexation-queue";
 import { whatsAppOutgoingQueue, whatsAppIncomingQueue } from "../queues/whatsapp-queues";
 import { telegramOutgoingQueue, telegramIncomingQueue } from "../queues/telegram-queues";
 
+import * as pulumi from "@pulumi/pulumi";
 import {
   jwtSecrets,
   captchaSecret,
@@ -46,9 +47,14 @@ import {
 /**
  * URL del frontend para construir links de verificación de email.
  * - En `sst dev`: http://localhost:3000 (Next.js local)
- * - En deploy: se toma del secret FrontendDomain
+ * - En deploy de produccion: se toma del secret FrontendDomain
+ * - En otros stages de deploy (dev, qa, etc.): se resuelve automáticamente de la URL de Next.js (web.url)
  */
-const frontendDomainValue = $dev ? "http://localhost:3000" : frontendDomain.value;
+const frontendDomainValue = $dev
+  ? "http://localhost:3000"
+  : ($app.stage === "prod"
+    ? frontendDomain.value
+    : pulumi.output(import("../frontend/web")).apply((m: any) => m.web.url));
 
 export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   cluster,
@@ -132,6 +138,14 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   },
   logging: {
     retention: "1 month",
+  },
+  loadBalancer: {
+    ports: [
+      {
+        port: 80,
+        targetPort: 3001,
+      },
+    ],
   },
   serviceRegistry: {
     port: 3001,

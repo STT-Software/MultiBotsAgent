@@ -176,6 +176,7 @@ export function RegisterForm() {
                 onCaptchaChange={(token) => {
                   form.setCaptchaToken(token || '');
                 }}
+                submitting={submit.submitting}
               />
             )}
           </motion.div>
@@ -202,7 +203,7 @@ export function RegisterForm() {
           disabled={
             (form.step === 1 && !form.step1Valid && form.hasTouchedStep1) ||
             (form.step === 2 && !form.step2Valid && form.hasTouchedStep2) ||
-            (form.step === 3 && (!form.isFormValid || submit.submitting))
+            (form.step === 3 && (!form.isFormValid || submit.submitting || !form.formData.captchaToken))
           }
           className="flex-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 py-2.5 text-sm font-semibold text-white transition-all duration-300 hover:from-emerald-500 hover:to-teal-500 hover:shadow-lg hover:shadow-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-emerald-600 disabled:hover:to-teal-600 disabled:hover:shadow-none sm:py-3 cursor-pointer"
         >

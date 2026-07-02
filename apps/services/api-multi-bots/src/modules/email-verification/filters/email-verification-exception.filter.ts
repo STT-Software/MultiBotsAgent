@@ -3,6 +3,7 @@ import {
   Catch,
   ArgumentsHost,
   Logger,
+  HttpException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import {
@@ -27,6 +28,16 @@ export class EmailVerificationExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+
+    // No tragar las excepciones HttpException de NestJS (evita convertir 400/401 en 500)
+    if (exception instanceof HttpException) {
+      const status = exception.getStatus();
+      const resObj = exception.getResponse();
+      response.status(status).json(
+        typeof resObj === 'string' ? { message: resObj } : resObj
+      );
+      return;
+    }
 
     if (exception instanceof TokenInvalidError) {
       response.status(400).json({

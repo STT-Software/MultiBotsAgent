@@ -1,8 +1,9 @@
 import 'dotenv/config';
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, HttpAdapterHost } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { JsonParseExceptionFilter } from './shared/filters/json-parse-exception.filter';
 
 async function bootstrap() {
   const logLevels: any[] = ['log', 'error', 'warn'];
@@ -19,6 +20,14 @@ async function bootstrap() {
   });
 
   app.use(cookieParser());
+
+  // ─── Filtros globales ──────────────────────────────────────────────────────
+  // Normaliza el error de body JSON malformado al formato de dominio
+  // { error: { code, message } } (OBS-01). Debe registrarse a nivel global:
+  // el error de parsing ocurre antes de resolver el controlador y los filtros
+  // a nivel de método/clase no lo capturan.
+  const httpAdapterHost = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new JsonParseExceptionFilter(httpAdapterHost.httpAdapter));
 
   // ─── CORS ────────────────────────────────────────────────────────────────
   app.enableCors({

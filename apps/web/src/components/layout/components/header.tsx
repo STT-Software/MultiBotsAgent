@@ -30,8 +30,12 @@ export function Header({ empresaNombre, empresaLogo, usuarioNombre }: HeaderProp
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [menuOpen])
 
-  const handleLogout = useCallback(() => {
-    logout()
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout()
+    } catch (error) {
+      console.error('Error al cerrar sesion:', error)
+    }
   }, [])
 
   const handleGoToSettings = useCallback(() => {
@@ -128,6 +132,7 @@ export function Header({ empresaNombre, empresaLogo, usuarioNombre }: HeaderProp
 
               <div className="border-t border-[#3c4a41] py-1">
                 <button
+                  type="button"
                   onClick={handleLogout}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-400 transition-colors hover:bg-[#2f3731]"
                   role="menuitem"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { registerUser } from '../services';
 import type { RegisterError } from '../services/registerApi';
 import type { FormData, StepId } from '../types';
@@ -23,6 +23,10 @@ export function useRegisterSubmit({
   setStep,
 }: UseRegisterSubmitOptions) {
   const [submitting, setSubmitting] = useState(false);
+  // Lock de reentrada inmune a re-renders y desfases de estado (BUG-01):
+  // garantiza que nunca salga un segundo request mientras hay uno en vuelo,
+  // independientemente del estado del botón o del widget de CAPTCHA.
+  const inFlight = useRef(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string> | null>(null);
   const [isConflict, setIsConflict] = useState(false);
@@ -38,6 +42,9 @@ export function useRegisterSubmit({
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
 
+      // Bloquea el segundo request en la raíz si ya hay uno en vuelo.
+      if (inFlight.current) return;
+
       touchAll();
 
       if (!isFormValid) {
@@ -47,6 +54,7 @@ export function useRegisterSubmit({
       }
 
       clearServerErrors();
+      inFlight.current = true;
       setSubmitting(true);
 
       try {
@@ -88,6 +96,7 @@ export function useRegisterSubmit({
           setStep(2);
         }
       } finally {
+        inFlight.current = false;
         setSubmitting(false);
       }
     },

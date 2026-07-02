@@ -19,7 +19,7 @@ export class RegisterRequestDto {
     description: 'Nombre de la empresa. Se sanitiza (trim) antes de almacenar.',
     example: 'Mi Empresa SAS',
     minLength: 1,
-    maxLength: 200,
+    maxLength: 100,
   })
   companyName!: string;
 

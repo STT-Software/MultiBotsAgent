@@ -32,8 +32,12 @@ export function Sidebar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [menuOpen])
 
-  const handleLogout = useCallback(() => {
-    logout()
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout()
+    } catch (error) {
+      console.error('Error al cerrar sesion:', error)
+    }
   }, [])
 
   const handleGoToSettings = useCallback(() => {
@@ -170,6 +174,7 @@ export function Sidebar() {
               <div className="border-t border-[#3c4a41] my-1" />
 
               <button
+                type="button"
                 onClick={handleLogout}
                 className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400 transition-colors hover:bg-[#2f3731]"
                 role="menuitem"

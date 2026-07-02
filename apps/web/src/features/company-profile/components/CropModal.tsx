@@ -8,7 +8,7 @@ interface CropModalProps {
   /** URL de la imagen a recortar (object URL). */
   imageSrc: string
   /** Callback cuando el usuario confirma el crop. */
-  onCropComplete: (croppedBlob: Blob) => void
+  onCropComplete: (croppedBlob: Blob) => Promise<void>
   /** Callback para cerrar el modal sin guardar. */
   onClose: () => void
 }
@@ -33,9 +33,10 @@ export function CropModal({ imageSrc, onCropComplete, onClose }: CropModalProps)
 
     try {
       const blob = await getCroppedImage(imageSrc, croppedAreaPixels)
-      onCropComplete(blob)
+      await onCropComplete(blob)
+      onClose()
     } catch {
-      // Si falla el crop, cerrar el modal
+      // Si falla el crop o la subida, cerrar el modal
       onClose()
     } finally {
       setIsProcessing(false)

@@ -96,6 +96,7 @@ export interface ValidatedProfileData {
   phone?: string | null;
   logo?: string | null;
   referralSource?: ReferralSource | null;
+  escalationTimeoutMinutes?: number;
 }
 
 // ─── Validator ───────────────────────────────────────────────────────────────
@@ -194,6 +195,20 @@ export function validateProfileUpdate(dto: UpdateCompanyProfileDto): ValidatedPr
   // ── logo (pass-through, validated elsewhere) ──
   if (dto.logo !== undefined) {
     validated.logo = dto.logo;
+  }
+
+  // ── escalationTimeoutMinutes ──
+  if (dto.escalationTimeoutMinutes !== undefined) {
+    const minutes = dto.escalationTimeoutMinutes;
+    if (minutes === null || minutes === undefined || typeof minutes !== 'number' || Number.isNaN(minutes)) {
+      errors.escalationTimeoutMinutes = 'El timeout de escalamiento debe ser un número';
+    } else if (!Number.isInteger(minutes)) {
+      errors.escalationTimeoutMinutes = 'El timeout de escalamiento debe ser un número entero';
+    } else if (minutes < 5 || minutes > 1440) {
+      errors.escalationTimeoutMinutes = 'El timeout de escalamiento debe estar entre 5 y 1440 minutos';
+    } else {
+      validated.escalationTimeoutMinutes = minutes;
+    }
   }
 
   // ── Throw si hay errores ──

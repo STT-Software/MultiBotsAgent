@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsHexadecimal, Length, ValidateIf } from 'class-validator';
 
 /**
  * DTO para el body del endpoint POST /auth/resend-verification.
@@ -15,5 +16,9 @@ export class ResendVerificationBodyDto {
     maxLength: 64,
     pattern: '^[0-9a-f]{64}$',
   })
+  @ValidateIf((o) => o.expiredToken !== undefined)
+  @IsString()
+  @IsHexadecimal()
+  @Length(64, 64)
   expiredToken?: string;
 }

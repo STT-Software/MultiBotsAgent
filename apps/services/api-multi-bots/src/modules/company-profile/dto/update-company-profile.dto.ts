@@ -64,4 +64,12 @@ export class UpdateCompanyProfileDto {
     nullable: true,
   })
   referralSource?: ReferralSource | null;
+
+  @ApiPropertyOptional({
+    description: 'Timeout de auto-devolución de escalamiento en minutos (entre 5 y 1440).',
+    example: 60,
+    minimum: 5,
+    maximum: 1440,
+  })
+  escalationTimeoutMinutes?: number;
 }

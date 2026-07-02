@@ -21,6 +21,7 @@ function toEntity(doc: CompanyDocument): Company {
     referralSource: doc.referralSource,
     status: doc.status,
     deletionReqDate: doc.deletionReqDate,
+    escalationTimeoutMinutes: doc.escalationTimeoutMinutes,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
