@@ -21,6 +21,10 @@ sst-env.d.ts
 # Agent Skills
 .agents/
 
+# Agents
+.agents/
+skills-lock.json
+
 # Environment variables
 .env
 .env.*
@@ -46,3 +50,7 @@ docker-compose.override.yml
 
 # Coverage
 coverage/
+
+# Documentación (generada/referencia)
+Documentacion/
+infra-docs/
