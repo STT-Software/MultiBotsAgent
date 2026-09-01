@@ -54,7 +54,7 @@ export function EmbeddedSignupContainer({ agentId, currentChannel }: EmbeddedSig
   const [selectedChannel, setSelectedChannel] = useState<'whatsapp' | 'telegram'>('whatsapp');
 
   // Pestaña activa en WhatsApp
-  const [activeTab, setActiveTab] = useState<'embedded' | 'manual'>('manual');
+  const [activeTab, setActiveTab] = useState<'embedded' | 'manual'>('embedded');
 
   // Inicialización perezosa de campos manuales desde localStorage
   const [wabaId, setWabaId] = useState(() => {
@@ -676,18 +676,16 @@ export function EmbeddedSignupContainer({ agentId, currentChannel }: EmbeddedSig
                 <div className="p-6 sm:p-8">
                   {activeTab === 'embedded' ? (
                     <div className="space-y-5 text-center max-w-md mx-auto py-4">
-                      <div className="inline-flex items-center justify-center rounded-full bg-[#00bb7a]/10 px-3 py-1 mb-2 border border-[#00bb7a]/20">
-                        <span className="text-xs font-medium text-[#00bb7a]">En desarrollo</span>
-                      </div>
                       <p className="text-xs text-[#869489] leading-relaxed">
-                        La integración de Meta Embedded Signup se encuentra actualmente en desarrollo para mejorar la seguridad. 
-                        Por favor, utiliza la pestaña de configuración manual e introduce tus credenciales directamente.
+                        Conecta tu número a través de Meta. Se abrirá una ventana donde inicias sesión,
+                        eliges tu cuenta de WhatsApp Business y verificas el número. No necesitas
+                        introducir credenciales manualmente.
                       </p>
                       <div className="pt-2 flex justify-center">
                         <ConnectWhatsAppButton
                           onConnect={connect}
                           isLoading={isConnecting}
-                          disabled={true}
+                          disabled={false}
                         />
                       </div>
                     </div>
