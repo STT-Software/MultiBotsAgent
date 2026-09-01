@@ -18,7 +18,11 @@ import { knowledgeBucket } from "../storage/knowledge-bucket";
  * Después de 3 reintentos fallidos, el mensaje se mueve aquí para
  * inspección y manejo manual o automático de errores.
  */
-export const indexationDlq = new sst.aws.Queue("IndexationDlq");
+export const indexationDlq = new sst.aws.Queue("IndexationDlq", {
+  // Atributo explícito necesario: el proveedor aws 7.x envía un
+  // SetQueueAttributes vacío en colas sin atributos y AWS lo rechaza.
+  visibilityTimeout: "6 minutes",
+});
 
 /**
  * Cola principal de indexación.

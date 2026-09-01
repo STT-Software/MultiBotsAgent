@@ -122,7 +122,7 @@ export const whatsAppIncomingProcessor = new sst.aws.Function("WhatsAppIncomingP
   },
 });
 
-whatsAppIncomingQueue.subscribe(whatsAppIncomingProcessor);
+whatsAppIncomingQueue.subscribe(whatsAppIncomingProcessor.arn);
 
 /**
  * Lambda que consume mensajes salientes (respuestas) y los envía a la API de Meta.
@@ -143,4 +143,4 @@ export const whatsAppSenderHandler = new sst.aws.Function("WhatsAppSenderHandler
   },
 });
 
-whatsAppOutgoingQueue.subscribe(whatsAppSenderHandler);
+whatsAppOutgoingQueue.subscribe(whatsAppSenderHandler.arn);

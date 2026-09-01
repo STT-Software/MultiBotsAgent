@@ -1,3 +1,54 @@
+# Contexto de build para las imágenes de apps/services.
+#
+# El Dockerfile instala dependencias y compila dentro de la imagen, así que el
+# contexto solo necesita: manifiestos del workspace, packages/ y el servicio.
+# Todo lo demás se excluye — sin esto el contexto supera los 2 GB y el build
+# expira con "context deadline exceeded".
 
-# sst
+# Dependencias: se instalan dentro de la imagen
+node_modules
+
+# Artefactos de build: se generan dentro de la imagen
+dist
+.next
+.open-next
+.turbo
+*.tsbuildinfo
+coverage
+
+# Infraestructura y estado
 .sst
+.git
+.github
+infra
+infra-docs
+sst-env.d.ts
+
+# Apps que este servicio no necesita
+apps/web
+apps/functions
+
+# Herramientas y editores
+.vscode
+.idea
+.agents
+.antigravity
+.kiro
+.codegraph
+
+# Documentación y utilidades
+Documentacion
+docs
+scripts
+
+# Variables de entorno: se inyectan por el entorno de ejecución
+.env
+.env.*
+!.env.example
+
+# Logs y basura del sistema
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db

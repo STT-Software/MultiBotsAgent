@@ -26,7 +26,7 @@ export const telegramIncomingProcessor = new sst.aws.Function("TelegramIncomingP
   },
 });
 
-telegramIncomingQueue.subscribe(telegramIncomingProcessor);
+telegramIncomingQueue.subscribe(telegramIncomingProcessor.arn);
 
 /**
  * Lambda que consume mensajes salientes (respuestas) y los envía a la API de Telegram.
@@ -47,4 +47,4 @@ export const telegramSenderHandler = new sst.aws.Function("TelegramSenderHandler
   },
 });
 
-telegramOutgoingQueue.subscribe(telegramSenderHandler);
+telegramOutgoingQueue.subscribe(telegramSenderHandler.arn);

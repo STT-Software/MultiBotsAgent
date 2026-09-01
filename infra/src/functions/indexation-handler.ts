@@ -53,4 +53,4 @@ export const indexationHandler = new sst.aws.Function("IndexationHandler", {
  * Cuando un mensaje llega a la cola (evento S3 PutObject del bucket),
  * la Lambda se invoca automáticamente para procesar el documento.
  */
-indexationQueue.subscribe(indexationHandler);
+indexationQueue.subscribe(indexationHandler.arn);

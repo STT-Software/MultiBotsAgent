@@ -9,7 +9,11 @@
 /**
  * DLQ para mensajes entrantes de WhatsApp que fallan repetidamente.
  */
-export const whatsAppIncomingDlq = new sst.aws.Queue("WhatsAppIncomingDlq");
+export const whatsAppIncomingDlq = new sst.aws.Queue("WhatsAppIncomingDlq", {
+  // Atributo explícito necesario: el proveedor aws 7.x envía un
+  // SetQueueAttributes vacío en colas sin atributos y AWS lo rechaza.
+  visibilityTimeout: "60 seconds",
+});
 
 /**
  * Cola principal para procesar mensajes entrantes de WhatsApp.
@@ -22,7 +26,9 @@ export const whatsAppIncomingQueue = new sst.aws.Queue("WhatsAppIncomingQueue", 
 /**
  * DLQ para mensajes salientes de WhatsApp que fallan en el envío a Meta.
  */
-export const whatsAppOutgoingDlq = new sst.aws.Queue("WhatsAppOutgoingDlq");
+export const whatsAppOutgoingDlq = new sst.aws.Queue("WhatsAppOutgoingDlq", {
+  visibilityTimeout: "60 seconds",
+});
 
 /**
  * Cola principal para enviar respuestas salientes de WhatsApp.

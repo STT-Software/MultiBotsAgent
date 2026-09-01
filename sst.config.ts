@@ -8,6 +8,10 @@ export default $config({
       home: "aws",
       providers: {
         aws: {
+          // Fijado para alinear con el estado del stage compartido `dev`:
+          // - 6.66.2 falla al leer los buckets S3 ("missing expected [").
+          // - 6.83.x no puede leer aws_instance, cuyo estado está en versión 2.
+          version: "7.44.0",
           region: "us-east-1",
           profile: "multibot",
           defaultTags: {
