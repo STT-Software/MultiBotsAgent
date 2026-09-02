@@ -1,4 +1,13 @@
 /**
+ * NOTA: el commit 50917fa sustituyó este API Gateway por la URL directa del
+ * balanceador del servicio, como parte del arreglo de WebSockets. Esa variante
+ * no puede desplegarse: un ALB exige subredes en dos zonas de disponibilidad y
+ * la VPC está definida con `az: 1`. Se restaura la integración privada vía
+ * Cloud Map, que es la que está en funcionamiento, hasta que se decida si se
+ * amplía la red a dos zonas o se resuelven los WebSockets de otra forma.
+ */
+
+/**
  * Services API — API Gateway HTTP para servicios Fargate.
  *
  * Expone los servicios ECS Fargate al internet público mediante

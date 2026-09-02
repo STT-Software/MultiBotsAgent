@@ -139,14 +139,13 @@ export const apiMultiBots = new sst.aws.Service("ApiMultiBots", {
   logging: {
     retention: "1 month",
   },
-  loadBalancer: {
-    ports: [
-      {
-        port: 80,
-        targetPort: 3001,
-      },
-    ],
-  },
+  // Balanceador desactivado: requiere subredes en dos zonas de disponibilidad y la
+  // VPC está definida con `az: 1`. Habilitarlo exige decidir antes si se amplía la
+  // red a dos zonas, con el coste y la recreación de subredes que implica.
+  // La forma correcta, cuando se retome, es { listen: "80/http", forward: "3001/http" }.
+  // loadBalancer: {
+  //   rules: [{ listen: "80/http", forward: "3001/http" }],
+  // },
   serviceRegistry: {
     port: 3001,
   },
