@@ -87,6 +87,16 @@ export class MetaGraphApiProvider {
     url.searchParams.set('client_id', this.appId);
     url.searchParams.set('client_secret', this.appSecret);
     url.searchParams.set('code', tokenCode);
+    // El diálogo de OAuth que abre el SDK de JavaScript usa un redirect_uri vacío.
+    // Meta distingue entre omitir el parámetro y enviarlo vacío: al omitirlo rechaza
+    // el código con "Error validating verification code".
+    url.searchParams.set('redirect_uri', '');
+
+    // Diagnóstico sin exponer la credencial: longitud y prefijo bastan para
+    // distinguir un código ausente o truncado de uno rechazado por Meta.
+    this.logger.debug(
+      `Exchanging Embedded Signup code (length=${tokenCode?.length ?? 0}, prefix=${tokenCode?.slice(0, 6) ?? 'none'})`,
+    );
 
     const response = await this.makeRequest(url.toString(), { method: 'GET' });
     const data = await this.parseResponse<{ access_token: string }>(response);
@@ -289,7 +299,7 @@ export class MetaGraphApiProvider {
 
       if (mapped) {
         this.logger.warn(
-          `Meta Graph API error: code=${metaError.error.code}, type=${metaError.error.type}, message=${metaError.error.message}`,
+          `Meta Graph API error: code=${metaError.error.code}, subcode=${metaError.error.error_subcode ?? 'none'}, type=${metaError.error.type}, fbtrace_id=${metaError.error.fbtrace_id ?? 'none'}, message=${metaError.error.message}`,
         );
 
         switch (mapped.httpStatus) {
